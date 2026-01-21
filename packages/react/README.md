@@ -366,6 +366,26 @@ import type {
 } from '@rodrigocoliveira/agno-react';
 ```
 
+## Publishing
+
+To publish this package to npm:
+
+```bash
+# Login to npm (first time only)
+npm login
+
+# Build the package
+pnpm build
+
+# Publish (use --access public for scoped packages)
+pnpm publish --access public
+```
+
+**Publish order:** This package depends on both `@rodrigocoliveira/agno-types` and `@rodrigocoliveira/agno-client`, so publish them first:
+1. `@rodrigocoliveira/agno-types`
+2. `@rodrigocoliveira/agno-client`
+3. `@rodrigocoliveira/agno-react` (this package)
+
 ## License
 
 MIT

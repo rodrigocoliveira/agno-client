@@ -402,6 +402,26 @@ function ChatComponent() {
 - `run:cancelled` - Emitted when cancellation completes (includes `runId` and `sessionId`)
 - Cancelled messages have `cancelled: true` flag (distinct from errors)
 
+## Publishing
+
+To publish this package to npm:
+
+```bash
+# Login to npm (first time only)
+npm login
+
+# Build the package
+pnpm build
+
+# Publish (use --access public for scoped packages)
+pnpm publish --access public
+```
+
+**Publish order:** This package depends on `@rodrigocoliveira/agno-types`, so publish types first:
+1. `@rodrigocoliveira/agno-types`
+2. `@rodrigocoliveira/agno-client` (this package)
+3. `@rodrigocoliveira/agno-react`
+
 ## License
 
 MIT

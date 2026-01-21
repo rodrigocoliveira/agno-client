@@ -148,6 +148,23 @@ enum RunEvent {
 }
 ```
 
+## Publishing
+
+To publish this package to npm:
+
+```bash
+# Login to npm (first time only)
+npm login
+
+# Build the package
+pnpm build
+
+# Publish (use --access public for scoped packages)
+pnpm publish --access public
+```
+
+**Note:** This package must be published before `@rodrigocoliveira/agno-client` and `@rodrigocoliveira/agno-react` since they depend on it.
+
 ## License
 
 MIT
