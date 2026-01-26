@@ -52,6 +52,7 @@ export { useAgnoActions } from './hooks/useAgnoActions';
 export { useAgnoToolExecution, getCustomRender } from './hooks/useAgnoToolExecution';
 export type { ToolHandler, ToolExecutionEvent } from './hooks/useAgnoToolExecution';
 export { useAgnoCustomEvents } from './hooks/useAgnoCustomEvents';
+export { useAgnoMemory } from './hooks/useAgnoMemory';
 
 // Re-export types from dependencies
 export type {
@@ -77,4 +78,14 @@ export type {
   CardData,
   TableColumn,
   CustomEventData,
+  // Memory types
+  UserMemory,
+  MemoriesListResponse,
+  ListMemoriesParams,
+  CreateMemoryRequest,
+  UpdateMemoryRequest,
+  DeleteMultipleMemoriesRequest,
+  UserMemoryStats,
+  UserMemoryStatsResponse,
+  UserMemoryStatsParams,
 } from '@rodrigocoliveira/agno-types';

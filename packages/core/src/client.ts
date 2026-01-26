@@ -15,11 +15,20 @@ import type {
   TeamRunSchema,
   CreateSessionRequest,
   UpdateSessionRequest,
+  UserMemory,
+  MemoriesListResponse,
+  ListMemoriesParams,
+  CreateMemoryRequest,
+  UpdateMemoryRequest,
+  DeleteMultipleMemoriesRequest,
+  UserMemoryStatsResponse,
+  UserMemoryStatsParams,
 } from '@rodrigocoliveira/agno-types';
 import { RunEvent } from '@rodrigocoliveira/agno-types';
 import { MessageStore } from './stores/message-store';
 import { ConfigManager } from './managers/config-manager';
 import { SessionManager } from './managers/session-manager';
+import { MemoryManager } from './managers/memory-manager';
 import { EventProcessor } from './processors/event-processor';
 import { streamResponse } from './parsers/stream-parser';
 import { Logger } from './utils/logger';
@@ -51,6 +60,7 @@ export class AgnoClient extends EventEmitter {
   private messageStore: MessageStore;
   private configManager: ConfigManager;
   private sessionManager: SessionManager;
+  private memoryManager: MemoryManager;
   private eventProcessor: EventProcessor;
   private state: ClientState;
   private pendingUISpecs: Map<string, any>; // toolCallId -> UIComponentSpec
@@ -63,6 +73,7 @@ export class AgnoClient extends EventEmitter {
     this.messageStore = new MessageStore();
     this.configManager = new ConfigManager(config);
     this.sessionManager = new SessionManager();
+    this.memoryManager = new MemoryManager();
     this.eventProcessor = new EventProcessor();
     this.pendingUISpecs = new Map();
     this.state = {
@@ -77,6 +88,8 @@ export class AgnoClient extends EventEmitter {
       toolsAwaitingExecution: undefined,
       currentRunId: undefined,
       isCancelling: false,
+      memories: [],
+      memoryTopics: [],
     };
   }
 
@@ -1435,5 +1448,257 @@ export class AgnoClient extends EventEmitter {
     }
 
     return { agents, teams };
+  }
+
+  // ============================================================================
+  // Memory Methods
+  // ============================================================================
+
+  /**
+   * Fetch memories with optional filtering and pagination
+   */
+  async fetchMemories(
+    queryParams?: ListMemoriesParams,
+    options?: { params?: Record<string, string> }
+  ): Promise<MemoriesListResponse> {
+    const config = this.configManager.getConfig();
+    const dbId = this.configManager.getDbId() || '';
+
+    const params = this.configManager.buildQueryString(options?.params);
+
+    const response = await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.memoryManager.fetchMemories(
+        config.endpoint,
+        dbId,
+        headers,
+        queryParams,
+        params
+      );
+    });
+
+    this.state.memories = response.data;
+    this.emit('state:change', this.getState());
+
+    return response;
+  }
+
+  /**
+   * Get a specific memory by ID
+   */
+  async getMemoryById(
+    memoryId: string,
+    options?: { params?: Record<string, string>; table?: string }
+  ): Promise<UserMemory> {
+    const config = this.configManager.getConfig();
+    const dbId = this.configManager.getDbId() || '';
+    const userId = this.configManager.getUserId();
+
+    const params = this.configManager.buildQueryString(options?.params);
+
+    return await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.memoryManager.getMemoryById(
+        config.endpoint,
+        memoryId,
+        dbId,
+        headers,
+        userId,
+        options?.table,
+        params
+      );
+    });
+  }
+
+  /**
+   * Get all available memory topics
+   */
+  async getMemoryTopics(
+    options?: { params?: Record<string, string>; table?: string }
+  ): Promise<string[]> {
+    const config = this.configManager.getConfig();
+    const dbId = this.configManager.getDbId() || '';
+
+    const params = this.configManager.buildQueryString(options?.params);
+
+    const topics = await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.memoryManager.getMemoryTopics(
+        config.endpoint,
+        dbId,
+        headers,
+        options?.table,
+        params
+      );
+    });
+
+    this.state.memoryTopics = topics;
+    this.emit('state:change', this.getState());
+
+    return topics;
+  }
+
+  /**
+   * Get user memory statistics
+   */
+  async getUserMemoryStats(
+    queryParams?: UserMemoryStatsParams,
+    options?: { params?: Record<string, string> }
+  ): Promise<UserMemoryStatsResponse> {
+    const config = this.configManager.getConfig();
+    const dbId = this.configManager.getDbId() || '';
+
+    const params = this.configManager.buildQueryString(options?.params);
+
+    return await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.memoryManager.getUserMemoryStats(
+        config.endpoint,
+        dbId,
+        headers,
+        queryParams,
+        params
+      );
+    });
+  }
+
+  /**
+   * Create a new memory
+   */
+  async createMemory(
+    request: CreateMemoryRequest,
+    options?: { params?: Record<string, string>; table?: string }
+  ): Promise<UserMemory> {
+    const config = this.configManager.getConfig();
+    const dbId = this.configManager.getDbId() || '';
+
+    const params = this.configManager.buildQueryString(options?.params);
+
+    const memory = await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.memoryManager.createMemory(
+        config.endpoint,
+        request,
+        dbId,
+        headers,
+        options?.table,
+        params
+      );
+    });
+
+    // Add to state
+    this.state.memories = [memory, ...this.state.memories];
+    this.emit('memory:created', memory);
+    this.emit('state:change', this.getState());
+
+    return memory;
+  }
+
+  /**
+   * Update an existing memory
+   */
+  async updateMemory(
+    memoryId: string,
+    request: UpdateMemoryRequest,
+    options?: { params?: Record<string, string>; table?: string }
+  ): Promise<UserMemory> {
+    const config = this.configManager.getConfig();
+    const dbId = this.configManager.getDbId() || '';
+
+    const params = this.configManager.buildQueryString(options?.params);
+
+    const memory = await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.memoryManager.updateMemory(
+        config.endpoint,
+        memoryId,
+        request,
+        dbId,
+        headers,
+        options?.table,
+        params
+      );
+    });
+
+    // Update in state
+    this.state.memories = this.state.memories.map((m) =>
+      m.memory_id === memoryId ? memory : m
+    );
+    this.emit('memory:updated', memory);
+    this.emit('state:change', this.getState());
+
+    return memory;
+  }
+
+  /**
+   * Delete a single memory
+   */
+  async deleteMemory(
+    memoryId: string,
+    options?: { params?: Record<string, string>; table?: string }
+  ): Promise<void> {
+    const config = this.configManager.getConfig();
+    const dbId = this.configManager.getDbId() || '';
+    const userId = this.configManager.getUserId();
+
+    const params = this.configManager.buildQueryString(options?.params);
+
+    await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.memoryManager.deleteMemory(
+        config.endpoint,
+        memoryId,
+        dbId,
+        headers,
+        userId,
+        options?.table,
+        params
+      );
+    });
+
+    // Remove from state
+    this.state.memories = this.state.memories.filter(
+      (m) => m.memory_id !== memoryId
+    );
+    this.emit('memory:deleted', { memoryId });
+    this.emit('state:change', this.getState());
+  }
+
+  /**
+   * Delete multiple memories
+   */
+  async deleteMultipleMemories(
+    memoryIds: string[],
+    options?: { params?: Record<string, string>; table?: string; userId?: string }
+  ): Promise<void> {
+    const config = this.configManager.getConfig();
+    const dbId = this.configManager.getDbId() || '';
+
+    const params = this.configManager.buildQueryString(options?.params);
+
+    const request: DeleteMultipleMemoriesRequest = {
+      memory_ids: memoryIds,
+      user_id: options?.userId,
+    };
+
+    await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.memoryManager.deleteMultipleMemories(
+        config.endpoint,
+        request,
+        dbId,
+        headers,
+        options?.table,
+        params
+      );
+    });
+
+    // Remove from state
+    const deletedIds = new Set(memoryIds);
+    this.state.memories = this.state.memories.filter(
+      (m) => !deletedIds.has(m.memory_id)
+    );
+    this.emit('memories:deleted', { memoryIds });
+    this.emit('state:change', this.getState());
   }
 }

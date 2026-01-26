@@ -164,4 +164,14 @@ export interface ClientState {
    * Whether a cancellation request is in progress
    */
   isCancelling?: boolean;
+
+  /**
+   * Cached memories
+   */
+  memories: import('./api').UserMemory[];
+
+  /**
+   * Cached memory topics
+   */
+  memoryTopics: string[];
 }

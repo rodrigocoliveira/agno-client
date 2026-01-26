@@ -46,6 +46,16 @@ export type {
   UpdateSessionRequest,
   RenameSessionRequest,
   DeleteMultipleSessionsRequest,
+  // Memory types
+  UserMemory,
+  MemoriesListResponse,
+  ListMemoriesParams,
+  CreateMemoryRequest,
+  UpdateMemoryRequest,
+  DeleteMultipleMemoriesRequest,
+  UserMemoryStats,
+  UserMemoryStatsResponse,
+  UserMemoryStatsParams,
 } from './api';
 
 // Config

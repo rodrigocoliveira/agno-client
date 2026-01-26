@@ -25,6 +25,16 @@ export type {
   VideoData,
   AudioData,
   ResponseAudioData,
+  // Memory types
+  UserMemory,
+  MemoriesListResponse,
+  ListMemoriesParams,
+  CreateMemoryRequest,
+  UpdateMemoryRequest,
+  DeleteMultipleMemoriesRequest,
+  UserMemoryStats,
+  UserMemoryStatsResponse,
+  UserMemoryStatsParams,
 } from '@rodrigocoliveira/agno-types';
 
 export { RunEvent } from '@rodrigocoliveira/agno-types';

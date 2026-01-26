@@ -66,6 +66,7 @@ AgnoClient (EventEmitter)
 ├── MessageStore      - Immutable message state management
 ├── ConfigManager     - Centralized configuration (endpoint, auth, mode, IDs)
 ├── SessionManager    - Fetch/convert session history from API
+├── MemoryManager     - Memory CRUD operations
 ├── EventProcessor    - Process RunEvent types and update messages
 └── StreamParser      - Parse incremental JSON from fetch streams
 ```
@@ -93,9 +94,10 @@ The React package wraps the core client with React-specific patterns:
     └── useAgnoClient()            # Access client directly
         ├── useAgnoChat()          # Message management + streaming
         ├── useAgnoSession()       # Session loading/management
+        ├── useAgnoMemory()        # Memory management
         ├── useAgnoActions()       # Initialization + helpers
-        └── useAgnoToolExecution() # Frontend tool execution (HITL)
-        └── useAgnoCustomEvents()  # Custom Events yeilds by the AgentOS backend
+        ├── useAgnoToolExecution() # Frontend tool execution (HITL)
+        └── useAgnoCustomEvents()  # Custom Events yields by the AgentOS backend
 ```
 
 **Key patterns:**
@@ -328,6 +330,137 @@ All client methods that make API calls support the `params` option:
 - Pagination: `params: { page: '1', limit: '50' }`
 - Custom backend parameters specific to your Agno setup
 
+## Memory API
+
+The client libraries support the Agno Memory API for managing user memories. Memories allow agents to persist and retrieve user-specific information across sessions.
+
+### Available Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `GET /memories` | GET | List memories with filtering, pagination, sorting |
+| `GET /memories/{memory_id}` | GET | Get a specific memory by ID |
+| `GET /memory_topics` | GET | Get all available memory topics |
+| `GET /user_memory_stats` | GET | Get user memory statistics |
+| `POST /memories` | POST | Create a new memory |
+| `PATCH /memories/{memory_id}` | PATCH | Update an existing memory |
+| `DELETE /memories/{memory_id}` | DELETE | Delete a single memory |
+| `DELETE /memories` | DELETE | Delete multiple memories |
+
+### Core Client Usage
+
+```typescript
+const client = new AgnoClient({
+  endpoint: 'http://localhost:7777',
+  mode: 'agent',
+  agentId: 'agent-123',
+  userId: 'user-456' // Link memories to this user
+});
+
+// Create a memory
+const memory = await client.createMemory({
+  memory: 'User prefers dark mode and concise responses',
+  topics: ['preferences', 'communication_style']
+});
+
+// List memories with filtering
+const { data: memories, meta } = await client.fetchMemories({
+  user_id: 'user-456',
+  topics: ['preferences'],
+  limit: 10,
+  sort_order: 'desc'
+});
+
+// Get memory topics
+const topics = await client.getMemoryTopics();
+
+// Get user memory statistics
+const stats = await client.getUserMemoryStats({ limit: 20 });
+
+// Update a memory
+const updated = await client.updateMemory(memory.memory_id, {
+  memory: 'User prefers dark mode, concise responses, and code examples',
+  topics: ['preferences', 'communication_style', 'technical']
+});
+
+// Delete a memory
+await client.deleteMemory(memory.memory_id);
+
+// Delete multiple memories
+await client.deleteMultipleMemories(['mem-1', 'mem-2', 'mem-3']);
+```
+
+### React Hook Usage
+
+```typescript
+import { useAgnoMemory } from '@rodrigocoliveira/agno-react';
+
+function MemoryManager() {
+  const {
+    memories,        // Cached memories array
+    topics,          // Cached topics array
+    isLoading,
+    error,
+    fetchMemories,
+    getMemoryById,
+    getMemoryTopics,
+    getUserMemoryStats,
+    createMemory,
+    updateMemory,
+    deleteMemory,
+    deleteMultipleMemories,
+  } = useAgnoMemory();
+
+  // Fetch memories on mount
+  useEffect(() => {
+    fetchMemories({ user_id: 'user-123', limit: 20 });
+    getMemoryTopics();
+  }, []);
+
+  // Create a new memory
+  const handleCreate = async () => {
+    await createMemory({
+      memory: 'User mentioned they work in healthcare',
+      topics: ['industry', 'healthcare']
+    });
+  };
+
+  return (
+    <div>
+      {memories.map(m => (
+        <div key={m.memory_id}>
+          <p>{m.memory}</p>
+          <small>Topics: {m.topics?.join(', ')}</small>
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+### Memory State Caching
+
+Memories are cached in the client state (similar to sessions):
+- `fetchMemories()` populates the `memories` cache
+- `getMemoryTopics()` populates the `topics` cache
+- CRUD operations automatically update the cache
+- Changes emit `state:change` events for React sync
+
+### Event Names
+
+- `memory:created` - When a memory is created
+- `memory:updated` - When a memory is updated
+- `memory:deleted` - When a single memory is deleted
+- `memories:deleted` - When multiple memories are deleted
+- `state:change` - General state change (existing)
+
+### Key Files
+
+- `packages/types/src/api.ts` - Memory types (`UserMemory`, `ListMemoriesParams`, etc.)
+- `packages/core/src/managers/memory-manager.ts` - MemoryManager class
+- `packages/core/src/client.ts` - Memory methods on AgnoClient
+- `packages/react/src/hooks/useAgnoMemory.ts` - React hook
+
 ## Type Safety and Official Types
 
 All types in `@rodrigocoliveira/agno-types` are based on the **official Agno API specification** provided by the Agno team. When making changes:
@@ -373,6 +506,14 @@ The client expects these Agno API endpoints:
 - `GET /sessions?type={type}&component_id={id}&db_id={dbId}` - List sessions
 - `GET /sessions/{id}/runs?type={type}&db_id={dbId}` - Get session
 - `DELETE /sessions/{id}?db_id={dbId}` - Delete session (unified for both agents and teams)
+- `GET /memories` - List memories
+- `GET /memories/{id}` - Get memory by ID
+- `GET /memory_topics` - Get memory topics
+- `GET /user_memory_stats` - Get user memory statistics
+- `POST /memories` - Create memory
+- `PATCH /memories/{id}` - Update memory
+- `DELETE /memories/{id}` - Delete memory
+- `DELETE /memories` - Delete multiple memories (with request body)
 
 **Important:** Teams do not support the `/continue` endpoint. HITL (Human-in-the-Loop) frontend tool execution is only available for agents.
 

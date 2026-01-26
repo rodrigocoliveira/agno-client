@@ -369,3 +369,131 @@ export interface CustomEventData {
    */
   [key: string]: unknown;
 }
+
+// ============================================================================
+// Memory Types
+// ============================================================================
+
+/**
+ * User memory schema
+ */
+export interface UserMemory {
+  /** Unique identifier for the memory */
+  memory_id: string;
+  /** Memory content text */
+  memory: string;
+  /** Topics or tags associated with the memory */
+  topics?: string[] | null;
+  /** Agent ID associated with this memory */
+  agent_id?: string | null;
+  /** Team ID associated with this memory */
+  team_id?: string | null;
+  /** User ID who owns this memory */
+  user_id?: string | null;
+  /** Timestamp when memory was last updated */
+  updated_at?: string | null;
+}
+
+/**
+ * List memories response with pagination
+ */
+export interface MemoriesListResponse {
+  data: UserMemory[];
+  meta: PaginationInfo;
+}
+
+/**
+ * Query parameters for listing memories
+ */
+export interface ListMemoriesParams {
+  /** Filter memories by user ID */
+  user_id?: string;
+  /** Filter memories by agent ID */
+  agent_id?: string;
+  /** Filter memories by team ID */
+  team_id?: string;
+  /** Fuzzy search within memory content */
+  search_content?: string;
+  /** Number of memories to return per page (default: 20) */
+  limit?: number;
+  /** Page number for pagination (default: 1) */
+  page?: number;
+  /** Field to sort memories by (default: updated_at) */
+  sort_by?: string;
+  /** Sort order (default: desc) */
+  sort_order?: 'asc' | 'desc';
+  /** Database ID to query memories from */
+  db_id?: string;
+  /** The database table to use */
+  table?: string;
+  /** Filter by topics */
+  topics?: string[];
+}
+
+/**
+ * Request body for creating a new memory
+ */
+export interface CreateMemoryRequest {
+  /** Memory content text (1-5000 characters) */
+  memory: string;
+  /** User identifier */
+  user_id?: string | null;
+  /** Topics or tags to associate with the memory */
+  topics?: string[] | null;
+}
+
+/**
+ * Request body for updating an existing memory
+ */
+export interface UpdateMemoryRequest {
+  /** Memory content text (1-5000 characters) */
+  memory: string;
+  /** User identifier */
+  user_id?: string | null;
+  /** Topics or tags to associate with the memory */
+  topics?: string[] | null;
+}
+
+/**
+ * Request body for deleting multiple memories
+ */
+export interface DeleteMultipleMemoriesRequest {
+  /** List of memory IDs to delete (minimum 1 item) */
+  memory_ids: string[];
+  /** User ID to filter memories for deletion */
+  user_id?: string;
+}
+
+/**
+ * User memory statistics
+ */
+export interface UserMemoryStats {
+  /** User ID */
+  user_id: string;
+  /** Total number of memories for this user */
+  total_memories: number;
+  /** Timestamp of last memory update */
+  last_memory_updated_at?: string | null;
+}
+
+/**
+ * User memory statistics response with pagination
+ */
+export interface UserMemoryStatsResponse {
+  data: UserMemoryStats[];
+  meta: PaginationInfo;
+}
+
+/**
+ * Query parameters for user memory statistics
+ */
+export interface UserMemoryStatsParams {
+  /** Number of user statistics to return per page (default: 20) */
+  limit?: number;
+  /** Page number for pagination (default: 1) */
+  page?: number;
+  /** Database ID to query statistics from */
+  db_id?: string;
+  /** Table to query statistics from */
+  table?: string;
+}
