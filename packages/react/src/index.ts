@@ -52,6 +52,7 @@ export { useAgnoActions } from './hooks/useAgnoActions';
 export { useAgnoToolExecution, getCustomRender } from './hooks/useAgnoToolExecution';
 export type { ToolHandler, ToolExecutionEvent } from './hooks/useAgnoToolExecution';
 export { useAgnoCustomEvents } from './hooks/useAgnoCustomEvents';
+export { useAgnoMetrics } from './hooks/useAgnoMetrics';
 
 // Re-export types from dependencies
 export type {
@@ -77,4 +78,11 @@ export type {
   CardData,
   TableColumn,
   CustomEventData,
+  // Metrics API types
+  TokenMetrics,
+  ModelMetrics,
+  DayAggregatedMetrics,
+  MetricsResponse,
+  MetricsOptions,
+  RefreshMetricsOptions,
 } from '@rodrigocoliveira/agno-types';

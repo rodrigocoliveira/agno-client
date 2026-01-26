@@ -46,6 +46,13 @@ export type {
   UpdateSessionRequest,
   RenameSessionRequest,
   DeleteMultipleSessionsRequest,
+  // Metrics API types
+  TokenMetrics,
+  ModelMetrics,
+  DayAggregatedMetrics,
+  MetricsResponse,
+  MetricsOptions,
+  RefreshMetricsOptions,
 } from './api';
 
 // Config

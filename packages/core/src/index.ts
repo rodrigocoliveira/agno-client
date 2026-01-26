@@ -25,6 +25,13 @@ export type {
   VideoData,
   AudioData,
   ResponseAudioData,
+  // Metrics API types
+  TokenMetrics,
+  ModelMetrics,
+  DayAggregatedMetrics,
+  MetricsResponse,
+  MetricsOptions,
+  RefreshMetricsOptions,
 } from '@rodrigocoliveira/agno-types';
 
 export { RunEvent } from '@rodrigocoliveira/agno-types';
