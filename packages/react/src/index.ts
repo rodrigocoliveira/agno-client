@@ -54,6 +54,7 @@ export type { ToolHandler, ToolExecutionEvent } from './hooks/useAgnoToolExecuti
 export { useAgnoCustomEvents } from './hooks/useAgnoCustomEvents';
 export { useAgnoMemory } from './hooks/useAgnoMemory';
 export { useAgnoKnowledge } from './hooks/useAgnoKnowledge';
+export { useAgnoMetrics } from './hooks/useAgnoMetrics';
 
 // Re-export types from dependencies
 export type {
@@ -104,4 +105,11 @@ export type {
   VectorSearchResponse,
   ContentUploadRequest,
   ContentUpdateRequest,
+  // Metrics API types
+  TokenMetrics,
+  ModelMetrics,
+  DayAggregatedMetrics,
+  MetricsResponse,
+  MetricsOptions,
+  RefreshMetricsOptions,
 } from '@rodrigocoliveira/agno-types';

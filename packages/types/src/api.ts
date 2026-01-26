@@ -655,3 +655,129 @@ export interface ContentUpdateRequest {
   metadata?: string | null;
   reader_id?: string | null;
 }
+
+// ============================================================================
+// Metrics API Types
+// ============================================================================
+
+/**
+ * Token usage metrics for a day
+ */
+export interface TokenMetrics {
+  /** Number of input tokens consumed */
+  input_tokens: number;
+  /** Number of output tokens generated */
+  output_tokens: number;
+  /** Total tokens (input + output) */
+  total_tokens: number;
+}
+
+/**
+ * Model-specific usage metrics
+ */
+export interface ModelMetrics {
+  /** Model name/identifier */
+  model_name: string;
+  /** Model provider (e.g., 'openai', 'anthropic') */
+  model_provider: string;
+  /** Number of input tokens for this model */
+  input_tokens: number;
+  /** Number of output tokens for this model */
+  output_tokens: number;
+  /** Total tokens for this model */
+  total_tokens: number;
+  /** Number of runs using this model */
+  runs_count: number;
+}
+
+/**
+ * Aggregated metrics for a single day
+ */
+export interface DayAggregatedMetrics {
+  /** Unique identifier for this metrics record */
+  id: string;
+  /** Total number of agent runs */
+  agent_runs_count: number;
+  /** Total number of agent sessions */
+  agent_sessions_count: number;
+  /** Total number of team runs */
+  team_runs_count: number;
+  /** Total number of team sessions */
+  team_sessions_count: number;
+  /** Total number of workflow runs */
+  workflow_runs_count: number;
+  /** Total number of workflow sessions */
+  workflow_sessions_count: number;
+  /** Total number of unique users */
+  users_count: number;
+  /** Token usage breakdown */
+  token_metrics: TokenMetrics;
+  /** Per-model usage breakdown */
+  model_metrics: ModelMetrics[];
+  /** Date for which these metrics are aggregated (ISO datetime string) */
+  date: string;
+  /** Unix timestamp when record was created */
+  created_at: number;
+  /** Unix timestamp when record was last updated */
+  updated_at: number;
+}
+
+/**
+ * Response from GET /metrics endpoint
+ */
+export interface MetricsResponse {
+  /** Array of daily aggregated metrics */
+  metrics: DayAggregatedMetrics[];
+  /** Timestamp of most recent metrics update (ISO datetime string, nullable) */
+  updated_at: string | null;
+}
+
+/**
+ * Options for fetching metrics via GET /metrics
+ */
+export interface MetricsOptions {
+  /**
+   * Start of metrics range in YYYY-MM-DD format
+   */
+  startingDate?: string;
+
+  /**
+   * End of metrics range in YYYY-MM-DD format
+   */
+  endingDate?: string;
+
+  /**
+   * Database identifier (overrides config dbId if provided)
+   */
+  dbId?: string;
+
+  /**
+   * Specific database table to query
+   */
+  table?: string;
+
+  /**
+   * Additional query parameters
+   */
+  params?: Record<string, string>;
+}
+
+/**
+ * Options for refreshing metrics via POST /metrics/refresh
+ */
+export interface RefreshMetricsOptions {
+  /**
+   * Database ID for metrics calculation (overrides config dbId if provided)
+   */
+  dbId?: string;
+
+  /**
+   * Table for metrics calculation
+   */
+  table?: string;
+
+  /**
+   * Additional query parameters
+   */
+  params?: Record<string, string>;
+}

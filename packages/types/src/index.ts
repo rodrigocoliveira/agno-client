@@ -71,6 +71,13 @@ export type {
   VectorSearchResponse,
   ContentUploadRequest,
   ContentUpdateRequest,
+  // Metrics API types
+  TokenMetrics,
+  ModelMetrics,
+  DayAggregatedMetrics,
+  MetricsResponse,
+  MetricsOptions,
+  RefreshMetricsOptions,
 } from './api';
 
 // Config

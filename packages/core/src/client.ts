@@ -31,6 +31,10 @@ import type {
   VectorSearchRequest,
   VectorSearchResponse,
   ContentUpdateRequest,
+  MetricsResponse,
+  MetricsOptions,
+  RefreshMetricsOptions,
+  DayAggregatedMetrics,
 } from '@rodrigocoliveira/agno-types';
 import { RunEvent } from '@rodrigocoliveira/agno-types';
 import { MessageStore } from './stores/message-store';
@@ -1949,5 +1953,96 @@ export class AgnoClient extends EventEmitter {
         params
       );
     });
+  }
+
+  // ============================================================================
+  // Metrics API Methods
+  // ============================================================================
+
+  /**
+   * Fetch aggregated metrics from the endpoint
+   *
+   * @param options - Options including date range, dbId, table, and custom params
+   * @returns MetricsResponse containing daily aggregated metrics
+   */
+  async fetchMetrics(options?: MetricsOptions): Promise<MetricsResponse> {
+    const url = new URL(`${this.configManager.getEndpoint()}/metrics`);
+
+    // Build query params from global config + per-request params
+    const params = this.configManager.buildQueryString(options?.params);
+
+    // Add metrics-specific parameters
+    if (options?.startingDate) {
+      params.set('starting_date', options.startingDate);
+    }
+    if (options?.endingDate) {
+      params.set('ending_date', options.endingDate);
+    }
+
+    // Use provided dbId or fall back to config
+    const dbId = options?.dbId ?? this.configManager.getDbId();
+    if (dbId) {
+      params.set('db_id', dbId);
+    }
+
+    if (options?.table) {
+      params.set('table', options.table);
+    }
+
+    // Apply params to URL
+    if (params.toString()) {
+      params.forEach((value, key) => {
+        url.searchParams.set(key, value);
+      });
+    }
+
+    const response = await this.fetchWithTokenRefresh(url.toString());
+    if (!response.ok) {
+      throw new Error(`Failed to fetch metrics: ${response.status} ${response.statusText}`);
+    }
+
+    const metrics: MetricsResponse = await response.json();
+    return metrics;
+  }
+
+  /**
+   * Refresh/recalculate metrics on the backend
+   *
+   * @param options - Options including dbId, table, and custom params
+   * @returns Array of refreshed DayAggregatedMetrics
+   */
+  async refreshMetrics(options?: RefreshMetricsOptions): Promise<DayAggregatedMetrics[]> {
+    const url = new URL(`${this.configManager.getEndpoint()}/metrics/refresh`);
+
+    // Build query params from global config + per-request params
+    const params = this.configManager.buildQueryString(options?.params);
+
+    // Use provided dbId or fall back to config
+    const dbId = options?.dbId ?? this.configManager.getDbId();
+    if (dbId) {
+      params.set('db_id', dbId);
+    }
+
+    if (options?.table) {
+      params.set('table', options.table);
+    }
+
+    // Apply params to URL
+    if (params.toString()) {
+      params.forEach((value, key) => {
+        url.searchParams.set(key, value);
+      });
+    }
+
+    const response = await this.fetchWithTokenRefresh(url.toString(), {
+      method: 'POST',
+    });
+
+    if (!response.ok) {
+      throw new Error(`Failed to refresh metrics: ${response.status} ${response.statusText}`);
+    }
+
+    const metrics: DayAggregatedMetrics[] = await response.json();
+    return metrics;
   }
 }
