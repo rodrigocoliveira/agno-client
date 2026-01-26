@@ -164,4 +164,14 @@ export interface ClientState {
    * Whether a cancellation request is in progress
    */
   isCancelling?: boolean;
+
+  /**
+   * Traces list (from last fetchTraces call)
+   */
+  traces: import('./api').TraceSummary[];
+
+  /**
+   * Trace session statistics (from last fetchTraceSessionStats call)
+   */
+  traceSessionStats: import('./api').TraceSessionStats[];
 }

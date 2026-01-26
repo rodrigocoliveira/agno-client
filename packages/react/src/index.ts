@@ -52,6 +52,11 @@ export { useAgnoActions } from './hooks/useAgnoActions';
 export { useAgnoToolExecution, getCustomRender } from './hooks/useAgnoToolExecution';
 export type { ToolHandler, ToolExecutionEvent } from './hooks/useAgnoToolExecution';
 export { useAgnoCustomEvents } from './hooks/useAgnoCustomEvents';
+export { useAgnoTraces } from './hooks/useAgnoTraces';
+export type {
+  PaginatedTracesResult,
+  PaginatedTraceSessionStatsResult,
+} from './hooks/useAgnoTraces';
 
 // Re-export types from dependencies
 export type {
@@ -77,4 +82,16 @@ export type {
   CardData,
   TableColumn,
   CustomEventData,
+  // Traces types
+  TraceStatus,
+  TraceSummary,
+  TraceNode,
+  TraceDetail,
+  TraceSessionStats,
+  TracesListResponse,
+  TraceSessionStatsResponse,
+  ListTracesOptions,
+  GetTraceOptions,
+  GetTraceSessionStatsOptions,
+  PaginationInfo,
 } from '@rodrigocoliveira/agno-types';

@@ -46,6 +46,17 @@ export type {
   UpdateSessionRequest,
   RenameSessionRequest,
   DeleteMultipleSessionsRequest,
+  // Traces API types
+  TraceStatus,
+  TraceSummary,
+  TraceNode,
+  TraceDetail,
+  TraceSessionStats,
+  TracesListResponse,
+  TraceSessionStatsResponse,
+  ListTracesOptions,
+  GetTraceOptions,
+  GetTraceSessionStatsOptions,
 } from './api';
 
 // Config

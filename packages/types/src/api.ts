@@ -323,6 +323,319 @@ export interface DeleteMultipleSessionsRequest {
   session_types: Array<'agent' | 'team'>;
 }
 
+// =============================================================================
+// TRACES API TYPES
+// =============================================================================
+
+/**
+ * Trace status values
+ */
+export type TraceStatus = 'OK' | 'ERROR' | 'UNSET';
+
+/**
+ * Trace summary - used in list traces response
+ * GET /traces
+ */
+export interface TraceSummary {
+  /** Unique trace identifier */
+  trace_id: string;
+
+  /** Trace name */
+  name: string;
+
+  /** Trace status */
+  status: TraceStatus;
+
+  /** Duration as a string (e.g., "1.23s") */
+  duration: string;
+
+  /** Start time (ISO 8601 datetime) */
+  start_time: string;
+
+  /** End time (ISO 8601 datetime) */
+  end_time: string;
+
+  /** Total number of spans in the trace */
+  total_spans: number;
+
+  /** Number of errors in the trace */
+  error_count: number;
+
+  /** Input that triggered the trace */
+  input?: string | null;
+
+  /** Associated run ID */
+  run_id?: string | null;
+
+  /** Associated session ID */
+  session_id?: string | null;
+
+  /** Associated user ID */
+  user_id?: string | null;
+
+  /** Associated agent ID */
+  agent_id?: string | null;
+
+  /** Associated team ID */
+  team_id?: string | null;
+
+  /** Associated workflow ID */
+  workflow_id?: string | null;
+
+  /** Creation timestamp (ISO 8601 datetime) */
+  created_at: string;
+}
+
+/**
+ * Trace node - represents a span in the trace tree
+ * Used both as child spans and as the response when querying with span_id
+ */
+export interface TraceNode {
+  /** Span ID */
+  id: string;
+
+  /** Span name */
+  name: string;
+
+  /** Span type */
+  type: string;
+
+  /** Duration as a string */
+  duration: string;
+
+  /** Start time (ISO 8601 datetime) */
+  start_time: string;
+
+  /** End time (ISO 8601 datetime) */
+  end_time: string;
+
+  /** Span status */
+  status: TraceStatus;
+
+  /** Input data */
+  input?: string | null;
+
+  /** Output data */
+  output?: string | null;
+
+  /** Error message if status is ERROR */
+  error?: string | null;
+
+  /** Child spans */
+  spans?: TraceNode[] | null;
+
+  /** Step type */
+  step_type?: string | null;
+
+  /** Additional metadata */
+  metadata?: Record<string, unknown> | null;
+
+  /** Extra data */
+  extra_data?: Record<string, unknown> | null;
+}
+
+/**
+ * Trace detail - full trace information
+ * GET /traces/{trace_id} (without span_id)
+ */
+export interface TraceDetail {
+  /** Unique trace identifier */
+  trace_id: string;
+
+  /** Trace name */
+  name: string;
+
+  /** Trace status */
+  status: TraceStatus;
+
+  /** Duration as a string */
+  duration: string;
+
+  /** Start time (ISO 8601 datetime) */
+  start_time: string;
+
+  /** End time (ISO 8601 datetime) */
+  end_time: string;
+
+  /** Total number of spans */
+  total_spans: number;
+
+  /** Number of errors */
+  error_count: number;
+
+  /** Input that triggered the trace */
+  input?: string | null;
+
+  /** Output of the trace */
+  output?: string | null;
+
+  /** Error message if status is ERROR */
+  error?: string | null;
+
+  /** Associated run ID */
+  run_id?: string | null;
+
+  /** Associated session ID */
+  session_id?: string | null;
+
+  /** Associated user ID */
+  user_id?: string | null;
+
+  /** Associated agent ID */
+  agent_id?: string | null;
+
+  /** Associated team ID */
+  team_id?: string | null;
+
+  /** Associated workflow ID */
+  workflow_id?: string | null;
+
+  /** Creation timestamp (ISO 8601 datetime) */
+  created_at: string;
+
+  /** Trace tree structure */
+  tree: TraceNode[];
+}
+
+/**
+ * Trace session statistics
+ * GET /trace_session_stats
+ */
+export interface TraceSessionStats {
+  /** Session ID */
+  session_id: string;
+
+  /** Associated user ID */
+  user_id?: string | null;
+
+  /** Associated agent ID */
+  agent_id?: string | null;
+
+  /** Associated team ID */
+  team_id?: string | null;
+
+  /** Associated workflow ID */
+  workflow_id?: string | null;
+
+  /** Total number of traces in the session */
+  total_traces: number;
+
+  /** Timestamp of the first trace (ISO 8601 datetime) */
+  first_trace_at: string;
+
+  /** Timestamp of the last trace (ISO 8601 datetime) */
+  last_trace_at: string;
+}
+
+/**
+ * List traces response
+ * GET /traces
+ */
+export interface TracesListResponse {
+  data: TraceSummary[];
+  meta: PaginationInfo;
+}
+
+/**
+ * Trace session stats response
+ * GET /trace_session_stats
+ */
+export interface TraceSessionStatsResponse {
+  data: TraceSessionStats[];
+  meta: PaginationInfo;
+}
+
+/**
+ * Options for listing traces
+ */
+export interface ListTracesOptions {
+  /** Filter by run ID */
+  run_id?: string;
+
+  /** Filter by session ID */
+  session_id?: string;
+
+  /** Filter by user ID */
+  user_id?: string;
+
+  /** Filter by agent ID */
+  agent_id?: string;
+
+  /** Filter by team ID */
+  team_id?: string;
+
+  /** Filter by workflow ID */
+  workflow_id?: string;
+
+  /** Filter by status (OK, ERROR) */
+  status?: TraceStatus;
+
+  /** Filter traces after this time (ISO 8601 datetime with timezone) */
+  start_time?: string;
+
+  /** Filter traces before this time (ISO 8601 datetime with timezone) */
+  end_time?: string;
+
+  /** Page number (1-indexed, default: 1) */
+  page?: number;
+
+  /** Traces per page (1-100, default: 20) */
+  limit?: number;
+
+  /** Database ID for query source */
+  db_id?: string;
+}
+
+/**
+ * Options for getting trace detail
+ */
+export interface GetTraceOptions {
+  /** Optional span ID to retrieve specific span */
+  span_id?: string;
+
+  /** Optional run ID to retrieve trace for */
+  run_id?: string;
+
+  /** Database ID to query trace from */
+  db_id?: string;
+}
+
+/**
+ * Options for getting trace session statistics
+ */
+export interface GetTraceSessionStatsOptions {
+  /** Filter by user ID */
+  user_id?: string;
+
+  /** Filter by agent ID */
+  agent_id?: string;
+
+  /** Filter by team ID */
+  team_id?: string;
+
+  /** Filter by workflow ID */
+  workflow_id?: string;
+
+  /** Filter traces after this time (ISO 8601 datetime) */
+  start_time?: string;
+
+  /** Filter traces before this time (ISO 8601 datetime) */
+  end_time?: string;
+
+  /** Page number (1-indexed, default: 1) */
+  page?: number;
+
+  /** Items per page (1-100, default: 20) */
+  limit?: number;
+
+  /** Database ID to query from */
+  db_id?: string;
+}
+
+// =============================================================================
+// CUSTOM EVENT TYPES
+// =============================================================================
+
 /**
  * Data payload for CustomEvent events emitted by agent tools.
  *
