@@ -541,7 +541,26 @@ export class AgnoClient extends EventEmitter {
   }
 
   /**
-   * Wrapper for fetch that handles 401 errors with automatic token refresh and retry.
+   * Check if a fetch Response is a 401 with "Token has expired" detail.
+   * Reads the response body to check for the specific error message.
+   */
+  private async isTokenExpiredResponse(response: Response): Promise<boolean> {
+    if (response.status !== 401) {
+      return false;
+    }
+
+    try {
+      const cloned = response.clone();
+      const body = await cloned.json();
+      const detail = body?.detail?.toLowerCase() || '';
+      return detail.includes('token has expired');
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Wrapper for fetch that handles 401 "Token has expired" errors with automatic token refresh and retry.
    * Used for non-streaming API calls.
    *
    * @param url - The URL to fetch
@@ -558,8 +577,8 @@ export class AgnoClient extends EventEmitter {
 
     let response = await fetch(url, { ...init, headers });
 
-    // If 401, try to refresh token and retry once
-    if (response.status === 401) {
+    // If 401 with "Token has expired", try to refresh token and retry once
+    if (await this.isTokenExpiredResponse(response)) {
       const refreshed = await this.tryRefreshToken();
       if (refreshed) {
         const newHeaders = this.configManager.buildRequestHeaders(
@@ -612,18 +631,16 @@ export class AgnoClient extends EventEmitter {
       return;
     }
 
+    const params = this.configManager.buildQueryString(options?.params);
+    const url = new URL(cancelUrl);
+    if (params.toString()) {
+      params.forEach((value, key) => url.searchParams.set(key, value));
+    }
+
     try {
-      const headers = this.configManager.buildRequestHeaders(options?.headers);
-      const params = this.configManager.buildQueryString(options?.params);
-
-      const url = new URL(cancelUrl);
-      if (params.toString()) {
-        params.forEach((value, key) => url.searchParams.set(key, value));
-      }
-
-      const response = await fetch(url.toString(), {
+      const response = await this.fetchWithTokenRefresh(url.toString(), {
         method: 'POST',
-        headers,
+        headers: options?.headers,
       });
 
       if (!response.ok) {
@@ -680,19 +697,21 @@ export class AgnoClient extends EventEmitter {
       const entityType = this.configManager.getMode();
       const dbId = this.configManager.getDbId() || '';
       const userId = this.configManager.getUserId();
-      const headers = this.configManager.buildRequestHeaders();
 
       const params = this.configManager.buildQueryString();
 
-      const response = await this.sessionManager.fetchSession(
-        config.endpoint,
-        entityType,
-        sessionId,
-        dbId,
-        headers,
-        userId,
-        params
-      );
+      const response = await this.withTokenRefresh(() => {
+        const headers = this.configManager.buildRequestHeaders();
+        return this.sessionManager.fetchSession(
+          config.endpoint,
+          entityType,
+          sessionId,
+          dbId,
+          headers,
+          userId,
+          params
+        );
+      });
 
       const messages = this.sessionManager.convertSessionToMessages(response);
 
@@ -850,18 +869,20 @@ export class AgnoClient extends EventEmitter {
     const dbId = this.configManager.getDbId() || '';
     const userId = this.configManager.getUserId();
 
-    const headers = this.configManager.buildRequestHeaders();
     const params = this.configManager.buildQueryString(options?.params);
 
-    return await this.sessionManager.getSessionById(
-      config.endpoint,
-      entityType,
-      sessionId,
-      dbId,
-      headers,
-      userId,
-      params
-    );
+    return await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.sessionManager.getSessionById(
+        config.endpoint,
+        entityType,
+        sessionId,
+        dbId,
+        headers,
+        userId,
+        params
+      );
+    });
   }
 
   /**
@@ -877,19 +898,21 @@ export class AgnoClient extends EventEmitter {
     const dbId = this.configManager.getDbId() || '';
     const userId = this.configManager.getUserId();
 
-    const headers = this.configManager.buildRequestHeaders();
     const params = this.configManager.buildQueryString(options?.params);
 
-    return await this.sessionManager.getRunById(
-      config.endpoint,
-      entityType,
-      sessionId,
-      runId,
-      dbId,
-      headers,
-      userId,
-      params
-    );
+    return await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.sessionManager.getRunById(
+        config.endpoint,
+        entityType,
+        sessionId,
+        runId,
+        dbId,
+        headers,
+        userId,
+        params
+      );
+    });
   }
 
   /**
@@ -910,17 +933,19 @@ export class AgnoClient extends EventEmitter {
       ...(entityType === 'agent' ? { agent_id: entityId } : { team_id: entityId }),
     };
 
-    const headers = this.configManager.buildRequestHeaders();
     const params = this.configManager.buildQueryString(options?.params);
 
-    const session = await this.sessionManager.createSession(
-      config.endpoint,
-      entityType,
-      sessionRequest,
-      dbId,
-      headers,
-      params
-    );
+    const session = await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.sessionManager.createSession(
+        config.endpoint,
+        entityType,
+        sessionRequest,
+        dbId,
+        headers,
+        params
+      );
+    });
 
     // Add to state and emit event
     const sessionEntry: SessionEntry = {
@@ -949,19 +974,21 @@ export class AgnoClient extends EventEmitter {
     const dbId = this.configManager.getDbId() || '';
     const userId = this.configManager.getUserId();
 
-    const headers = this.configManager.buildRequestHeaders();
     const params = this.configManager.buildQueryString(options?.params);
 
-    const session = await this.sessionManager.updateSession(
-      config.endpoint,
-      entityType,
-      sessionId,
-      request,
-      dbId,
-      headers,
-      userId,
-      params
-    );
+    const session = await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.sessionManager.updateSession(
+        config.endpoint,
+        entityType,
+        sessionId,
+        request,
+        dbId,
+        headers,
+        userId,
+        params
+      );
+    });
 
     // Update in state
     this.state.sessions = this.state.sessions.map((s) =>
@@ -991,18 +1018,20 @@ export class AgnoClient extends EventEmitter {
     const entityType = this.configManager.getMode();
     const dbId = this.configManager.getDbId() || '';
 
-    const headers = this.configManager.buildRequestHeaders();
     const params = this.configManager.buildQueryString(options?.params);
 
-    const session = await this.sessionManager.renameSession(
-      config.endpoint,
-      entityType,
-      sessionId,
-      newName,
-      dbId,
-      headers,
-      params
-    );
+    const session = await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.sessionManager.renameSession(
+        config.endpoint,
+        entityType,
+        sessionId,
+        newName,
+        dbId,
+        headers,
+        params
+      );
+    });
 
     // Update in state
     this.state.sessions = this.state.sessions.map((s) =>
@@ -1034,17 +1063,19 @@ export class AgnoClient extends EventEmitter {
     // All sessions will be of the same type (current entity type)
     const sessionTypes = sessionIds.map(() => entityType);
 
-    const headers = this.configManager.buildRequestHeaders();
     const params = this.configManager.buildQueryString(options?.params);
 
-    await this.sessionManager.deleteMultipleSessions(
-      config.endpoint,
-      sessionIds,
-      sessionTypes,
-      dbId,
-      headers,
-      params
-    );
+    await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.sessionManager.deleteMultipleSessions(
+        config.endpoint,
+        sessionIds,
+        sessionTypes,
+        dbId,
+        headers,
+        params
+      );
+    });
 
     // Remove from state
     const deletedIds = new Set(sessionIds);
@@ -1291,7 +1322,6 @@ export class AgnoClient extends EventEmitter {
    */
   async checkStatus(options?: { params?: Record<string, string> }): Promise<boolean> {
     try {
-      const headers = this.configManager.buildRequestHeaders();
       const params = this.configManager.buildQueryString(options?.params);
       const url = new URL(`${this.configManager.getEndpoint()}/health`);
       if (params.toString()) {
@@ -1299,7 +1329,7 @@ export class AgnoClient extends EventEmitter {
           url.searchParams.set(key, value);
         });
       }
-      const response = await fetch(url.toString(), { headers });
+      const response = await this.fetchWithTokenRefresh(url.toString());
       const isActive = response.ok;
       this.state.isEndpointActive = isActive;
       this.emit('state:change', this.getState());

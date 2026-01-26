@@ -38,32 +38,42 @@ async function getSecureClient() {
 
 ### Token Refresh Pattern
 
+The Agno client has built-in automatic token refresh when API calls fail with a 401 "Token has expired" error. Instead of refreshing tokens on arbitrary intervals (which wastes resources and may still miss edge cases), use the `onTokenExpired` callback to refresh tokens on-demand:
+
 ```tsx
-import { AgnoProvider, useAgnoClient } from '@rodrigocoliveira/agno-react';
-import { useEffect, useState } from 'react';
+import { AgnoProvider } from '@rodrigocoliveira/agno-react';
+import { useCallback, useEffect, useState } from 'react';
 
 function TokenRefreshProvider({ children }: { children: React.ReactNode }) {
-  const [config, setConfig] = useState({
+  const [config, setConfig] = useState<{
+    endpoint: string;
+    authToken?: string;
+    onTokenExpired?: () => Promise<string>;
+  }>({
     endpoint: process.env.NEXT_PUBLIC_AGNO_ENDPOINT!,
-    authToken: undefined as string | undefined,
+    authToken: undefined,
   });
 
-  // Fetch initial token
+  // Callback that refreshes token when API returns 401 "Token has expired"
+  const handleTokenExpired = useCallback(async (): Promise<string> => {
+    const newToken = await fetchToken(); // Your token refresh logic
+
+    // Update config with new token (optional - client updates internally)
+    setConfig((prev) => ({ ...prev, authToken: newToken }));
+
+    return newToken;
+  }, []);
+
+  // Fetch initial token on mount
   useEffect(() => {
     fetchToken().then((token) => {
-      setConfig((prev) => ({ ...prev, authToken: token }));
+      setConfig((prev) => ({
+        ...prev,
+        authToken: token,
+        onTokenExpired: handleTokenExpired,
+      }));
     });
-  }, []);
-
-  // Refresh token periodically
-  useEffect(() => {
-    const interval = setInterval(async () => {
-      const newToken = await fetchToken();
-      setConfig((prev) => ({ ...prev, authToken: newToken }));
-    }, 30 * 60 * 1000); // Every 30 minutes
-
-    return () => clearInterval(interval);
-  }, []);
+  }, [handleTokenExpired]);
 
   if (!config.authToken) {
     return <div>Authenticating...</div>;
@@ -75,6 +85,38 @@ function TokenRefreshProvider({ children }: { children: React.ReactNode }) {
     </AgnoProvider>
   );
 }
+```
+
+**How automatic token refresh works:**
+
+1. When any API call receives a 401 response with `{"detail": "Token has expired"}`, the client automatically:
+   - Calls your `onTokenExpired` callback to get a fresh token
+   - Updates the internal auth token
+   - Retries the failed request with the new token
+
+2. This applies to ALL API methods: `sendMessage`, `loadSession`, `fetchSessions`, `cancelRun`, etc.
+
+3. Benefits over interval-based refresh:
+   - **No wasted requests**: Tokens only refresh when actually needed
+   - **No race conditions**: Refresh happens synchronously before retry
+   - **Works for any token lifetime**: Whether tokens expire in 5 minutes or 5 hours
+   - **Handles edge cases**: Long-running operations that span token expiration
+
+```typescript
+// Core client usage (without React)
+import { AgnoClient } from '@rodrigocoliveira/agno-client';
+
+const client = new AgnoClient({
+  endpoint: 'https://api.example.com',
+  mode: 'agent',
+  agentId: 'my-agent',
+  authToken: initialToken,
+  onTokenExpired: async () => {
+    // Called automatically when token expires during any API call
+    const newToken = await myAuthService.refreshToken();
+    return newToken;
+  },
+});
 ```
 
 ### Input Validation
@@ -504,6 +546,7 @@ Before deploying to production:
 
 - [ ] **Security**
   - [ ] Auth tokens are not hardcoded
+  - [ ] Token refresh uses `onTokenExpired` callback (not intervals)
   - [ ] User input is sanitized
   - [ ] HITL handlers validate arguments
   - [ ] HTTPS is used in production
@@ -527,6 +570,7 @@ Before deploying to production:
 ## Key Points
 
 - Never hardcode authentication tokens
+- Use `onTokenExpired` callback for automatic token refresh (not intervals)
 - Validate all user inputs and tool arguments
 - Use lazy loading for heavy components like charts
 - Virtualize long message lists
