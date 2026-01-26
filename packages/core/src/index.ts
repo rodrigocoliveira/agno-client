@@ -25,6 +25,17 @@ export type {
   VideoData,
   AudioData,
   ResponseAudioData,
+  // Evaluation types
+  EvalType,
+  EvalComponentType,
+  ScoringStrategy,
+  SortOrder,
+  EvalSchema,
+  ListEvalRunsParams,
+  EvalRunsListResponse,
+  ExecuteEvalRequest,
+  UpdateEvalRunRequest,
+  DeleteEvalRunsRequest,
 } from '@rodrigocoliveira/agno-types';
 
 export { RunEvent } from '@rodrigocoliveira/agno-types';

@@ -52,6 +52,7 @@ export { useAgnoActions } from './hooks/useAgnoActions';
 export { useAgnoToolExecution, getCustomRender } from './hooks/useAgnoToolExecution';
 export type { ToolHandler, ToolExecutionEvent } from './hooks/useAgnoToolExecution';
 export { useAgnoCustomEvents } from './hooks/useAgnoCustomEvents';
+export { useAgnoEvals } from './hooks/useAgnoEvals';
 
 // Re-export types from dependencies
 export type {
@@ -77,4 +78,15 @@ export type {
   CardData,
   TableColumn,
   CustomEventData,
+  // Evaluation types
+  EvalType,
+  EvalComponentType,
+  ScoringStrategy,
+  SortOrder,
+  EvalSchema,
+  ListEvalRunsParams,
+  EvalRunsListResponse,
+  ExecuteEvalRequest,
+  UpdateEvalRunRequest,
+  DeleteEvalRunsRequest,
 } from '@rodrigocoliveira/agno-types';

@@ -46,6 +46,17 @@ export type {
   UpdateSessionRequest,
   RenameSessionRequest,
   DeleteMultipleSessionsRequest,
+  // Evaluation types
+  EvalType,
+  EvalComponentType,
+  ScoringStrategy,
+  SortOrder,
+  EvalSchema,
+  ListEvalRunsParams,
+  EvalRunsListResponse,
+  ExecuteEvalRequest,
+  UpdateEvalRunRequest,
+  DeleteEvalRunsRequest,
 } from './api';
 
 // Config

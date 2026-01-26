@@ -369,3 +369,189 @@ export interface CustomEventData {
    */
   [key: string]: unknown;
 }
+
+// ============================================================================
+// Evaluation Types
+// ============================================================================
+
+/**
+ * Evaluation type enum
+ */
+export type EvalType = 'accuracy' | 'agent_as_judge' | 'performance' | 'reliability';
+
+/**
+ * Component type for evaluations
+ */
+export type EvalComponentType = 'agent' | 'team' | 'workflow';
+
+/**
+ * Scoring strategy for evaluations
+ */
+export type ScoringStrategy = 'numeric' | 'binary';
+
+/**
+ * Sort order for list queries
+ */
+export type SortOrder = 'asc' | 'desc';
+
+/**
+ * Evaluation schema - represents a single evaluation run
+ */
+export interface EvalSchema {
+  /** Unique identifier for the evaluation run */
+  id: string;
+
+  /** Agent ID if evaluating an agent */
+  agent_id?: string | null;
+
+  /** Team ID if evaluating a team */
+  team_id?: string | null;
+
+  /** Workflow ID if evaluating a workflow */
+  workflow_id?: string | null;
+
+  /** Model identifier used for evaluation */
+  model_id?: string | null;
+
+  /** Model provider name */
+  model_provider?: string | null;
+
+  /** Name of the evaluation run */
+  name?: string | null;
+
+  /** Name of the evaluated component */
+  evaluated_component_name?: string | null;
+
+  /** Type of evaluation */
+  eval_type: EvalType;
+
+  /** Evaluation results and metrics */
+  eval_data: Record<string, unknown>;
+
+  /** Input parameters used for the evaluation */
+  eval_input?: Record<string, unknown> | null;
+
+  /** Creation timestamp */
+  created_at?: string | null;
+
+  /** Last update timestamp */
+  updated_at?: string | null;
+}
+
+/**
+ * Parameters for listing evaluation runs
+ */
+export interface ListEvalRunsParams {
+  /** Filter by agent ID */
+  agent_id?: string;
+
+  /** Filter by team ID */
+  team_id?: string;
+
+  /** Filter by workflow ID */
+  workflow_id?: string;
+
+  /** Filter by model ID */
+  model_id?: string;
+
+  /** Filter by component type */
+  type?: EvalComponentType;
+
+  /** Number of evaluation runs to return (default: 20) */
+  limit?: number;
+
+  /** Page number (default: 1) */
+  page?: number;
+
+  /** Field to sort by (default: created_at) */
+  sort_by?: string;
+
+  /** Sort order (default: desc) */
+  sort_order?: SortOrder;
+
+  /** Database ID to use */
+  db_id?: string;
+
+  /** Database table to use */
+  table?: string;
+
+  /** Comma-separated eval types to filter */
+  eval_types?: string;
+}
+
+/**
+ * Response for listing evaluation runs
+ */
+export interface EvalRunsListResponse {
+  data: EvalSchema[];
+  meta: PaginationInfo;
+}
+
+/**
+ * Request body for executing an evaluation
+ */
+export interface ExecuteEvalRequest {
+  /** Agent identifier to assess */
+  agent_id?: string | null;
+
+  /** Team identifier to assess */
+  team_id?: string | null;
+
+  /** Model identifier for evaluation */
+  model_id?: string | null;
+
+  /** Provider name */
+  model_provider?: string | null;
+
+  /** Assessment category (required) */
+  eval_type: EvalType;
+
+  /** Query or text for evaluation (required, min 1 char) */
+  input: string;
+
+  /** Target output for accuracy checks */
+  expected_output?: string | null;
+
+  /** Evaluation criteria for agent-as-judge */
+  criteria?: string | null;
+
+  /** Scoring strategy (default: binary) */
+  scoring_strategy?: ScoringStrategy | null;
+
+  /** Numeric score cutoff (1-10, default: 7) */
+  threshold?: number | null;
+
+  /** Repetition count (1-100, default: 1) */
+  num_iterations?: number;
+
+  /** Pre-measurement iterations (0-10, default: 0) */
+  warmup_runs?: number;
+
+  /** Required tool invocations */
+  expected_tool_calls?: string[] | null;
+
+  /** Supplementary instructions */
+  additional_guidelines?: string | null;
+
+  /** Background information */
+  additional_context?: string | null;
+
+  /** Run identifier name */
+  name?: string | null;
+}
+
+/**
+ * Request body for updating an evaluation run
+ */
+export interface UpdateEvalRunRequest {
+  /** New name for the evaluation run (1-255 characters) */
+  name: string;
+}
+
+/**
+ * Request body for deleting evaluation runs
+ */
+export interface DeleteEvalRunsRequest {
+  /** List of evaluation run IDs to delete (min 1 item) */
+  eval_run_ids: string[];
+}

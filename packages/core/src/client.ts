@@ -15,11 +15,17 @@ import type {
   TeamRunSchema,
   CreateSessionRequest,
   UpdateSessionRequest,
+  EvalSchema,
+  EvalRunsListResponse,
+  ListEvalRunsParams,
+  ExecuteEvalRequest,
+  UpdateEvalRunRequest,
 } from '@rodrigocoliveira/agno-types';
 import { RunEvent } from '@rodrigocoliveira/agno-types';
 import { MessageStore } from './stores/message-store';
 import { ConfigManager } from './managers/config-manager';
 import { SessionManager } from './managers/session-manager';
+import { EvalManager } from './managers/eval-manager';
 import { EventProcessor } from './processors/event-processor';
 import { streamResponse } from './parsers/stream-parser';
 import { Logger } from './utils/logger';
@@ -51,6 +57,7 @@ export class AgnoClient extends EventEmitter {
   private messageStore: MessageStore;
   private configManager: ConfigManager;
   private sessionManager: SessionManager;
+  private evalManager: EvalManager;
   private eventProcessor: EventProcessor;
   private state: ClientState;
   private pendingUISpecs: Map<string, any>; // toolCallId -> UIComponentSpec
@@ -63,6 +70,7 @@ export class AgnoClient extends EventEmitter {
     this.messageStore = new MessageStore();
     this.configManager = new ConfigManager(config);
     this.sessionManager = new SessionManager();
+    this.evalManager = new EvalManager();
     this.eventProcessor = new EventProcessor();
     this.pendingUISpecs = new Map();
     this.state = {
@@ -1435,5 +1443,138 @@ export class AgnoClient extends EventEmitter {
     }
 
     return { agents, teams };
+  }
+
+  // ============================================================================
+  // Evaluation Methods
+  // ============================================================================
+
+  /**
+   * List evaluation runs with optional filtering and pagination
+   * @param listParams - Parameters for filtering and pagination
+   * @param options - Optional request query parameters
+   */
+  async listEvalRuns(
+    listParams: ListEvalRunsParams = {},
+    options?: { params?: Record<string, string> }
+  ): Promise<EvalRunsListResponse> {
+    const additionalParams = this.configManager.buildQueryString(options?.params);
+
+    return await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.evalManager.listEvalRuns(
+        this.configManager.getEndpoint(),
+        listParams,
+        headers,
+        additionalParams
+      );
+    });
+  }
+
+  /**
+   * Get a specific evaluation run by ID
+   * @param evalRunId - The evaluation run ID
+   * @param options - Optional db_id, table, and query parameters
+   */
+  async getEvalRun(
+    evalRunId: string,
+    options?: { dbId?: string; table?: string; params?: Record<string, string> }
+  ): Promise<EvalSchema> {
+    const additionalParams = this.configManager.buildQueryString(options?.params);
+
+    return await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.evalManager.getEvalRun(
+        this.configManager.getEndpoint(),
+        evalRunId,
+        options?.dbId,
+        options?.table,
+        headers,
+        additionalParams
+      );
+    });
+  }
+
+  /**
+   * Execute a new evaluation
+   * @param request - The evaluation request parameters
+   * @param options - Optional db_id, table, and query parameters
+   */
+  async executeEval(
+    request: ExecuteEvalRequest,
+    options?: { dbId?: string; table?: string; params?: Record<string, string> }
+  ): Promise<EvalSchema> {
+    const additionalParams = this.configManager.buildQueryString(options?.params);
+
+    const result = await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.evalManager.executeEval(
+        this.configManager.getEndpoint(),
+        request,
+        options?.dbId,
+        options?.table,
+        headers,
+        additionalParams
+      );
+    });
+
+    this.emit('eval:executed', result);
+    return result;
+  }
+
+  /**
+   * Update an evaluation run (rename)
+   * @param evalRunId - The evaluation run ID
+   * @param request - The update request with new name
+   * @param options - Optional db_id, table, and query parameters
+   */
+  async updateEvalRun(
+    evalRunId: string,
+    request: UpdateEvalRunRequest,
+    options?: { dbId?: string; table?: string; params?: Record<string, string> }
+  ): Promise<EvalSchema> {
+    const additionalParams = this.configManager.buildQueryString(options?.params);
+
+    const result = await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.evalManager.updateEvalRun(
+        this.configManager.getEndpoint(),
+        evalRunId,
+        request,
+        options?.dbId,
+        options?.table,
+        headers,
+        additionalParams
+      );
+    });
+
+    this.emit('eval:updated', result);
+    return result;
+  }
+
+  /**
+   * Delete multiple evaluation runs
+   * @param evalRunIds - Array of evaluation run IDs to delete
+   * @param options - Optional db_id, table, and query parameters
+   */
+  async deleteEvalRuns(
+    evalRunIds: string[],
+    options?: { dbId?: string; table?: string; params?: Record<string, string> }
+  ): Promise<void> {
+    const additionalParams = this.configManager.buildQueryString(options?.params);
+
+    await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.evalManager.deleteEvalRuns(
+        this.configManager.getEndpoint(),
+        { eval_run_ids: evalRunIds },
+        options?.dbId,
+        options?.table,
+        headers,
+        additionalParams
+      );
+    });
+
+    this.emit('evals:deleted', { evalRunIds });
   }
 }
