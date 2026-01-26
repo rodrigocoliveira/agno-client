@@ -369,3 +369,161 @@ export interface CustomEventData {
    */
   [key: string]: unknown;
 }
+
+// ============================================================================
+// Knowledge API Types
+// ============================================================================
+
+/**
+ * Content processing status
+ */
+export type ContentStatus = 'processing' | 'completed' | 'failed';
+
+/**
+ * Reader configuration schema
+ */
+export interface ReaderSchema {
+  id: string;
+  name?: string | null;
+  description?: string | null;
+  chunkers?: string[] | null;
+}
+
+/**
+ * Chunker configuration schema
+ */
+export interface ChunkerSchema {
+  key: string;
+  name?: string | null;
+  description?: string | null;
+  metadata?: Record<string, unknown> | null;
+}
+
+/**
+ * Vector database configuration schema
+ */
+export interface VectorDbSchema {
+  id: string;
+  name?: string | null;
+  description?: string | null;
+  search_types?: string[] | null;
+}
+
+/**
+ * Knowledge configuration response (GET /knowledge/config)
+ */
+export interface KnowledgeConfigResponse {
+  readers?: Record<string, ReaderSchema> | null;
+  readersForType?: Record<string, string[]> | null;
+  chunkers?: Record<string, ChunkerSchema> | null;
+  filters?: string[] | null;
+  vector_dbs?: VectorDbSchema[] | null;
+}
+
+/**
+ * Content response schema
+ */
+export interface ContentResponse {
+  id: string;
+  name?: string | null;
+  description?: string | null;
+  type?: string | null;
+  size?: string | null;
+  linked_to?: string | null;
+  metadata?: Record<string, unknown> | null;
+  access_count?: number | null;
+  status?: ContentStatus | null;
+  status_message?: string | null;
+  created_at?: string | null;
+  updated_at?: string | null;
+}
+
+/**
+ * Content status response (GET /knowledge/content/{id}/status)
+ */
+export interface ContentStatusResponse {
+  status: ContentStatus;
+  status_message?: string;
+}
+
+/**
+ * Paginated content list response
+ */
+export interface ContentListResponse {
+  data: ContentResponse[];
+  meta: PaginationInfo;
+}
+
+/**
+ * Options for listing content
+ */
+export interface ContentListOptions {
+  limit?: number;
+  page?: number;
+  sort_by?: string;
+  sort_order?: 'asc' | 'desc';
+  db_id?: string;
+}
+
+/**
+ * Vector search request
+ */
+export interface VectorSearchRequest {
+  query: string;
+  db_id?: string | null;
+  vector_db_ids?: string[] | null;
+  search_type?: string | null;
+  max_results?: number | null;
+  filters?: Record<string, unknown> | null;
+  meta?: { limit?: number; page?: number } | null;
+}
+
+/**
+ * Vector search result
+ */
+export interface VectorSearchResult {
+  id: string;
+  content: string;
+  name?: string | null;
+  meta_data?: Record<string, unknown> | null;
+  usage?: Record<string, unknown> | null;
+  reranking_score?: number | null;
+  content_id?: string | null;
+  content_origin?: string | null;
+  size?: number | null;
+}
+
+/**
+ * Vector search response
+ */
+export interface VectorSearchResponse {
+  data: VectorSearchResult[];
+  meta: PaginationInfo;
+}
+
+/**
+ * Content upload request
+ * Note: This is typically sent as multipart/form-data
+ */
+export interface ContentUploadRequest {
+  name?: string;
+  description?: string;
+  url?: string;
+  metadata?: Record<string, unknown>;
+  file?: File;
+  text_content?: string;
+  reader_id?: string;
+  chunker?: string;
+  chunk_size?: number;
+  chunk_overlap?: number;
+}
+
+/**
+ * Content update request
+ */
+export interface ContentUpdateRequest {
+  name?: string | null;
+  description?: string | null;
+  metadata?: string | null;
+  reader_id?: string | null;
+}

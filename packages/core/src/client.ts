@@ -15,11 +15,20 @@ import type {
   TeamRunSchema,
   CreateSessionRequest,
   UpdateSessionRequest,
+  KnowledgeConfigResponse,
+  ContentResponse,
+  ContentStatusResponse,
+  ContentListResponse,
+  ContentListOptions,
+  VectorSearchRequest,
+  VectorSearchResponse,
+  ContentUpdateRequest,
 } from '@rodrigocoliveira/agno-types';
 import { RunEvent } from '@rodrigocoliveira/agno-types';
 import { MessageStore } from './stores/message-store';
 import { ConfigManager } from './managers/config-manager';
 import { SessionManager } from './managers/session-manager';
+import { KnowledgeManager } from './managers/knowledge-manager';
 import { EventProcessor } from './processors/event-processor';
 import { streamResponse } from './parsers/stream-parser';
 import { Logger } from './utils/logger';
@@ -51,6 +60,7 @@ export class AgnoClient extends EventEmitter {
   private messageStore: MessageStore;
   private configManager: ConfigManager;
   private sessionManager: SessionManager;
+  private knowledgeManager: KnowledgeManager;
   private eventProcessor: EventProcessor;
   private state: ClientState;
   private pendingUISpecs: Map<string, any>; // toolCallId -> UIComponentSpec
@@ -63,6 +73,7 @@ export class AgnoClient extends EventEmitter {
     this.messageStore = new MessageStore();
     this.configManager = new ConfigManager(config);
     this.sessionManager = new SessionManager();
+    this.knowledgeManager = new KnowledgeManager();
     this.eventProcessor = new EventProcessor();
     this.pendingUISpecs = new Map();
     this.state = {
@@ -1435,5 +1446,243 @@ export class AgnoClient extends EventEmitter {
     }
 
     return { agents, teams };
+  }
+
+  // ============================================================================
+  // Knowledge API Methods
+  // ============================================================================
+
+  /**
+   * Get knowledge configuration
+   */
+  async getKnowledgeConfig(
+    options?: { dbId?: string; params?: Record<string, string> }
+  ): Promise<KnowledgeConfigResponse> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    return await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.knowledgeManager.getConfig(
+        config.endpoint,
+        headers,
+        options?.dbId ?? this.configManager.getDbId(),
+        params
+      );
+    });
+  }
+
+  /**
+   * List knowledge content
+   */
+  async listKnowledgeContent(
+    listOptions?: ContentListOptions,
+    options?: { params?: Record<string, string> }
+  ): Promise<ContentListResponse> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    return await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.knowledgeManager.listContent(
+        config.endpoint,
+        headers,
+        listOptions,
+        params
+      );
+    });
+  }
+
+  /**
+   * Get knowledge content by ID
+   */
+  async getKnowledgeContent(
+    contentId: string,
+    options?: { dbId?: string; params?: Record<string, string> }
+  ): Promise<ContentResponse> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    return await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.knowledgeManager.getContent(
+        config.endpoint,
+        contentId,
+        headers,
+        options?.dbId ?? this.configManager.getDbId(),
+        params
+      );
+    });
+  }
+
+  /**
+   * Get knowledge content status
+   */
+  async getKnowledgeContentStatus(
+    contentId: string,
+    options?: { dbId?: string; params?: Record<string, string> }
+  ): Promise<ContentStatusResponse> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    return await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.knowledgeManager.getContentStatus(
+        config.endpoint,
+        contentId,
+        headers,
+        options?.dbId ?? this.configManager.getDbId(),
+        params
+      );
+    });
+  }
+
+  /**
+   * Search knowledge base
+   */
+  async searchKnowledge(
+    request: VectorSearchRequest,
+    options?: { params?: Record<string, string> }
+  ): Promise<VectorSearchResponse> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    // Use dbId from config if not specified in request
+    const searchRequest: VectorSearchRequest = {
+      ...request,
+      db_id: request.db_id ?? this.configManager.getDbId(),
+    };
+
+    return await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.knowledgeManager.search(
+        config.endpoint,
+        searchRequest,
+        headers,
+        params
+      );
+    });
+  }
+
+  /**
+   * Upload knowledge content
+   * @param data - FormData with file/text_content or ContentUploadRequest object
+   */
+  async uploadKnowledgeContent(
+    data:
+      | FormData
+      | {
+          name?: string;
+          description?: string;
+          url?: string;
+          metadata?: Record<string, unknown>;
+          file?: File;
+          text_content?: string;
+          reader_id?: string;
+          chunker?: string;
+          chunk_size?: number;
+          chunk_overlap?: number;
+        },
+    options?: { dbId?: string; params?: Record<string, string> }
+  ): Promise<ContentResponse> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    // Convert object to FormData if needed
+    let formData: FormData;
+    if (data instanceof FormData) {
+      formData = data;
+    } else {
+      formData = new FormData();
+      if (data.name) formData.append('name', data.name);
+      if (data.description) formData.append('description', data.description);
+      if (data.url) formData.append('url', data.url);
+      if (data.metadata) formData.append('metadata', JSON.stringify(data.metadata));
+      if (data.file) formData.append('file', data.file);
+      if (data.text_content) formData.append('text_content', data.text_content);
+      if (data.reader_id) formData.append('reader_id', data.reader_id);
+      if (data.chunker) formData.append('chunker', data.chunker);
+      if (data.chunk_size !== undefined)
+        formData.append('chunk_size', String(data.chunk_size));
+      if (data.chunk_overlap !== undefined)
+        formData.append('chunk_overlap', String(data.chunk_overlap));
+    }
+
+    return await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.knowledgeManager.uploadContent(
+        config.endpoint,
+        formData,
+        headers,
+        options?.dbId ?? this.configManager.getDbId(),
+        params
+      );
+    });
+  }
+
+  /**
+   * Update knowledge content
+   */
+  async updateKnowledgeContent(
+    contentId: string,
+    request: ContentUpdateRequest,
+    options?: { dbId?: string; params?: Record<string, string> }
+  ): Promise<ContentResponse> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    return await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.knowledgeManager.updateContent(
+        config.endpoint,
+        contentId,
+        request,
+        headers,
+        options?.dbId ?? this.configManager.getDbId(),
+        params
+      );
+    });
+  }
+
+  /**
+   * Delete all knowledge content
+   */
+  async deleteAllKnowledgeContent(
+    options?: { dbId?: string; params?: Record<string, string> }
+  ): Promise<void> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.knowledgeManager.deleteAllContent(
+        config.endpoint,
+        headers,
+        options?.dbId ?? this.configManager.getDbId(),
+        params
+      );
+    });
+  }
+
+  /**
+   * Delete knowledge content by ID
+   */
+  async deleteKnowledgeContent(
+    contentId: string,
+    options?: { dbId?: string; params?: Record<string, string> }
+  ): Promise<ContentResponse> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    return await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.knowledgeManager.deleteContent(
+        config.endpoint,
+        contentId,
+        headers,
+        options?.dbId ?? this.configManager.getDbId(),
+        params
+      );
+    });
   }
 }

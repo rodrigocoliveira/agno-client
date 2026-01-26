@@ -25,6 +25,21 @@ export type {
   VideoData,
   AudioData,
   ResponseAudioData,
+  // Knowledge API types
+  ContentStatus,
+  ReaderSchema,
+  ChunkerSchema,
+  VectorDbSchema,
+  KnowledgeConfigResponse,
+  ContentResponse,
+  ContentStatusResponse,
+  ContentListResponse,
+  ContentListOptions,
+  VectorSearchRequest,
+  VectorSearchResult,
+  VectorSearchResponse,
+  ContentUploadRequest,
+  ContentUpdateRequest,
 } from '@rodrigocoliveira/agno-types';
 
 export { RunEvent } from '@rodrigocoliveira/agno-types';
