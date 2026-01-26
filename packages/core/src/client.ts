@@ -242,6 +242,66 @@ export class AgnoClient extends EventEmitter {
         },
       });
     } catch (error) {
+      // Check if it's a 401 and try to refresh token
+      if (this.isUnauthorizedError(error)) {
+        const refreshed = await this.tryRefreshToken();
+        if (refreshed) {
+          // Retry the streaming request with new token
+          const newHeaders = this.configManager.buildRequestHeaders(options?.headers);
+          const newParams = this.configManager.buildQueryString(options?.params);
+          try {
+            await streamResponse({
+              apiUrl: runUrl,
+              headers: newHeaders,
+              params: newParams,
+              requestBody: formData,
+              signal: this.abortController.signal,
+              onChunk: (chunk: RunResponse) => {
+                this.handleChunk(chunk, newSessionId, formData.get('message') as string);
+
+                if (
+                  chunk.event === RunEvent.RunStarted ||
+                  chunk.event === RunEvent.TeamRunStarted ||
+                  chunk.event === RunEvent.ReasoningStarted ||
+                  chunk.event === RunEvent.TeamReasoningStarted
+                ) {
+                  if (chunk.session_id) {
+                    newSessionId = chunk.session_id;
+                    this.configManager.setSessionId(chunk.session_id);
+                  }
+                }
+              },
+              onError: (err) => {
+                this.handleError(err, newSessionId);
+              },
+              onComplete: async () => {
+                this.state.isStreaming = false;
+                this.currentRunId = undefined;
+                this.state.currentRunId = undefined;
+                this.abortController = undefined;
+                this.emit('stream:end');
+                this.emit('message:complete', this.messageStore.getMessages());
+                this.emit('state:change', this.getState());
+
+                if (this.runCompletedSuccessfully) {
+                  this.runCompletedSuccessfully = false;
+                  await this.refreshSessionMessages();
+                }
+              },
+            });
+            return; // Success on retry
+          } catch (retryError) {
+            // Retry also failed, fall through to error handling
+            this.handleError(
+              retryError instanceof Error ? retryError : new Error(String(retryError)),
+              newSessionId
+            );
+            return;
+          }
+        }
+      }
+
+      // Not a 401 or refresh failed, handle as normal error
       this.handleError(
         error instanceof Error ? error : new Error(String(error)),
         newSessionId
@@ -436,6 +496,73 @@ export class AgnoClient extends EventEmitter {
   }
 
   /**
+   * Check if an error is a 401 Unauthorized error
+   */
+  private isUnauthorizedError(error: unknown): boolean {
+    if (!(error instanceof Error)) return false;
+    const errorWithStatus = error as Error & { status?: number };
+    return errorWithStatus.status === 401 || error.message.includes('401');
+  }
+
+  /**
+   * Attempt to refresh the token using the onTokenExpired callback.
+   * If successful, updates the auth token in config.
+   *
+   * @returns true if token was refreshed, false otherwise
+   */
+  private async tryRefreshToken(): Promise<boolean> {
+    const onTokenExpired = this.configManager.getOnTokenExpired();
+    if (!onTokenExpired) {
+      return false;
+    }
+
+    try {
+      const newToken = await onTokenExpired();
+      if (newToken) {
+        this.configManager.setAuthToken(newToken);
+        Logger.debug('Token refreshed successfully');
+        return true;
+      }
+    } catch (refreshError) {
+      Logger.warn('Token refresh failed:', refreshError);
+    }
+
+    return false;
+  }
+
+  /**
+   * Wrapper for fetch that handles 401 errors with automatic token refresh and retry.
+   * Used for non-streaming API calls.
+   *
+   * @param url - The URL to fetch
+   * @param init - Optional fetch init options (method, body, etc.)
+   * @returns The fetch Response
+   */
+  private async fetchWithTokenRefresh(
+    url: string,
+    init?: RequestInit
+  ): Promise<Response> {
+    const headers = this.configManager.buildRequestHeaders(
+      init?.headers as Record<string, string> | undefined
+    );
+
+    let response = await fetch(url, { ...init, headers });
+
+    // If 401, try to refresh token and retry once
+    if (response.status === 401) {
+      const refreshed = await this.tryRefreshToken();
+      if (refreshed) {
+        const newHeaders = this.configManager.buildRequestHeaders(
+          init?.headers as Record<string, string> | undefined
+        );
+        response = await fetch(url, { ...init, headers: newHeaders });
+      }
+    }
+
+    return response;
+  }
+
+  /**
    * Cancel the current running agent/team run.
    *
    * This will:
@@ -603,17 +730,37 @@ export class AgnoClient extends EventEmitter {
     const userId = this.configManager.getUserId();
     Logger.debug('[AgnoClient] Loading session with:', { entityType, dbId, userId });
 
-    const headers = this.configManager.buildRequestHeaders();
     const params = this.configManager.buildQueryString(options?.params);
-    const response = await this.sessionManager.fetchSession(
-      config.endpoint,
-      entityType,
-      sessionId,
-      dbId,
-      headers,
-      userId,
-      params
-    );
+
+    const doFetch = async () => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.sessionManager.fetchSession(
+        config.endpoint,
+        entityType,
+        sessionId,
+        dbId,
+        headers,
+        userId,
+        params
+      );
+    };
+
+    let response;
+    try {
+      response = await doFetch();
+    } catch (error) {
+      // Check if it's a 401 and try to refresh token
+      if (this.isUnauthorizedError(error)) {
+        const refreshed = await this.tryRefreshToken();
+        if (refreshed) {
+          response = await doFetch();
+        } else {
+          throw error;
+        }
+      } else {
+        throw error;
+      }
+    }
 
     const messages = this.sessionManager.convertSessionToMessages(response);
     Logger.debug('[AgnoClient] Setting messages to store:', `${messages.length} messages`);
@@ -642,16 +789,36 @@ export class AgnoClient extends EventEmitter {
       throw new Error('Entity ID must be configured');
     }
 
-    const headers = this.configManager.buildRequestHeaders();
     const params = this.configManager.buildQueryString(options?.params);
-    const sessions = await this.sessionManager.fetchSessions(
-      config.endpoint,
-      entityType,
-      entityId,
-      dbId,
-      headers,
-      params
-    );
+
+    const doFetch = async () => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.sessionManager.fetchSessions(
+        config.endpoint,
+        entityType,
+        entityId,
+        dbId,
+        headers,
+        params
+      );
+    };
+
+    let sessions: SessionEntry[];
+    try {
+      sessions = await doFetch();
+    } catch (error) {
+      // Check if it's a 401 and try to refresh token
+      if (this.isUnauthorizedError(error)) {
+        const refreshed = await this.tryRefreshToken();
+        if (refreshed) {
+          sessions = await doFetch();
+        } else {
+          throw error;
+        }
+      } else {
+        throw error;
+      }
+    }
 
     this.state.sessions = sessions;
     this.emit('state:change', this.getState());
@@ -669,15 +836,34 @@ export class AgnoClient extends EventEmitter {
     const config = this.configManager.getConfig();
     const dbId = this.configManager.getDbId() || '';
 
-    const headers = this.configManager.buildRequestHeaders();
     const params = this.configManager.buildQueryString(options?.params);
-    await this.sessionManager.deleteSession(
-      config.endpoint,
-      sessionId,
-      dbId,
-      headers,
-      params
-    );
+
+    const doDelete = async () => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.sessionManager.deleteSession(
+        config.endpoint,
+        sessionId,
+        dbId,
+        headers,
+        params
+      );
+    };
+
+    try {
+      await doDelete();
+    } catch (error) {
+      // Check if it's a 401 and try to refresh token
+      if (this.isUnauthorizedError(error)) {
+        const refreshed = await this.tryRefreshToken();
+        if (refreshed) {
+          await doDelete();
+        } else {
+          throw error;
+        }
+      } else {
+        throw error;
+      }
+    }
 
     // Remove from state
     this.state.sessions = this.state.sessions.filter(
@@ -1143,6 +1329,56 @@ export class AgnoClient extends EventEmitter {
         },
       });
     } catch (error) {
+      // Check if it's a 401 and try to refresh token
+      if (this.isUnauthorizedError(error)) {
+        const refreshed = await this.tryRefreshToken();
+        if (refreshed) {
+          // Retry the streaming request with new token
+          const newHeaders = this.configManager.buildRequestHeaders(options?.headers);
+          const newParams = this.configManager.buildQueryString(options?.params);
+          try {
+            await streamResponse({
+              apiUrl: continueUrl,
+              headers: newHeaders,
+              params: newParams,
+              requestBody: formData,
+              signal: this.abortController.signal,
+              onChunk: (chunk: RunResponse) => {
+                this.handleChunk(chunk, currentSessionId, '');
+              },
+              onError: (err) => {
+                this.handleError(err, currentSessionId);
+              },
+              onComplete: async () => {
+                this.state.isStreaming = false;
+                this.state.pausedRunId = undefined;
+                this.state.toolsAwaitingExecution = undefined;
+                this.currentRunId = undefined;
+                this.state.currentRunId = undefined;
+                this.abortController = undefined;
+                this.emit('stream:end');
+                this.emit('message:complete', this.messageStore.getMessages());
+                this.emit('state:change', this.getState());
+
+                if (this.runCompletedSuccessfully) {
+                  this.runCompletedSuccessfully = false;
+                  await this.refreshSessionMessages();
+                }
+              },
+            });
+            return; // Success on retry
+          } catch (retryError) {
+            // Retry also failed, fall through to error handling
+            this.handleError(
+              retryError instanceof Error ? retryError : new Error(String(retryError)),
+              currentSessionId
+            );
+            return;
+          }
+        }
+      }
+
+      // Not a 401 or refresh failed, handle as normal error
       this.handleError(
         error instanceof Error ? error : new Error(String(error)),
         currentSessionId
@@ -1179,7 +1415,6 @@ export class AgnoClient extends EventEmitter {
    * Fetch agents from endpoint
    */
   async fetchAgents(options?: { params?: Record<string, string> }): Promise<AgentDetails[]> {
-    const headers = this.configManager.buildRequestHeaders();
     const params = this.configManager.buildQueryString(options?.params);
     const url = new URL(`${this.configManager.getEndpoint()}/agents`);
     if (params.toString()) {
@@ -1187,7 +1422,7 @@ export class AgnoClient extends EventEmitter {
         url.searchParams.set(key, value);
       });
     }
-    const response = await fetch(url.toString(), { headers });
+    const response = await this.fetchWithTokenRefresh(url.toString());
     if (!response.ok) {
       throw new Error('Failed to fetch agents');
     }
@@ -1203,7 +1438,6 @@ export class AgnoClient extends EventEmitter {
    * Fetch teams from endpoint
    */
   async fetchTeams(options?: { params?: Record<string, string> }): Promise<TeamDetails[]> {
-    const headers = this.configManager.buildRequestHeaders();
     const params = this.configManager.buildQueryString(options?.params);
     const url = new URL(`${this.configManager.getEndpoint()}/teams`);
     if (params.toString()) {
@@ -1211,7 +1445,7 @@ export class AgnoClient extends EventEmitter {
         url.searchParams.set(key, value);
       });
     }
-    const response = await fetch(url.toString(), { headers });
+    const response = await this.fetchWithTokenRefresh(url.toString());
     if (!response.ok) {
       throw new Error('Failed to fetch teams');
     }

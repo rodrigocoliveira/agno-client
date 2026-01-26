@@ -21,6 +21,33 @@ Built with production-ready security features:
 - **Error Handling** - Graceful handling of malformed responses and content-type validation
 - **Immutable State** - Consistent immutable updates throughout the codebase
 - **Type Safety** - Full TypeScript support with comprehensive type definitions
+- **Auto Token Refresh** - `onTokenExpired` callback for automatic 401 handling and retry
+
+### Securing Auth Tokens
+
+When using the client in a browser, auth tokens are visible in the Network tab. For production apps, we recommend:
+
+1. **Use short-lived tokens** (15 minutes or less)
+2. **Configure automatic refresh** via `onTokenExpired`
+
+```typescript
+<AgnoProvider
+  config={{
+    endpoint: 'http://localhost:7777',
+    authToken: initialToken,
+    agentId: 'your-agent-id',
+
+    // Called when a request gets 401 Unauthorized
+    onTokenExpired: async () => {
+      const response = await fetch('/api/refresh-token');
+      const { token } = await response.json();
+      return token;  // Library will retry the failed request
+    },
+  }}
+>
+```
+
+See [Secure Authentication Cookbook](./cookbooks/17_secure_auth.md) for complete examples with Laravel, Express, and more.
 
 ## 🚀 Quick Start
 

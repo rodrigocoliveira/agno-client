@@ -175,6 +175,20 @@ export class ConfigManager {
   }
 
   /**
+   * Get the onTokenExpired callback
+   */
+  getOnTokenExpired(): AgnoClientConfig['onTokenExpired'] {
+    return this.config.onTokenExpired;
+  }
+
+  /**
+   * Set the onTokenExpired callback
+   */
+  setOnTokenExpired(callback: AgnoClientConfig['onTokenExpired']): void {
+    this.config.onTokenExpired = callback;
+  }
+
+  /**
    * Get current entity ID (agent or team based on mode)
    */
   getCurrentEntityId(): string | undefined {

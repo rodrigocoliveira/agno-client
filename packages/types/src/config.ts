@@ -55,6 +55,30 @@ export interface AgnoClientConfig {
    * Per-request parameters will override global parameters with the same key.
    */
   params?: Record<string, string>;
+
+  /**
+   * Callback invoked when a request fails with 401 Unauthorized.
+   * Use this to refresh the authentication token and retry the request automatically.
+   *
+   * @returns The new token to use for retry, or null/undefined to propagate the error.
+   *
+   * @example
+   * ```typescript
+   * // With Laravel Inertia
+   * onTokenExpired: async () => {
+   *   await router.reload({ only: ['agnoToken'] });
+   *   return page.props.agnoToken;
+   * }
+   *
+   * // With a refresh endpoint
+   * onTokenExpired: async () => {
+   *   const response = await fetch('/api/refresh-token');
+   *   const { token } = await response.json();
+   *   return token;
+   * }
+   * ```
+   */
+  onTokenExpired?: () => Promise<string | null | undefined> | string | null | undefined;
 }
 
 /**

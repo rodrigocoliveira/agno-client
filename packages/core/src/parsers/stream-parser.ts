@@ -202,7 +202,10 @@ export async function streamResponse(options: {
         }
       }
 
-      throw new Error(errorMessage);
+      const error = new Error(errorMessage);
+      // Attach status code to error for identification (e.g., 401 handling)
+      (error as Error & { status?: number }).status = response.status;
+      throw error;
     }
 
     if (!response.body) {
