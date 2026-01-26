@@ -78,6 +78,17 @@ export type {
   MetricsResponse,
   MetricsOptions,
   RefreshMetricsOptions,
+  // Evaluation types
+  EvalType,
+  EvalComponentType,
+  ScoringStrategy,
+  SortOrder,
+  EvalSchema,
+  ListEvalRunsParams,
+  EvalRunsListResponse,
+  ExecuteEvalRequest,
+  UpdateEvalRunRequest,
+  DeleteEvalRunsRequest,
 } from './api';
 
 // Config

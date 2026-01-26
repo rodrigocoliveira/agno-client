@@ -55,6 +55,7 @@ export { useAgnoCustomEvents } from './hooks/useAgnoCustomEvents';
 export { useAgnoMemory } from './hooks/useAgnoMemory';
 export { useAgnoKnowledge } from './hooks/useAgnoKnowledge';
 export { useAgnoMetrics } from './hooks/useAgnoMetrics';
+export { useAgnoEvals } from './hooks/useAgnoEvals';
 
 // Re-export types from dependencies
 export type {
@@ -112,4 +113,15 @@ export type {
   MetricsResponse,
   MetricsOptions,
   RefreshMetricsOptions,
+  // Evaluation types
+  EvalType,
+  EvalComponentType,
+  ScoringStrategy,
+  SortOrder,
+  EvalSchema,
+  ListEvalRunsParams,
+  EvalRunsListResponse,
+  ExecuteEvalRequest,
+  UpdateEvalRunRequest,
+  DeleteEvalRunsRequest,
 } from '@rodrigocoliveira/agno-types';
