@@ -266,11 +266,10 @@ export function PromptInputAttachment({
 
   const filename = data.filename || "";
 
-  const mediaType =
-    data.mediaType?.startsWith("image/") && data.url ? "image" : "file";
-  const isImage = mediaType === "image";
+  const isImage = data.mediaType?.startsWith("image/") && data.url;
+  const isAudio = data.mediaType?.startsWith("audio/");
 
-  const attachmentLabel = filename || (isImage ? "Image" : "Attachment");
+  const attachmentLabel = filename || (isImage ? "Image" : isAudio ? "Audio" : "Attachment");
 
   return (
     <PromptInputHoverCard>
@@ -293,6 +292,10 @@ export function PromptInputAttachment({
                   src={data.url}
                   width={20}
                 />
+              ) : isAudio ? (
+                <div className="flex size-5 items-center justify-center text-muted-foreground">
+                  <MicIcon className="size-3" />
+                </div>
               ) : (
                 <div className="flex size-5 items-center justify-center text-muted-foreground">
                   <PaperclipIcon className="size-3" />
@@ -328,6 +331,11 @@ export function PromptInputAttachment({
                 src={data.url}
                 width={448}
               />
+            </div>
+          )}
+          {isAudio && data.url && (
+            <div className="w-64">
+              <audio src={data.url} controls className="w-full" />
             </div>
           )}
           <div className="flex items-center gap-2.5">
@@ -465,11 +473,24 @@ export const PromptInput = ({
       if (!accept || accept.trim() === "") {
         return true;
       }
-      if (accept.includes("image/*")) {
-        return f.type.startsWith("image/");
+      const patterns = accept.split(",").map((p) => p.trim()).filter(Boolean);
+      for (const pattern of patterns) {
+        // Wildcard MIME: "image/*", "audio/*"
+        if (pattern.endsWith("/*")) {
+          const prefix = pattern.slice(0, -1); // "image/"
+          if (f.type.startsWith(prefix)) return true;
+        }
+        // File extension: ".pdf", ".doc"
+        else if (pattern.startsWith(".")) {
+          const ext = f.name.toLowerCase().split(".").pop();
+          if (ext && `.${ext}` === pattern.toLowerCase()) return true;
+        }
+        // Exact MIME type: "application/pdf"
+        else if (f.type === pattern) {
+          return true;
+        }
       }
-      // NOTE: keep simple; expand as needed
-      return true;
+      return false;
     },
     [accept]
   );

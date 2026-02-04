@@ -2,6 +2,9 @@ import EventEmitter from 'eventemitter3';
 import type {
   AgnoClientConfig,
   ChatMessage,
+  ImageData,
+  AudioData,
+  UserFileAttachment,
   RunResponse,
   SessionEntry,
   AgentDetails,
@@ -213,11 +216,44 @@ export class AgnoClient extends EventEmitter {
       }
     }
 
+    // Extract file metadata from FormData for immediate UI rendering
+    const userImages: ImageData[] = [];
+    const userAudio: AudioData[] = [];
+    const userFiles: UserFileAttachment[] = [];
+
+    if (message instanceof FormData) {
+      // Agno API uses a single "files" field for all media types
+      const entries = message.getAll('files');
+      for (const entry of entries) {
+        if (typeof entry !== 'string') {
+          const file = entry as File;
+          const url = URL.createObjectURL(file);
+          const mimeType = file.type || '';
+
+          if (mimeType.startsWith('image/')) {
+            userImages.push({ url, revised_prompt: file.name || 'Uploaded image' });
+          } else if (mimeType.startsWith('audio/')) {
+            userAudio.push({ url, mime_type: mimeType });
+          } else {
+            userFiles.push({
+              name: file.name || 'file',
+              type: mimeType,
+              url,
+              size: file.size,
+            });
+          }
+        }
+      }
+    }
+
     // Add user message
     this.messageStore.addMessage({
       role: 'user',
       content: formData.get('message') as string,
       created_at: Math.floor(Date.now() / 1000),
+      ...(userImages.length > 0 ? { images: userImages } : {}),
+      ...(userAudio.length > 0 ? { audio: userAudio } : {}),
+      ...(userFiles.length > 0 ? { files: userFiles } : {}),
     });
 
     // Add placeholder agent message
@@ -798,16 +834,30 @@ export class AgnoClient extends EventEmitter {
     this.emit('state:change', this.getState());
 
     try {
-      // Preserve ui_component properties from existing tool calls before refresh
-      // The API doesn't store these - they're added client-side during HITL execution
+      // Preserve client-side properties before refresh (API doesn't store these)
       const existingUIComponents = new Map<string, any>();
+      const existingUserAttachments: Array<{
+        images?: ChatMessage['images'];
+        audio?: ChatMessage['audio'];
+        files?: ChatMessage['files'];
+      }> = [];
+
       for (const message of this.messageStore.getMessages()) {
+        // Preserve ui_component from tool calls
         if (message.tool_calls) {
           for (const toolCall of message.tool_calls) {
             if ((toolCall as any).ui_component) {
               existingUIComponents.set(toolCall.tool_call_id, (toolCall as any).ui_component);
             }
           }
+        }
+        // Preserve user message attachments (blob URLs created client-side)
+        if (message.role === 'user') {
+          existingUserAttachments.push({
+            images: message.images,
+            audio: message.audio,
+            files: message.files,
+          });
         }
       }
 
@@ -844,6 +894,28 @@ export class AgnoClient extends EventEmitter {
                 (message.tool_calls[i] as any).ui_component = uiComponent;
               }
             }
+          }
+        }
+      }
+
+      // Re-apply preserved user attachments (blob URLs) to user messages
+      // The API may not return input_media, so we fall back to client-side data
+      if (existingUserAttachments.length > 0) {
+        let userIdx = 0;
+        for (const message of messages) {
+          if (message.role === 'user' && userIdx < existingUserAttachments.length) {
+            const saved = existingUserAttachments[userIdx];
+            // Only apply if the refreshed message lacks attachments
+            if (!message.images?.length && saved.images?.length) {
+              message.images = saved.images;
+            }
+            if (!message.audio?.length && saved.audio?.length) {
+              message.audio = saved.audio;
+            }
+            if (!message.files?.length && saved.files?.length) {
+              message.files = saved.files;
+            }
+            userIdx++;
           }
         }
       }

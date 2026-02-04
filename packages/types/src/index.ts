@@ -19,6 +19,7 @@ export type {
   Reference,
   ReferenceData,
   MessageExtraData,
+  UserFileAttachment,
   ChatMessage,
 } from './messages';
 

@@ -40,7 +40,7 @@ export function ChatInterface() {
     executionError,
   } = useAgnoToolExecution(toolHandlers, true)
 
-  const handleSend = async (message: string) => {
+  const handleSend = async (message: string | FormData) => {
     try {
       await sendMessage(message)
     } catch (err) {

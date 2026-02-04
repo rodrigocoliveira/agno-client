@@ -2,6 +2,9 @@ import type {
   SessionEntry,
   SessionsListResponse,
   ChatMessage,
+  ImageData,
+  AudioData,
+  UserFileAttachment,
   RunSchema,
   TeamRunSchema,
   ToolCall,
@@ -394,10 +397,79 @@ export class SessionManager {
 
       // Add user message (from run_input)
       if (run.run_input) {
+        // Extract user-uploaded media from input_media
+        const userImages: ImageData[] = [];
+        const userAudio: AudioData[] = [];
+        const userFiles: UserFileAttachment[] = [];
+
+        if (run.input_media && typeof run.input_media === 'object') {
+          const media = run.input_media as Record<string, unknown>;
+
+          // Parse images from input_media
+          // API returns: { id, format, mime_type, content (base64) }
+          if (Array.isArray(media.images)) {
+            for (const img of media.images) {
+              const imgObj = img as Record<string, unknown>;
+              let url = imgObj.url as string | undefined;
+              // Construct data URL from base64 content if no URL provided
+              if (!url && imgObj.content) {
+                const mimeType = (imgObj.mime_type as string) || `image/${imgObj.format || 'png'}`;
+                url = `data:${mimeType};base64,${imgObj.content}`;
+              }
+              if (url) {
+                userImages.push({
+                  url,
+                  revised_prompt: (imgObj.original_name as string) || 'Uploaded image',
+                });
+              }
+            }
+          }
+
+          // Parse audio from input_media
+          // API returns: { id, format, mime_type, content (base64) }
+          if (Array.isArray(media.audio)) {
+            for (const aud of media.audio) {
+              const audObj = aud as Record<string, unknown>;
+              let url = audObj.url as string | undefined;
+              if (!url && audObj.content) {
+                const mimeType = (audObj.mime_type as string) || `audio/${audObj.format || 'wav'}`;
+                url = `data:${mimeType};base64,${audObj.content}`;
+              }
+              if (url) {
+                userAudio.push({
+                  url,
+                  mime_type: (audObj.mime_type as string) || undefined,
+                });
+              }
+            }
+          }
+
+          // Parse files from input_media
+          if (Array.isArray(media.files)) {
+            for (const file of media.files) {
+              const fileObj = file as Record<string, unknown>;
+              let url = fileObj.url as string | undefined;
+              if (!url && fileObj.content) {
+                const mimeType = (fileObj.mime_type as string) || (fileObj.content_type as string) || 'application/octet-stream';
+                url = `data:${mimeType};base64,${fileObj.content}`;
+              }
+              userFiles.push({
+                name: (fileObj.original_name as string) || (fileObj.name as string) || 'file',
+                type: (fileObj.content_type as string) || (fileObj.mime_type as string) || '',
+                url,
+                size: (fileObj.size as number) || undefined,
+              });
+            }
+          }
+        }
+
         messages.push({
           role: 'user',
           content: run.run_input,
           created_at: timestamp,
+          ...(userImages.length > 0 ? { images: userImages } : {}),
+          ...(userAudio.length > 0 ? { audio: userAudio } : {}),
+          ...(userFiles.length > 0 ? { files: userFiles } : {}),
         });
       }
 

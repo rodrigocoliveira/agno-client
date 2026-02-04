@@ -125,6 +125,16 @@ export interface MessageExtraData {
 }
 
 /**
+ * User-uploaded file attachment metadata
+ */
+export interface UserFileAttachment {
+  name: string;
+  type: string;
+  url?: string;
+  size?: number;
+}
+
+/**
  * Chat message structure
  */
 export interface ChatMessage {
@@ -136,6 +146,7 @@ export interface ChatMessage {
   videos?: VideoData[];
   audio?: AudioData[];
   response_audio?: ResponseAudioData;
+  files?: UserFileAttachment[];
   created_at: number;
   streamingError?: boolean;
   /**

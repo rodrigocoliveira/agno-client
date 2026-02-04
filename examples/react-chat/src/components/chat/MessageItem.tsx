@@ -6,7 +6,7 @@ import { Badge } from '@/components/ui/badge'
 import { Separator } from '@/components/ui/separator'
 import { cn } from '@/lib/utils'
 import { ChatMessage } from '@rodrigocoliveira/agno-types'
-import { AlertCircle, FileText, Image as ImageIcon, Lightbulb, Music, Video } from 'lucide-react'
+import { AlertCircle, FileIcon, FileText, Image as ImageIcon, Lightbulb, Music, Paperclip, Video } from 'lucide-react'
 import { GenerativeUIRenderer } from '@rodrigocoliveira/agno-react'
 import { Artifact } from '@/components/ai-elements/artifact'
 
@@ -259,6 +259,45 @@ export function MessageItem({ message }: MessageItemProps) {
                       />
                     ) : (
                       <div className="bg-muted p-2 rounded text-xs">Audio data unavailable</div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* File Attachments */}
+        {message.files && message.files.length > 0 && (
+          <>
+            <Separator />
+            <div className="space-y-2">
+              <div className="flex items-center gap-2 text-sm font-medium">
+                <Paperclip className="h-4 w-4" />
+                Files ({message.files.length})
+              </div>
+              <div className="flex flex-wrap gap-2">
+                {message.files.map((file, idx) => (
+                  <div
+                    key={idx}
+                    className="flex items-center gap-2 rounded-md border border-border px-3 py-2 text-sm bg-muted/50"
+                  >
+                    <FileIcon className="h-4 w-4 shrink-0 text-muted-foreground" />
+                    <span className="truncate max-w-[200px]">{file.name}</span>
+                    {file.size && (
+                      <span className="text-xs text-muted-foreground">
+                        ({(file.size / 1024).toFixed(1)}KB)
+                      </span>
+                    )}
+                    {file.url && (
+                      <a
+                        href={file.url}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-xs text-primary hover:underline"
+                      >
+                        View
+                      </a>
                     )}
                   </div>
                 ))}
