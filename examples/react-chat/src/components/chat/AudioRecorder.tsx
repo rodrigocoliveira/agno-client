@@ -9,13 +9,88 @@ interface AudioRecorderProps {
   className?: string
 }
 
+/**
+ * Encode raw PCM float samples to a WAV Blob.
+ * Agno backend only supports 'wav' and 'mp3'.
+ */
+function encodeWav(samples: Float32Array, sampleRate: number): Blob {
+  const numChannels = 1
+  const bitsPerSample = 16
+  const byteRate = sampleRate * numChannels * (bitsPerSample / 8)
+  const blockAlign = numChannels * (bitsPerSample / 8)
+  const dataLength = samples.length * (bitsPerSample / 8)
+  const buffer = new ArrayBuffer(44 + dataLength)
+  const view = new DataView(buffer)
+
+  writeString(view, 0, 'RIFF')
+  view.setUint32(4, 36 + dataLength, true)
+  writeString(view, 8, 'WAVE')
+  writeString(view, 12, 'fmt ')
+  view.setUint32(16, 16, true)
+  view.setUint16(20, 1, true)
+  view.setUint16(22, numChannels, true)
+  view.setUint32(24, sampleRate, true)
+  view.setUint32(28, byteRate, true)
+  view.setUint16(32, blockAlign, true)
+  view.setUint16(34, bitsPerSample, true)
+  writeString(view, 36, 'data')
+  view.setUint32(40, dataLength, true)
+
+  let offset = 44
+  for (let i = 0; i < samples.length; i++) {
+    const s = Math.max(-1, Math.min(1, samples[i]))
+    view.setInt16(offset, s < 0 ? s * 0x8000 : s * 0x7fff, true)
+    offset += 2
+  }
+
+  return new Blob([buffer], { type: 'audio/wav' })
+}
+
+function writeString(view: DataView, offset: number, str: string) {
+  for (let i = 0; i < str.length; i++) {
+    view.setUint8(offset + i, str.charCodeAt(i))
+  }
+}
+
+/**
+ * Create an AudioWorklet processor as a Blob URL.
+ * This runs on a separate thread (no main-thread jank).
+ */
+function createWorkletUrl(): string {
+  const code = `
+class RecorderProcessor extends AudioWorkletProcessor {
+  constructor() {
+    super();
+    this._stopped = false;
+    this.port.onmessage = (e) => {
+      if (e.data === 'stop') this._stopped = true;
+    };
+  }
+  process(inputs) {
+    if (this._stopped) return false;
+    const input = inputs[0];
+    if (input && input[0]) {
+      this.port.postMessage(new Float32Array(input[0]));
+    }
+    return true;
+  }
+}
+registerProcessor('recorder-processor', RecorderProcessor);
+`
+  const blob = new Blob([code], { type: 'application/javascript' })
+  return URL.createObjectURL(blob)
+}
+
 export function AudioRecorder({ onRecordingComplete, disabled, className }: AudioRecorderProps) {
   const [isRecording, setIsRecording] = useState(false)
   const [duration, setDuration] = useState(0)
   const [isSupported, setIsSupported] = useState(true)
-  const mediaRecorderRef = useRef<MediaRecorder | null>(null)
-  const chunksRef = useRef<Blob[]>([])
+  const streamRef = useRef<MediaStream | null>(null)
+  const audioContextRef = useRef<AudioContext | null>(null)
+  const workletNodeRef = useRef<AudioWorkletNode | null>(null)
+  const chunksRef = useRef<Float32Array[]>([])
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const workletUrlRef = useRef<string | null>(null)
 
   useEffect(() => {
     if (typeof window === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
@@ -23,40 +98,37 @@ export function AudioRecorder({ onRecordingComplete, disabled, className }: Audi
     }
     return () => {
       if (timerRef.current) clearInterval(timerRef.current)
+      if (workletUrlRef.current) URL.revokeObjectURL(workletUrlRef.current)
     }
   }, [])
 
   const startRecording = useCallback(async () => {
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+      streamRef.current = stream
 
-      // Try webm/opus first, fall back to default
-      const mimeType = MediaRecorder.isTypeSupported('audio/webm;codecs=opus')
-        ? 'audio/webm;codecs=opus'
-        : MediaRecorder.isTypeSupported('audio/webm')
-          ? 'audio/webm'
-          : undefined
+      const audioContext = new AudioContext()
+      audioContextRef.current = audioContext
 
-      const recorder = new MediaRecorder(stream, mimeType ? { mimeType } : undefined)
-      mediaRecorderRef.current = recorder
+      // Create and register worklet
+      const workletUrl = createWorkletUrl()
+      workletUrlRef.current = workletUrl
+      await audioContext.audioWorklet.addModule(workletUrl)
+
+      const source = audioContext.createMediaStreamSource(stream)
+      const workletNode = new AudioWorkletNode(audioContext, 'recorder-processor')
+      workletNodeRef.current = workletNode
       chunksRef.current = []
 
-      recorder.ondataavailable = (e) => {
-        if (e.data.size > 0) {
+      workletNode.port.onmessage = (e) => {
+        if (e.data instanceof Float32Array) {
           chunksRef.current.push(e.data)
         }
       }
 
-      recorder.onstop = () => {
-        const blob = new Blob(chunksRef.current, {
-          type: recorder.mimeType || 'audio/webm',
-        })
-        onRecordingComplete(blob)
-        stream.getTracks().forEach((track) => track.stop())
-        chunksRef.current = []
-      }
+      source.connect(workletNode)
+      workletNode.connect(audioContext.destination)
 
-      recorder.start()
       setIsRecording(true)
       setDuration(0)
 
@@ -66,18 +138,52 @@ export function AudioRecorder({ onRecordingComplete, disabled, className }: Audi
     } catch {
       console.error('Failed to start recording')
     }
-  }, [onRecordingComplete])
+  }, [])
 
   const stopRecording = useCallback(() => {
-    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
-      mediaRecorderRef.current.stop()
+    // Signal the worklet to stop
+    if (workletNodeRef.current) {
+      workletNodeRef.current.port.postMessage('stop')
+      workletNodeRef.current.disconnect()
+      workletNodeRef.current = null
     }
+
+    const audioContext = audioContextRef.current
+    if (audioContext) {
+      const sampleRate = audioContext.sampleRate
+
+      const totalLength = chunksRef.current.reduce((sum, chunk) => sum + chunk.length, 0)
+      const merged = new Float32Array(totalLength)
+      let offset = 0
+      for (const chunk of chunksRef.current) {
+        merged.set(chunk, offset)
+        offset += chunk.length
+      }
+      chunksRef.current = []
+
+      const wavBlob = encodeWav(merged, sampleRate)
+      onRecordingComplete(wavBlob)
+
+      audioContext.close()
+      audioContextRef.current = null
+    }
+
+    if (streamRef.current) {
+      streamRef.current.getTracks().forEach((track) => track.stop())
+      streamRef.current = null
+    }
+
+    if (workletUrlRef.current) {
+      URL.revokeObjectURL(workletUrlRef.current)
+      workletUrlRef.current = null
+    }
+
     setIsRecording(false)
     if (timerRef.current) {
       clearInterval(timerRef.current)
       timerRef.current = null
     }
-  }, [])
+  }, [onRecordingComplete])
 
   const formatDuration = (seconds: number) => {
     const m = Math.floor(seconds / 60)

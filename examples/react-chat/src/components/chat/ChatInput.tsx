@@ -79,8 +79,8 @@ export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
     // Convert blob to a File-like object and add via PromptInput's attachment system
     // We use a custom approach: wrap in FormData and send directly
     const formData = new FormData()
-    formData.append('message', '')
-    formData.append('files', blob, `recording-${Date.now()}.webm`)
+    formData.append('message', 'Audio message')
+    formData.append('files', blob, `recording-${Date.now()}.wav`)
     onSend(formData)
   }
 
