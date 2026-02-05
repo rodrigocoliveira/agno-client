@@ -530,3 +530,22 @@ When implementing or debugging frontend tool execution:
 7. **Debugging**: Check browser console for `[useAgnoToolExecution]` logs
 
 For complete implementation examples, see `FRONTEND_TOOL_EXECUTION.md`.
+
+# Branch Naming Convention Prompt
+
+Follow this branch naming scheme:
+
+- Use: `{type}/{[issue-id-]short-description}`
+- Allowed types: `feature/`, `bugfix/`, `hotfix/`, `chore/`, `test/`
+- Use only lowercase letters, numbers, and hyphens
+- Keep names concise (3–5 words), avoid spaces, underscores, and double hyphens
+- Include issue/ticket IDs if available
+
+**Examples:**
+- feature/add-oauth
+- bugfix/login-form
+- hotfix/fix-sql-injection
+- chore/update-readme
+- feature/JIRA-101/update-docs
+
+- When creating new worktres use the same approach

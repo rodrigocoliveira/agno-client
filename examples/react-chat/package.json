@@ -10,9 +10,6 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@rodrigocoliveira/agno-client": "workspace:*",
-    "@rodrigocoliveira/agno-react": "workspace:*",
-    "@rodrigocoliveira/agno-types": "workspace:*",
     "@hookform/resolvers": "^5.2.2",
     "@radix-ui/react-accordion": "^1.2.1",
     "@radix-ui/react-alert-dialog": "^1.1.15",
@@ -42,6 +39,9 @@
     "@radix-ui/react-toggle-group": "^1.1.11",
     "@radix-ui/react-tooltip": "^1.2.8",
     "@radix-ui/react-use-controllable-state": "^1.2.2",
+    "@rodrigocoliveira/agno-client": "workspace:*",
+    "@rodrigocoliveira/agno-react": "workspace:*",
+    "@rodrigocoliveira/agno-types": "workspace:*",
     "@types/hast": "^3.0.4",
     "@xyflow/react": "^12.9.2",
     "ai": "^5.0.84",
@@ -62,6 +62,7 @@
     "react-dom": "^19.2.1",
     "react-hook-form": "^7.65.0",
     "react-resizable-panels": "^3.0.6",
+    "react-router": "^7.13.0",
     "recharts": "2.15.4",
     "shiki": "^3.14.0",
     "sonner": "^1.5.0",
