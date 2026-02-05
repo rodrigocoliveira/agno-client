@@ -66,6 +66,10 @@ export interface AgentDetails {
   model?: Model;
   db_id?: string;
   storage?: boolean;
+  /** Knowledge base configuration */
+  knowledge?: {
+    db_id?: string;
+  };
 }
 
 /**

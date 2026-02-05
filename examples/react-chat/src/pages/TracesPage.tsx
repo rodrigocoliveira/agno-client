@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { useAgnoTraces } from '@rodrigocoliveira/agno-react'
 import { TraceSummary, TraceDetail, TraceNode, TraceStatus } from '@rodrigocoliveira/agno-types'
 import { toast } from 'sonner'
@@ -13,11 +13,17 @@ import {
   Clock,
   Filter,
   BarChart3,
+  Layers,
+  Timer,
+  AlertTriangle,
+  FileText,
+  Code,
+  Braces,
+  X,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Badge } from '@/components/ui/badge'
-import { Label } from '@/components/ui/label'
 import {
   Select,
   SelectContent,
@@ -38,7 +44,6 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Separator } from '@/components/ui/separator'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
@@ -70,48 +75,108 @@ function StatusBadge({ status }: { status: TraceStatus }) {
   )
 }
 
+// Helper to format duration for display
+function formatDuration(duration: string | number | undefined): string {
+  if (!duration) return '-'
+  if (typeof duration === 'string') return duration
+  if (duration < 1000) return `${duration}ms`
+  return `${(duration / 1000).toFixed(2)}s`
+}
+
+// Helper to calculate span type breakdown
+function getSpanTypeBreakdown(tree: TraceNode[]): Record<string, number> {
+  const counts: Record<string, number> = {}
+  
+  function countSpans(spans: TraceNode[]) {
+    for (const span of spans) {
+      counts[span.type] = (counts[span.type] || 0) + 1
+      if (span.spans?.length) {
+        countSpans(span.spans)
+      }
+    }
+  }
+  
+  countSpans(tree)
+  return counts
+}
+
+// Span type colors for visual distinction
+const spanTypeColors: Record<string, string> = {
+  llm: 'bg-purple-500',
+  tool: 'bg-blue-500',
+  agent: 'bg-green-500',
+  chain: 'bg-orange-500',
+  retriever: 'bg-cyan-500',
+  embedding: 'bg-pink-500',
+  default: 'bg-gray-500',
+}
+
 interface SpanRowProps {
   span: TraceNode
   depth?: number
+  maxDuration?: number
   onSelect: (span: TraceNode) => void
+  isSelected?: boolean
 }
 
-function SpanRow({ span, depth = 0, onSelect }: SpanRowProps) {
-  const [isOpen, setIsOpen] = useState(false)
+function SpanRow({ span, depth = 0, maxDuration = 1, onSelect, isSelected }: SpanRowProps) {
+  const [isOpen, setIsOpen] = useState(depth < 2) // Auto-expand first 2 levels
   const hasChildren = span.spans && span.spans.length > 0
+  
+  // Calculate duration percentage for timeline bar
+  const durationMs = typeof span.duration === 'number' ? span.duration : 
+    (span.duration ? parseFloat(span.duration) * 1000 : 0)
+  const durationPercent = maxDuration > 0 ? Math.min((durationMs / maxDuration) * 100, 100) : 0
+  
+  const typeColor = spanTypeColors[span.type] || spanTypeColors.default
 
   return (
-    <div className="border-b border-border last:border-0">
+    <div className="border-b border-border/50 last:border-0">
       <Collapsible open={isOpen} onOpenChange={setIsOpen}>
         <div
           className={cn(
-            "flex items-center gap-2 py-2 px-3 hover:bg-muted/50 cursor-pointer transition-colors",
-            span.status === 'ERROR' && "bg-red-50/50 dark:bg-red-950/20"
+            "flex items-center gap-2 py-2.5 px-3 hover:bg-muted/50 cursor-pointer transition-colors group",
+            span.status === 'ERROR' && "bg-red-50/50 dark:bg-red-950/20",
+            isSelected && "bg-primary/10 border-l-2 border-l-primary"
           )}
-          style={{ paddingLeft: `${depth * 24 + 12}px` }}
+          style={{ paddingLeft: `${depth * 20 + 12}px` }}
           onClick={() => onSelect(span)}
         >
           {hasChildren ? (
             <CollapsibleTrigger asChild onClick={(e) => e.stopPropagation()}>
-              <Button variant="ghost" size="icon" className="h-5 w-5 p-0">
+              <Button variant="ghost" size="icon" className="h-5 w-5 p-0 shrink-0">
                 {isOpen ? (
-                  <ChevronDown className="h-4 w-4" />
+                  <ChevronDown className="h-3.5 w-3.5" />
                 ) : (
-                  <ChevronRight className="h-4 w-4" />
+                  <ChevronRight className="h-3.5 w-3.5" />
                 )}
               </Button>
             </CollapsibleTrigger>
           ) : (
-            <div className="w-5" />
+            <div className="w-5 shrink-0" />
           )}
-          <div className="flex-1 flex items-center gap-3">
-            <span className="font-medium text-sm">{span.name}</span>
-            <Badge variant="outline" className="text-xs">
+          
+          {/* Type indicator dot */}
+          <div className={cn("w-2 h-2 rounded-full shrink-0", typeColor)} />
+          
+          <div className="flex-1 min-w-0 flex items-center gap-2">
+            <span className="font-medium text-sm truncate">{span.name}</span>
+            <Badge variant="secondary" className="text-[10px] px-1.5 py-0 h-4 shrink-0">
               {span.type}
             </Badge>
           </div>
-          <div className="flex items-center gap-3 text-sm text-muted-foreground">
-            <span>{span.duration}</span>
+          
+          {/* Duration bar + time */}
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="w-20 h-1.5 bg-muted rounded-full overflow-hidden">
+              <div 
+                className={cn("h-full rounded-full", typeColor, "opacity-60")}
+                style={{ width: `${durationPercent}%` }}
+              />
+            </div>
+            <span className="text-xs text-muted-foreground font-mono w-16 text-right">
+              {formatDuration(span.duration)}
+            </span>
             <StatusBadge status={span.status} />
           </div>
         </div>
@@ -122,12 +187,263 @@ function SpanRow({ span, depth = 0, onSelect }: SpanRowProps) {
                 key={child.id || index}
                 span={child}
                 depth={depth + 1}
+                maxDuration={maxDuration}
                 onSelect={onSelect}
+                isSelected={isSelected && span === child}
               />
             ))}
           </CollapsibleContent>
         )}
       </Collapsible>
+    </div>
+  )
+}
+
+// Trace Overview Panel (shown when no span selected)
+function TraceOverviewPanel({ trace }: { trace: TraceDetail }) {
+  const spanBreakdown = useMemo(() => getSpanTypeBreakdown(trace.tree), [trace.tree])
+  
+  return (
+    <div className="p-5 space-y-6">
+      {/* Header */}
+      <div>
+        <h3 className="text-lg font-semibold break-words">{trace.name || 'Unnamed Trace'}</h3>
+        <div className="flex items-center gap-2 mt-2">
+          <StatusBadge status={trace.status} />
+          {trace.error_count > 0 && (
+            <Badge variant="destructive" className="gap-1">
+              <AlertTriangle className="h-3 w-3" />
+              {trace.error_count} error{trace.error_count > 1 ? 's' : ''}
+            </Badge>
+          )}
+        </div>
+      </div>
+      
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 gap-3">
+        <Card className="bg-muted/30">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+              <Timer className="h-4 w-4" />
+              <span className="text-xs">Duration</span>
+            </div>
+            <p className="text-xl font-semibold font-mono">{formatDuration(trace.duration)}</p>
+          </CardContent>
+        </Card>
+        <Card className="bg-muted/30">
+          <CardContent className="p-3">
+            <div className="flex items-center gap-2 text-muted-foreground mb-1">
+              <Layers className="h-4 w-4" />
+              <span className="text-xs">Spans</span>
+            </div>
+            <p className="text-xl font-semibold">{trace.total_spans}</p>
+          </CardContent>
+        </Card>
+      </div>
+      
+      {/* Span Type Breakdown */}
+      {Object.keys(spanBreakdown).length > 0 && (
+        <div>
+          <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+            <Activity className="h-4 w-4" />
+            Span Breakdown
+          </h4>
+          <div className="flex flex-wrap gap-2">
+            {Object.entries(spanBreakdown).map(([type, count]) => (
+              <div key={type} className="flex items-center gap-1.5 px-2 py-1 bg-muted rounded-md">
+                <div className={cn("w-2 h-2 rounded-full", spanTypeColors[type] || spanTypeColors.default)} />
+                <span className="text-xs">{type}</span>
+                <span className="text-xs font-semibold text-muted-foreground">{count}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      
+      {/* Output Preview */}
+      {trace.output && (
+        <div>
+          <h4 className="text-sm font-medium mb-2 flex items-center gap-2">
+            <FileText className="h-4 w-4" />
+            Output
+          </h4>
+          <pre className="p-3 bg-muted rounded-lg text-xs overflow-x-auto max-h-[200px] whitespace-pre-wrap break-words">
+            {typeof trace.output === 'string' ? trace.output : JSON.stringify(trace.output, null, 2)}
+          </pre>
+        </div>
+      )}
+      
+      {/* Error */}
+      {trace.error && (
+        <div>
+          <h4 className="text-sm font-medium mb-2 flex items-center gap-2 text-red-600">
+            <XCircle className="h-4 w-4" />
+            Error
+          </h4>
+          <pre className="p-3 bg-red-50 dark:bg-red-950/30 rounded-lg text-xs overflow-x-auto text-red-700 dark:text-red-400 whitespace-pre-wrap break-words">
+            {trace.error}
+          </pre>
+        </div>
+      )}
+      
+      <p className="text-xs text-muted-foreground text-center pt-4 border-t">
+        Select a span from the tree to view its details
+      </p>
+    </div>
+  )
+}
+
+// Span Detail Panel (shown when a span is selected)
+function SpanDetailPanel({ span, onClose }: { span: TraceNode; onClose: () => void }) {
+  return (
+    <div className="h-full flex flex-col">
+      {/* Header */}
+      <div className="p-4 border-b bg-muted/30 flex items-start justify-between gap-2">
+        <div className="min-w-0 flex-1">
+          <h4 className="font-semibold break-words">{span.name}</h4>
+          <div className="flex items-center gap-2 mt-1.5 flex-wrap">
+            <div className={cn("w-2 h-2 rounded-full shrink-0", spanTypeColors[span.type] || spanTypeColors.default)} />
+            <Badge variant="secondary" className="text-xs">{span.type}</Badge>
+            <StatusBadge status={span.status} />
+          </div>
+        </div>
+        <Button variant="ghost" size="icon" className="h-7 w-7 shrink-0" onClick={onClose}>
+          <X className="h-4 w-4" />
+        </Button>
+      </div>
+      
+      {/* Content with Tabs */}
+      <Tabs defaultValue="details" className="flex-1 flex flex-col overflow-hidden">
+        <TabsList className="w-full justify-start rounded-none border-b bg-transparent h-auto p-0">
+          <TabsTrigger value="details" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-2 px-4">
+            Details
+          </TabsTrigger>
+          {span.input && (
+            <TabsTrigger value="input" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-2 px-4">
+              Input
+            </TabsTrigger>
+          )}
+          {span.output && (
+            <TabsTrigger value="output" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-2 px-4">
+              Output
+            </TabsTrigger>
+          )}
+          {(span.metadata || span.extra_data) && (
+            <TabsTrigger value="metadata" className="rounded-none border-b-2 border-transparent data-[state=active]:border-primary data-[state=active]:bg-transparent py-2 px-4">
+              Meta
+            </TabsTrigger>
+          )}
+        </TabsList>
+        
+        <ScrollArea className="flex-1">
+          <TabsContent value="details" className="p-4 mt-0 space-y-4">
+            {/* Timing */}
+            <div className="space-y-2">
+              <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Timing</h5>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="p-2 bg-muted/50 rounded">
+                  <span className="text-xs text-muted-foreground">Duration</span>
+                  <p className="font-mono font-medium">{formatDuration(span.duration)}</p>
+                </div>
+                <div className="p-2 bg-muted/50 rounded">
+                  <span className="text-xs text-muted-foreground">Status</span>
+                  <p className="font-medium">{span.status}</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-2 text-sm">
+                <div className="p-2 bg-muted/50 rounded">
+                  <span className="text-xs text-muted-foreground">Start</span>
+                  <p className="font-mono text-xs">{format(new Date(span.start_time), 'HH:mm:ss.SSS')}</p>
+                </div>
+                <div className="p-2 bg-muted/50 rounded">
+                  <span className="text-xs text-muted-foreground">End</span>
+                  <p className="font-mono text-xs">{format(new Date(span.end_time), 'HH:mm:ss.SSS')}</p>
+                </div>
+              </div>
+            </div>
+            
+            {/* Error */}
+            {span.error && (
+              <div className="space-y-2">
+                <h5 className="text-xs font-medium text-red-600 uppercase tracking-wider flex items-center gap-1">
+                  <AlertTriangle className="h-3 w-3" />
+                  Error
+                </h5>
+                <pre className="p-3 bg-red-50 dark:bg-red-950/30 rounded-lg text-xs overflow-x-auto text-red-700 dark:text-red-400 whitespace-pre-wrap break-words max-h-[200px]">
+                  {span.error}
+                </pre>
+              </div>
+            )}
+            
+            {/* Step Type */}
+            {span.step_type && (
+              <div className="space-y-2">
+                <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Step Type</h5>
+                <Badge variant="outline">{span.step_type}</Badge>
+              </div>
+            )}
+            
+            {/* Children count */}
+            {span.spans && span.spans.length > 0 && (
+              <div className="space-y-2">
+                <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Children</h5>
+                <p className="text-sm">{span.spans.length} child span{span.spans.length > 1 ? 's' : ''}</p>
+              </div>
+            )}
+          </TabsContent>
+          
+          {span.input && (
+            <TabsContent value="input" className="p-4 mt-0">
+              <div className="flex items-center gap-2 mb-2">
+                <Code className="h-4 w-4 text-muted-foreground" />
+                <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Input Data</h5>
+              </div>
+              <pre className="p-3 bg-muted rounded-lg text-xs overflow-x-auto whitespace-pre-wrap break-words">
+                {typeof span.input === 'string' ? span.input : JSON.stringify(span.input, null, 2)}
+              </pre>
+            </TabsContent>
+          )}
+          
+          {span.output && (
+            <TabsContent value="output" className="p-4 mt-0">
+              <div className="flex items-center gap-2 mb-2">
+                <FileText className="h-4 w-4 text-muted-foreground" />
+                <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Output Data</h5>
+              </div>
+              <pre className="p-3 bg-muted rounded-lg text-xs overflow-x-auto whitespace-pre-wrap break-words">
+                {typeof span.output === 'string' ? span.output : JSON.stringify(span.output, null, 2)}
+              </pre>
+            </TabsContent>
+          )}
+          
+          {(span.metadata || span.extra_data) && (
+            <TabsContent value="metadata" className="p-4 mt-0 space-y-4">
+              {span.metadata && Object.keys(span.metadata).length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Braces className="h-4 w-4 text-muted-foreground" />
+                    <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Metadata</h5>
+                  </div>
+                  <pre className="p-3 bg-muted rounded-lg text-xs overflow-x-auto whitespace-pre-wrap break-words">
+                    {JSON.stringify(span.metadata, null, 2)}
+                  </pre>
+                </div>
+              )}
+              {span.extra_data && Object.keys(span.extra_data).length > 0 && (
+                <div>
+                  <div className="flex items-center gap-2 mb-2">
+                    <Braces className="h-4 w-4 text-muted-foreground" />
+                    <h5 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Extra Data</h5>
+                  </div>
+                  <pre className="p-3 bg-muted rounded-lg text-xs overflow-x-auto whitespace-pre-wrap break-words">
+                    {JSON.stringify(span.extra_data, null, 2)}
+                  </pre>
+                </div>
+              )}
+            </TabsContent>
+          )}
+        </ScrollArea>
+      </Tabs>
     </div>
   )
 }
@@ -191,6 +507,22 @@ export function TracesPage() {
   const handleLoadStats = useCallback(() => {
     fetchTraceSessionStats()
   }, [fetchTraceSessionStats])
+
+  // Calculate max duration for timeline bars
+  const maxSpanDuration = useMemo(() => {
+    if (!traceDetail?.tree) return 1
+    let max = 0
+    function findMax(spans: TraceNode[]) {
+      for (const span of spans) {
+        const d = typeof span.duration === 'number' ? span.duration : 
+          (span.duration ? parseFloat(span.duration) * 1000 : 0)
+        if (d > max) max = d
+        if (span.spans?.length) findMax(span.spans)
+      }
+    }
+    findMax(traceDetail.tree)
+    return max || 1
+  }, [traceDetail?.tree])
 
   const columns: Column<TraceSummary>[] = [
     {
@@ -423,13 +755,13 @@ export function TracesPage() {
         </Tabs>
       </div>
 
-      {/* Trace Detail Sheet */}
+      {/* Trace Detail Sheet - Improved */}
       <Sheet open={!!traceDetail || isLoadingDetail} onOpenChange={() => {
         setTraceDetail(null)
         setSelectedSpan(null)
       }}>
-        <SheetContent className="w-[700px] sm:w-[800px] p-0">
-          <SheetHeader className="p-6 pb-0">
+        <SheetContent className="w-[90vw] max-w-[1100px] sm:max-w-[1100px] p-0">
+          <SheetHeader className="p-4 pb-0 sr-only">
             <SheetTitle>Trace Details</SheetTitle>
             <SheetDescription>
               View the execution tree and span details.
@@ -439,120 +771,56 @@ export function TracesPage() {
           {isLoadingDetail ? (
             <LoadingState message="Loading trace details..." className="mt-8" />
           ) : traceDetail ? (
-            <div className="flex h-[calc(100vh-120px)]">
-              {/* Span Tree */}
-              <div className="flex-1 border-r border-border overflow-hidden">
-                <div className="p-4 border-b border-border bg-muted/30">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <h4 className="font-medium">{traceDetail.name}</h4>
-                      <p className="text-sm text-muted-foreground">
-                        {traceDetail.total_spans} spans, {traceDetail.duration}
-                      </p>
+            <div className="flex h-[calc(100vh-32px)]">
+              {/* Span Tree - Left Panel */}
+              <div className="flex-1 border-r border-border overflow-hidden flex flex-col min-w-0">
+                <div className="p-4 border-b border-border bg-muted/30 shrink-0">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      <h4 className="font-semibold truncate" title={traceDetail.name}>
+                        {traceDetail.name || 'Unnamed Trace'}
+                      </h4>
+                      <div className="flex items-center gap-3 mt-1 text-sm text-muted-foreground">
+                        <span className="flex items-center gap-1">
+                          <Layers className="h-3.5 w-3.5" />
+                          {traceDetail.total_spans} spans
+                        </span>
+                        <span className="flex items-center gap-1">
+                          <Timer className="h-3.5 w-3.5" />
+                          {formatDuration(traceDetail.duration)}
+                        </span>
+                        {traceDetail.error_count > 0 && (
+                          <span className="flex items-center gap-1 text-red-600">
+                            <AlertTriangle className="h-3.5 w-3.5" />
+                            {traceDetail.error_count} error{traceDetail.error_count > 1 ? 's' : ''}
+                          </span>
+                        )}
+                      </div>
                     </div>
                     <StatusBadge status={traceDetail.status} />
                   </div>
                 </div>
-                <ScrollArea className="h-[calc(100%-80px)]">
-                  <div className="divide-y divide-border">
+                <ScrollArea className="flex-1">
+                  <div>
                     {traceDetail.tree.map((span, index) => (
                       <SpanRow
                         key={span.id || index}
                         span={span}
+                        maxDuration={maxSpanDuration}
                         onSelect={setSelectedSpan}
+                        isSelected={selectedSpan?.id === span.id}
                       />
                     ))}
                   </div>
                 </ScrollArea>
               </div>
 
-              {/* Span Detail Panel */}
-              <div className="w-[350px] overflow-auto">
+              {/* Detail Panel - Right Side */}
+              <div className="w-[380px] overflow-hidden bg-background shrink-0">
                 {selectedSpan ? (
-                  <div className="p-4 space-y-4">
-                    <div>
-                      <h4 className="font-medium">{selectedSpan.name}</h4>
-                      <div className="flex gap-2 mt-2">
-                        <Badge variant="outline">{selectedSpan.type}</Badge>
-                        <StatusBadge status={selectedSpan.status} />
-                      </div>
-                    </div>
-
-                    <div className="text-sm space-y-1">
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Duration</span>
-                        <span className="font-mono">{selectedSpan.duration}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">Start</span>
-                        <span className="font-mono text-xs">
-                          {format(new Date(selectedSpan.start_time), 'HH:mm:ss.SSS')}
-                        </span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-muted-foreground">End</span>
-                        <span className="font-mono text-xs">
-                          {format(new Date(selectedSpan.end_time), 'HH:mm:ss.SSS')}
-                        </span>
-                      </div>
-                    </div>
-
-                    {selectedSpan.input && (
-                      <>
-                        <Separator />
-                        <div>
-                          <Label className="text-xs">Input</Label>
-                          <pre className="mt-1 p-2 bg-muted rounded text-xs overflow-x-auto max-h-[150px]">
-                            {typeof selectedSpan.input === 'string'
-                              ? selectedSpan.input
-                              : JSON.stringify(selectedSpan.input, null, 2)}
-                          </pre>
-                        </div>
-                      </>
-                    )}
-
-                    {selectedSpan.output && (
-                      <>
-                        <Separator />
-                        <div>
-                          <Label className="text-xs">Output</Label>
-                          <pre className="mt-1 p-2 bg-muted rounded text-xs overflow-x-auto max-h-[150px]">
-                            {typeof selectedSpan.output === 'string'
-                              ? selectedSpan.output
-                              : JSON.stringify(selectedSpan.output, null, 2)}
-                          </pre>
-                        </div>
-                      </>
-                    )}
-
-                    {selectedSpan.error && (
-                      <>
-                        <Separator />
-                        <div>
-                          <Label className="text-xs text-red-600">Error</Label>
-                          <pre className="mt-1 p-2 bg-red-50 dark:bg-red-950/30 rounded text-xs overflow-x-auto text-red-700 dark:text-red-400">
-                            {selectedSpan.error}
-                          </pre>
-                        </div>
-                      </>
-                    )}
-
-                    {selectedSpan.metadata && Object.keys(selectedSpan.metadata).length > 0 && (
-                      <>
-                        <Separator />
-                        <div>
-                          <Label className="text-xs">Metadata</Label>
-                          <pre className="mt-1 p-2 bg-muted rounded text-xs overflow-x-auto max-h-[100px]">
-                            {JSON.stringify(selectedSpan.metadata, null, 2)}
-                          </pre>
-                        </div>
-                      </>
-                    )}
-                  </div>
+                  <SpanDetailPanel span={selectedSpan} onClose={() => setSelectedSpan(null)} />
                 ) : (
-                  <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
-                    Click a span to view details
-                  </div>
+                  <TraceOverviewPanel trace={traceDetail} />
                 )}
               </div>
             </div>

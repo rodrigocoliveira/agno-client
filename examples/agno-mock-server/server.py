@@ -15,11 +15,15 @@ from dotenv import load_dotenv
 
 from agent import create_agent, create_knowledge_base
 from team import create_team
+from agno.tracing import setup_tracing
 
 load_dotenv()
 
 # Shared database for sessions and other data
 db = SqliteDb(db_file="tmp/data.db")
+
+# Enable tracing (call once at startup)
+setup_tracing(db=db)
 
 # Create a separate database for knowledge content with an explicit ID
 # This ID is used by the frontend to access the knowledge API
@@ -37,13 +41,14 @@ agent = create_agent(db, knowledge=knowledge)
 # Create the team
 team = create_team(db)
 
-# Create AgentOS with agent, team, and knowledge
+# Create AgentOS with agent, team, knowledge, and tracing
 agent_os = AgentOS(
     id="agno-demo",
     description="Demo server with agent and team examples",
     agents=[agent],
     teams=[team],
     knowledge=[knowledge],  # Attach knowledge to AgentOS for the knowledge API
+    tracing=True,  # Enable detailed tracing (uses setup_tracing db)
 )
 
 app = agent_os.get_app()
