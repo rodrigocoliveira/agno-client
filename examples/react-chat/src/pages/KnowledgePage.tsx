@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { useAgnoKnowledge } from '@rodrigocoliveira/agno-react'
+import { useAgnoKnowledge, useAgnoClient } from '@rodrigocoliveira/agno-react'
 import { ContentResponse, VectorSearchResult, KnowledgeConfigResponse } from '@rodrigocoliveira/agno-types'
 import { toast } from 'sonner'
 import { format } from 'date-fns'
@@ -20,6 +20,7 @@ import {
   Clock,
   Settings,
   Link,
+  AlertCircle,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -111,6 +112,7 @@ function StatusBadge({ status }: { status: string | null | undefined }) {
 }
 
 export function KnowledgePage() {
+  const client = useAgnoClient()
   const {
     content,
     isLoading,
@@ -123,10 +125,48 @@ export function KnowledgePage() {
     getContentStatus,
   } = useAgnoKnowledge()
 
+  // Track knowledge db_id with state that reacts to client state changes
+  // Note: The knowledge db_id is separate from the agent's db_id
+  // It's stored in agent.knowledge.db_id (NOT agent.db_id which is for sessions)
+  const [dbId, setDbId] = useState<string | undefined>(() => {
+    const config = client.getConfig()
+    const state = client.getState()
+    const currentAgent = state.agents.find(a => a.id === config.agentId)
+    // Priority: agent.knowledge.db_id > config.dbId (which is for sessions)
+    const knowledgeDbId = (currentAgent?.knowledge as { db_id?: string })?.db_id
+    return knowledgeDbId || undefined
+  })
+
+  // Subscribe to state changes to update dbId
+  useEffect(() => {
+    const updateDbId = () => {
+      const config = client.getConfig()
+      const state = client.getState()
+      const currentAgent = state.agents.find(a => a.id === config.agentId)
+      // Get the knowledge db_id from the agent's knowledge configuration
+      // Don't use config.dbId as that's the session db, not knowledge db
+      const knowledgeDbId = (currentAgent?.knowledge as { db_id?: string })?.db_id
+      setDbId(knowledgeDbId || undefined)
+    }
+
+    // Initial update
+    updateDbId()
+
+    // Subscribe to state changes
+    client.on('state:change', updateDbId)
+    client.on('config:change', updateDbId)
+
+    return () => {
+      client.off('state:change', updateDbId)
+      client.off('config:change', updateDbId)
+    }
+  }, [client])
+
   const [contentToDelete, setContentToDelete] = useState<string | null>(null)
   const [showDeleteAllDialog, setShowDeleteAllDialog] = useState(false)
   const [isDeleting, setIsDeleting] = useState(false)
   const [contentDetail, setContentDetail] = useState<ContentResponse | null>(null)
+  const [loadError, setLoadError] = useState<string | null>(null)
 
   // Upload dialog state
   const [showUploadDialog, setShowUploadDialog] = useState(false)
@@ -149,21 +189,39 @@ export function KnowledgePage() {
   const [knowledgeConfig, setKnowledgeConfig] = useState<KnowledgeConfigResponse | null>(null)
   const [isLoadingConfig, setIsLoadingConfig] = useState(false)
 
-  // Fetch content on mount
+  // Fetch content when dbId is available
   useEffect(() => {
-    listContent()
-  }, [listContent])
+    if (!dbId) {
+      // Don't set error immediately - wait for state to be populated
+      // This prevents showing error during initial load
+      return
+    }
+    // Clear any previous error when we have a valid dbId
+    setLoadError(null)
+    listContent({ db_id: dbId }).catch((err) => {
+      const message = err?.message || String(err)
+      if (message.includes('not found') || message.includes('Knowledge instance')) {
+        setLoadError('Knowledge base not configured for this agent. Please ensure your agent has a knowledge base set up in the Agno backend.')
+      } else {
+        setLoadError(message)
+      }
+    })
+  }, [listContent, dbId])
 
   const handleRefresh = useCallback(() => {
-    listContent()
+    if (!dbId) return
+    setLoadError(null)
+    listContent({ db_id: dbId }).catch((err) => {
+      setLoadError(err?.message || String(err))
+    })
     toast.success('Content refreshed')
-  }, [listContent])
+  }, [listContent, dbId])
 
   const handleDelete = useCallback(async () => {
     if (!contentToDelete) return
     setIsDeleting(true)
     try {
-      await deleteContent(contentToDelete)
+      await deleteContent(contentToDelete, { dbId })
       toast.success('Content deleted')
       setContentToDelete(null)
     } catch (error) {
@@ -172,12 +230,12 @@ export function KnowledgePage() {
     } finally {
       setIsDeleting(false)
     }
-  }, [contentToDelete, deleteContent])
+  }, [contentToDelete, deleteContent, dbId])
 
   const handleDeleteAll = useCallback(async () => {
     setIsDeleting(true)
     try {
-      await deleteAllContent()
+      await deleteAllContent({ dbId })
       toast.success('All content deleted')
       setShowDeleteAllDialog(false)
     } catch (error) {
@@ -186,20 +244,20 @@ export function KnowledgePage() {
     } finally {
       setIsDeleting(false)
     }
-  }, [deleteAllContent])
+  }, [deleteAllContent, dbId])
 
   const handleViewDetails = useCallback(async (item: ContentResponse) => {
     setContentDetail(item)
     try {
       // Refresh status if processing
       if (item.status === 'processing') {
-        const status = await getContentStatus(item.id)
+        const status = await getContentStatus(item.id, { dbId })
         setContentDetail((prev) => prev ? { ...prev, ...status } : prev)
       }
     } catch (error) {
       console.error(error)
     }
-  }, [getContentStatus])
+  }, [getContentStatus, dbId])
 
   const handleUpload = useCallback(async () => {
     if (!uploadFile && !uploadUrl && !uploadTextContent) {
@@ -215,7 +273,7 @@ export function KnowledgePage() {
         file: uploadFile || undefined,
         url: uploadUrl || undefined,
         text_content: uploadTextContent || undefined,
-      })
+      }, { dbId })
       toast.success('Content uploaded successfully')
       setShowUploadDialog(false)
       setUploadFile(null)
@@ -223,14 +281,14 @@ export function KnowledgePage() {
       setUploadTextContent('')
       setUploadName('')
       setUploadDescription('')
-      listContent()
+      if (dbId) listContent({ db_id: dbId })
     } catch (error) {
       toast.error('Failed to upload content')
       console.error(error)
     } finally {
       setIsUploading(false)
     }
-  }, [uploadFile, uploadUrl, uploadTextContent, uploadName, uploadDescription, uploadContent, listContent])
+  }, [uploadFile, uploadUrl, uploadTextContent, uploadName, uploadDescription, uploadContent, listContent, dbId])
 
   const handleSearch = useCallback(async () => {
     if (!searchQuery.trim()) {
@@ -244,6 +302,7 @@ export function KnowledgePage() {
         query: searchQuery,
         search_type: searchType,
         max_results: maxResults,
+        db_id: dbId,
       })
       setSearchResults(response.data)
       if (response.data.length === 0) {
@@ -255,12 +314,12 @@ export function KnowledgePage() {
     } finally {
       setIsSearching(false)
     }
-  }, [searchQuery, searchType, maxResults, search])
+  }, [searchQuery, searchType, maxResults, search, dbId])
 
   const handleLoadConfig = useCallback(async () => {
     setIsLoadingConfig(true)
     try {
-      const config = await getConfig()
+      const config = await getConfig({ dbId })
       setKnowledgeConfig(config)
     } catch (error) {
       toast.error('Failed to load configuration')
@@ -268,7 +327,7 @@ export function KnowledgePage() {
     } finally {
       setIsLoadingConfig(false)
     }
-  }, [getConfig])
+  }, [getConfig, dbId])
 
   const columns: Column<ContentResponse>[] = [
     {
@@ -390,7 +449,25 @@ export function KnowledgePage() {
           </TabsList>
 
           <TabsContent value="content" className="space-y-4">
-            {isLoading && content.length === 0 ? (
+            {loadError ? (
+              <EmptyState
+                icon={<AlertCircle className="h-6 w-6 text-destructive" />}
+                title="Knowledge Base Not Available"
+                description={loadError}
+                action={
+                  <Button variant="outline" onClick={() => {
+                    if (!dbId) return
+                    setLoadError(null)
+                    listContent({ db_id: dbId }).catch((err) => {
+                      setLoadError(err?.message || String(err))
+                    })
+                  }}>
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                    Retry
+                  </Button>
+                }
+              />
+            ) : isLoading && content.length === 0 ? (
               <LoadingState message="Loading content..." />
             ) : content.length === 0 ? (
               <EmptyState

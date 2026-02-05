@@ -209,16 +209,17 @@ export function SessionsPage() {
               <MoreHorizontal className="h-4 w-4" />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onClick={() => handleOpenInChat(session)}>
+          <DropdownMenuContent align="end" onCloseAutoFocus={(e) => e.preventDefault()}>
+            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleOpenInChat(session) }}>
               <MessageSquare className="h-4 w-4 mr-2" />
               Open in Chat
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => handleViewDetails(session)}>
+            <DropdownMenuItem onSelect={(e) => { e.preventDefault(); handleViewDetails(session) }}>
               <Eye className="h-4 w-4 mr-2" />
               View Details
             </DropdownMenuItem>
-            <DropdownMenuItem onClick={() => {
+            <DropdownMenuItem onSelect={(e) => {
+              e.preventDefault()
               setSessionToRename(session)
               setNewName(session.session_name || '')
             }}>
@@ -227,7 +228,7 @@ export function SessionsPage() {
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem
-              onClick={() => setSessionToDelete(session.session_id)}
+              onSelect={(e) => { e.preventDefault(); setSessionToDelete(session.session_id) }}
               className="text-destructive focus:text-destructive"
             >
               <Trash2 className="h-4 w-4 mr-2" />

@@ -1,4 +1,5 @@
 agno==2.4.0
+lancedb
 annotated-doc==0.0.4
 annotated-types==0.7.0
 anthropic==0.76.0

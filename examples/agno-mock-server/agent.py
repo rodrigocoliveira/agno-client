@@ -7,11 +7,15 @@ This example demonstrates all the generative UI capabilities:
 - Product comparison tables
 - Dashboard metrics
 - Smart data visualization
+- Knowledge base with vector search
 """
 
 from agno.agent import Agent
 from agno.tools import tool
 from agno.models.openai import OpenAIChat
+from agno.knowledge.knowledge import Knowledge
+from agno.knowledge.embedder.openai import OpenAIEmbedder
+from agno.vectordb.lancedb import LanceDb, SearchType
 from typing import TypedDict
 
 
@@ -298,14 +302,43 @@ def show_alert(content: str):
     pass
 
 # ============================================================================
+# KNOWLEDGE BASE CONFIGURATION
+# ============================================================================
+
+def create_knowledge_base(contents_db=None):
+    """Create and return the knowledge base with LanceDB vector store.
+    
+    Args:
+        contents_db: Optional database for storing knowledge contents.
+                     Should have an explicit ID for the AgentOS knowledge API.
+    """
+    knowledge = Knowledge(
+        vector_db=LanceDb(
+            uri="tmp/lancedb",
+            table_name="demo_knowledge",
+            search_type=SearchType.hybrid,
+            embedder=OpenAIEmbedder(id="text-embedding-3-small"),
+        ),
+        contents_db=contents_db,
+    )
+    return knowledge
+
+# ============================================================================
 # AGENT CONFIGURATION
 # ============================================================================
 
-def create_agent(db):
-    """Create and return the generative UI demo agent."""
+def create_agent(db, knowledge=None):
+    """Create and return the generative UI demo agent.
+    
+    Args:
+        db: Database for sessions and other agent data.
+        knowledge: Optional knowledge base to attach to the agent.
+    """
     return Agent(
         name="generative-ui-demo",
         db=db,
+        knowledge=knowledge,
+        search_knowledge=True,
         tools=[
             # Backend data fetching tools
             get_revenue_data,
@@ -321,7 +354,7 @@ def create_agent(db):
             render_visualization,
             show_alert,
         ],
-        model=OpenAIChat(id="gpt-4o-audio-preview"),
+        model=OpenAIChat(id="gpt-4o-mini"),
         description="AI assistant that demonstrates generative UI capabilities with interactive charts, cards, tables, and visualizations.",
         instructions=[
             "You are a helpful AI assistant that creates beautiful, interactive visualizations.",
@@ -339,6 +372,9 @@ def create_agent(db):
             "",
             "The render_* tools execute on the FRONTEND and create interactive UI components.",
             "Always explain what you're showing and offer to adjust the visualization.",
+            "",
+            "You also have access to a knowledge base. When users ask about uploaded documents,",
+            "search the knowledge base to find relevant information.",
         ],
         add_history_to_context=True,
         markdown=True,
