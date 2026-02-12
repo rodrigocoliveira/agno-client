@@ -8,6 +8,7 @@ import { KnowledgePage } from '@/pages/KnowledgePage'
 import { MetricsPage } from '@/pages/MetricsPage'
 import { EvalsPage } from '@/pages/EvalsPage'
 import { TracesPage } from '@/pages/TracesPage'
+import { ChatV2Page } from '@/pages/ChatV2Page'
 
 function App() {
   return (
@@ -16,6 +17,7 @@ function App() {
         <Route element={<AppLayout />}>
           <Route path="/" element={<HomePage />} />
           <Route path="/chat" element={<ChatPage />} />
+          <Route path="/chat-v2" element={<ChatV2Page />} />
           <Route path="/sessions" element={<SessionsPage />} />
           <Route path="/memory" element={<MemoryPage />} />
           <Route path="/knowledge" element={<KnowledgePage />} />
