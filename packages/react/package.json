@@ -1,7 +1,7 @@
 {
   "name": "@rodrigocoliveira/agno-react",
   "version": "1.0.1",
-  "description": "React hooks for Agno client with frontend tool execution (HITL) support",
+  "description": "React hooks and pre-built UI components for Agno client",
   "author": "rodrigocoliveira",
   "license": "MIT",
   "repository": {
@@ -17,16 +17,23 @@
     "hooks",
     "hitl",
     "tool-execution",
-    "streaming"
+    "streaming",
+    "chat-ui",
+    "components"
   ],
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
-      "require": "./dist/index.js",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.js"
+    },
+    "./ui": {
+      "types": "./dist/ui.d.ts",
+      "import": "./dist/ui.mjs",
+      "require": "./dist/ui.js"
     }
   },
   "files": [
@@ -34,8 +41,8 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts --external react",
-    "dev": "tsup src/index.ts --format cjs,esm --dts --external react --watch",
+    "build": "tsup",
+    "dev": "tsup --watch",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -43,12 +50,62 @@
     "@rodrigocoliveira/agno-types": "workspace:*"
   },
   "peerDependencies": {
-    "react": "^18.0.0 || ^19.0.0"
+    "react": "^18.0.0 || ^19.0.0",
+    "@radix-ui/react-accordion": "^1.0.0 || ^2.0.0",
+    "@radix-ui/react-avatar": "^1.0.0 || ^2.0.0",
+    "@radix-ui/react-collapsible": "^1.0.0 || ^2.0.0",
+    "@radix-ui/react-dropdown-menu": "^2.0.0",
+    "@radix-ui/react-hover-card": "^1.0.0 || ^2.0.0",
+    "@radix-ui/react-select": "^2.0.0",
+    "@radix-ui/react-slot": "^1.0.0 || ^2.0.0",
+    "@radix-ui/react-tooltip": "^1.0.0 || ^2.0.0",
+    "class-variance-authority": "^0.7.0",
+    "clsx": "^2.0.0",
+    "tailwind-merge": "^2.0.0 || ^3.0.0",
+    "lucide-react": "^0.400.0 || ^0.500.0",
+    "shiki": "^1.0.0 || ^2.0.0 || ^3.0.0",
+    "streamdown": "^2.0.0",
+    "use-stick-to-bottom": "^1.0.0",
+    "cmdk": "^1.0.0"
+  },
+  "peerDependenciesMeta": {
+    "@radix-ui/react-accordion": { "optional": true },
+    "@radix-ui/react-avatar": { "optional": true },
+    "@radix-ui/react-collapsible": { "optional": true },
+    "@radix-ui/react-dropdown-menu": { "optional": true },
+    "@radix-ui/react-hover-card": { "optional": true },
+    "@radix-ui/react-select": { "optional": true },
+    "@radix-ui/react-slot": { "optional": true },
+    "@radix-ui/react-tooltip": { "optional": true },
+    "class-variance-authority": { "optional": true },
+    "clsx": { "optional": true },
+    "tailwind-merge": { "optional": true },
+    "lucide-react": { "optional": true },
+    "shiki": { "optional": true },
+    "streamdown": { "optional": true },
+    "use-stick-to-bottom": { "optional": true },
+    "cmdk": { "optional": true }
   },
   "devDependencies": {
+    "@radix-ui/react-accordion": "^1.2.12",
+    "@radix-ui/react-avatar": "^1.1.11",
+    "@radix-ui/react-collapsible": "^1.1.12",
+    "@radix-ui/react-dropdown-menu": "^2.1.16",
+    "@radix-ui/react-hover-card": "^1.1.15",
+    "@radix-ui/react-select": "^2.2.6",
+    "@radix-ui/react-slot": "^1.2.4",
+    "@radix-ui/react-tooltip": "^1.2.8",
     "@types/react": "^18.3.3",
+    "class-variance-authority": "^0.7.1",
+    "clsx": "^2.1.1",
+    "cmdk": "^1.1.1",
+    "lucide-react": "^0.563.0",
     "react": "^19.2.1",
+    "shiki": "^3.2.1",
+    "streamdown": "^2.2.0",
+    "tailwind-merge": "^3.0.2",
     "tsup": "^8.0.1",
-    "typescript": "^5.3.3"
+    "typescript": "^5.3.3",
+    "use-stick-to-bottom": "^1.1.3"
   }
 }
