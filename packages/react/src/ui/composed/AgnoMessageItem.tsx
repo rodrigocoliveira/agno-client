@@ -1,5 +1,5 @@
-import type { ChatMessage } from '@rodrigocoliveira/agno-types';
-import { GenerativeUIRenderer } from '../../components/GenerativeUIRenderer';
+import type { ChatMessage, ToolCall } from '@rodrigocoliveira/agno-types';
+import { GenerativeUIRenderer } from '@rodrigocoliveira/agno-react';
 import { Response } from '../components/response';
 import { Tool, ToolContent, ToolHeader, ToolInput, ToolOutput } from '../components/tool';
 import { Artifact } from '../components/artifact';
@@ -71,7 +71,7 @@ export function AgnoMessageItem({
 }: AgnoMessageItemProps) {
   const isUser = message.role === 'user';
   const hasError = message.streamingError;
-  const toolsWithUI = message.tool_calls?.filter((tool) => (tool as any).ui_component) || [];
+  const toolsWithUI = message.tool_calls?.filter((tool) => (tool as ToolCall & { ui_component?: any }).ui_component) || [];
 
   return (
     <div className={cn('py-5 first:pt-2', isUser ? 'flex justify-end' : '', classNames?.root, className)}>
@@ -148,7 +148,7 @@ export function AgnoMessageItem({
                 {showGenerativeUI && toolsWithUI.length > 0 && (
                   <div className="space-y-3">
                     {toolsWithUI.map((tool) => {
-                      const uiComponent = (tool as any).ui_component;
+                      const uiComponent = (tool as ToolCall & { ui_component?: any }).ui_component;
                       return (
                         <div key={tool.tool_call_id}>
                           {uiComponent.layout === 'artifact' ? (
@@ -377,7 +377,7 @@ export function AgnoMessageItem({
                                         ({(file.size / 1024).toFixed(1)}KB)
                                       </span>
                                     )}
-                                    {file.url && (
+                                    {file.url && /^https?:\/\//i.test(file.url) && (
                                       <a
                                         href={file.url}
                                         target="_blank"

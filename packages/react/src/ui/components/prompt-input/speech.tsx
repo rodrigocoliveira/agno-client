@@ -52,17 +52,21 @@ declare global {
 export type PromptInputSpeechButtonProps = ComponentProps<typeof PromptInputButton> & {
   textareaRef?: RefObject<HTMLTextAreaElement | null>;
   onTranscriptionChange?: (text: string) => void;
+  lang?: string;
 };
 
 export const PromptInputSpeechButton = ({
   className,
   textareaRef,
   onTranscriptionChange,
+  lang = 'en-US',
   ...props
 }: PromptInputSpeechButtonProps) => {
   const [isListening, setIsListening] = useState(false);
   const [recognition, setRecognition] = useState<SpeechRecognition | null>(null);
   const recognitionRef = useRef<SpeechRecognition | null>(null);
+  const onTranscriptionChangeRef = useRef(onTranscriptionChange);
+  onTranscriptionChangeRef.current = onTranscriptionChange;
 
   useEffect(() => {
     if (typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
@@ -71,7 +75,7 @@ export const PromptInputSpeechButton = ({
 
       speechRecognition.continuous = true;
       speechRecognition.interimResults = true;
-      speechRecognition.lang = 'en-US';
+      speechRecognition.lang = lang;
 
       speechRecognition.onstart = () => setIsListening(true);
       speechRecognition.onend = () => setIsListening(false);
@@ -88,7 +92,7 @@ export const PromptInputSpeechButton = ({
           const newValue = currentValue + (currentValue ? ' ' : '') + finalTranscript;
           textarea.value = newValue;
           textarea.dispatchEvent(new Event('input', { bubbles: true }));
-          onTranscriptionChange?.(newValue);
+          onTranscriptionChangeRef.current?.(newValue);
         }
       };
 
@@ -104,7 +108,7 @@ export const PromptInputSpeechButton = ({
     return () => {
       if (recognitionRef.current) recognitionRef.current.stop();
     };
-  }, [textareaRef, onTranscriptionChange]);
+  }, [textareaRef, lang]);
 
   const toggleListening = useCallback(() => {
     if (!recognition) return;

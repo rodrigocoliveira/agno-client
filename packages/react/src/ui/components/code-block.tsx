@@ -11,7 +11,7 @@ import {
   useState,
 } from 'react';
 
-type CodeBlockProps = HTMLAttributes<HTMLDivElement> & {
+export type CodeBlockProps = HTMLAttributes<HTMLDivElement> & {
   code: string;
   language: string;
   showLineNumbers?: boolean;
@@ -70,20 +70,16 @@ export const CodeBlock = ({
 }: CodeBlockProps) => {
   const [html, setHtml] = useState<string>('');
   const [darkHtml, setDarkHtml] = useState<string>('');
-  const mounted = useRef(false);
+  const effectIdRef = useRef(0);
 
   useEffect(() => {
+    const id = ++effectIdRef.current;
     highlightCode(code, language, showLineNumbers).then(([light, dark]) => {
-      if (!mounted.current) {
+      if (id === effectIdRef.current) {
         setHtml(light);
         setDarkHtml(dark);
-        mounted.current = true;
       }
     });
-
-    return () => {
-      mounted.current = false;
-    };
   }, [code, language, showLineNumbers]);
 
   const useFallback = !html && !darkHtml;

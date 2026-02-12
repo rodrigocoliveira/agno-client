@@ -19,7 +19,7 @@ export function PromptInputProvider({ initialInput: initialTextInput = '', child
   const [textInput, setTextInput] = useState(initialTextInput);
   const clearInput = useCallback(() => setTextInput(''), []);
 
-  const [attachements, setAttachements] = useState<(FileAttachment & { id: string })[]>([]);
+  const [fileItems, setFileItems] = useState<(FileAttachment & { id: string })[]>([]);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const openRef = useRef<() => void>(() => {});
 
@@ -27,7 +27,7 @@ export function PromptInputProvider({ initialInput: initialTextInput = '', child
     const incoming = Array.from(files);
     if (incoming.length === 0) return;
 
-    setAttachements((prev) =>
+    setFileItems((prev) =>
       prev.concat(
         incoming.map((file) => ({
           id: generateId(),
@@ -41,7 +41,7 @@ export function PromptInputProvider({ initialInput: initialTextInput = '', child
   }, []);
 
   const remove = useCallback((id: string) => {
-    setAttachements((prev) => {
+    setFileItems((prev) => {
       const found = prev.find((f) => f.id === id);
       if (found?.url) URL.revokeObjectURL(found.url);
       return prev.filter((f) => f.id !== id);
@@ -49,7 +49,7 @@ export function PromptInputProvider({ initialInput: initialTextInput = '', child
   }, []);
 
   const clear = useCallback(() => {
-    setAttachements((prev) => {
+    setFileItems((prev) => {
       for (const f of prev) if (f.url) URL.revokeObjectURL(f.url);
       return [];
     });
@@ -61,14 +61,14 @@ export function PromptInputProvider({ initialInput: initialTextInput = '', child
 
   const attachments = useMemo<AttachmentsContext>(
     () => ({
-      files: attachements,
+      files: fileItems,
       add,
       remove,
       clear,
       openFileDialog,
       fileInputRef,
     }),
-    [attachements, add, remove, clear, openFileDialog],
+    [fileItems, add, remove, clear, openFileDialog],
   );
 
   const __registerFileInput = useCallback(

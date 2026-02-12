@@ -2,7 +2,7 @@ import { cn } from '../lib/cn';
 import { type ComponentProps, memo } from 'react';
 import { Streamdown } from 'streamdown';
 
-type ResponseProps = ComponentProps<typeof Streamdown>;
+export type ResponseProps = ComponentProps<typeof Streamdown>;
 
 export const Response = memo(
   ({ className, ...props }: ResponseProps) => (

@@ -90,6 +90,19 @@ export function AudioRecorder({ onRecordingComplete, disabled, className }: Audi
     }
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
+      if (workletNodeRef.current) {
+        workletNodeRef.current.port.postMessage('stop');
+        workletNodeRef.current.disconnect();
+        workletNodeRef.current = null;
+      }
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach((track) => track.stop());
+        streamRef.current = null;
+      }
       if (workletUrlRef.current) URL.revokeObjectURL(workletUrlRef.current);
     };
   }, []);

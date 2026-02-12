@@ -108,6 +108,7 @@ export type {
 
 // Response (markdown renderer)
 export { Response } from './components/response';
+export type { ResponseProps } from './components/response';
 
 // Tool
 export { Tool, ToolHeader, ToolContent, ToolInput, ToolOutput } from './components/tool';
@@ -121,7 +122,7 @@ export type {
 
 // Code Block
 export { CodeBlock, CodeBlockCopyButton } from './components/code-block';
-export type { CodeBlockCopyButtonProps } from './components/code-block';
+export type { CodeBlockProps, CodeBlockCopyButtonProps } from './components/code-block';
 
 // Artifact
 export {

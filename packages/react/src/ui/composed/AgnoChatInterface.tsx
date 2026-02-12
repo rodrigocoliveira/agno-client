@@ -1,7 +1,6 @@
 import type { ChatMessage } from '@rodrigocoliveira/agno-types';
-import { useAgnoChat } from '../../hooks/useAgnoChat';
-import { useAgnoToolExecution } from '../../hooks/useAgnoToolExecution';
-import type { ToolHandler } from '../../hooks/useAgnoToolExecution';
+import { useAgnoChat, useAgnoToolExecution } from '@rodrigocoliveira/agno-react';
+import type { ToolHandler } from '@rodrigocoliveira/agno-react';
 import {
   Conversation,
   ConversationContent,

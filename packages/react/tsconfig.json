@@ -3,7 +3,10 @@
   "compilerOptions": {
     "outDir": "./dist",
     "rootDir": "./src",
-    "jsx": "react-jsx"
+    "jsx": "react-jsx",
+    "paths": {
+      "@rodrigocoliveira/agno-react": ["./src/index.ts"]
+    }
   },
   "include": ["src/**/*"]
 }

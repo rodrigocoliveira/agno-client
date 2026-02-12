@@ -46,15 +46,7 @@ export const PromptInput = ({
   const usingProvider = !!controller;
 
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const anchorRef = useRef<HTMLSpanElement>(null);
   const formRef = useRef<HTMLFormElement | null>(null);
-
-  useEffect(() => {
-    const root = anchorRef.current?.closest('form');
-    if (root instanceof HTMLFormElement) {
-      formRef.current = root;
-    }
-  }, []);
 
   const [items, setItems] = useState<(FileAttachment & { id: string })[]>([]);
   const files = usingProvider ? controller.attachments.files : items;
@@ -193,13 +185,16 @@ export const PromptInput = ({
     };
   }, [add, globalDrop]);
 
+  const filesRef = useRef(files);
+  filesRef.current = files;
+
   useEffect(
     () => () => {
       if (!usingProvider) {
-        for (const f of files) if (f.url) URL.revokeObjectURL(f.url);
+        for (const f of filesRef.current) if (f.url) URL.revokeObjectURL(f.url);
       }
     },
-    [usingProvider, files],
+    [usingProvider],
   );
 
   const handleChange: ChangeEventHandler<HTMLInputElement> = (event) => {
@@ -270,8 +265,7 @@ export const PromptInput = ({
   };
 
   const inner = (
-    <>
-      <span aria-hidden="true" className="hidden" ref={anchorRef} />
+    <form className={cn('w-full', className)} onSubmit={handleSubmit} ref={formRef} {...props}>
       <input
         accept={accept}
         aria-label="Upload files"
@@ -282,10 +276,8 @@ export const PromptInput = ({
         title="Upload files"
         type="file"
       />
-      <form className={cn('w-full', className)} onSubmit={handleSubmit} {...props}>
-        <InputGroup>{children}</InputGroup>
-      </form>
-    </>
+      <InputGroup>{children}</InputGroup>
+    </form>
   );
 
   return usingProvider ? inner : <LocalAttachmentsContext.Provider value={ctx}>{inner}</LocalAttachmentsContext.Provider>;
