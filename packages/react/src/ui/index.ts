@@ -258,3 +258,29 @@ export type { AgnoMessageItemProps } from './composed/AgnoMessageItem';
 
 export { AgnoChatInput } from './composed/AgnoChatInput';
 export type { AgnoChatInputProps } from './composed/AgnoChatInput';
+
+// ── AgnoChat (compound component) ───────────────────────────────────────────
+
+export {
+  AgnoChat,
+  useAgnoChatContext,
+  AgnoChatRoot,
+  AgnoChatMessages,
+  AgnoChatEmptyState,
+  AgnoChatSuggestedPrompts,
+  AgnoChatToolStatus,
+  AgnoChatErrorBar,
+  AgnoChatInputArea,
+} from './composed/agno-chat';
+
+export type {
+  AgnoChatContextValue,
+  AgnoChatRootProps,
+  AgnoChatMessagesProps,
+  AgnoChatEmptyStateProps,
+  AgnoChatSuggestedPromptsProps,
+  AgnoChatToolStatusProps,
+  AgnoChatErrorBarProps,
+  AgnoChatInputAreaProps,
+  AgnoChatInputRenderProps,
+} from './composed/agno-chat';

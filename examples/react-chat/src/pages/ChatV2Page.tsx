@@ -1,10 +1,10 @@
 import { useState } from 'react'
-import { AgnoChatInterface } from '@rodrigocoliveira/agno-react/ui'
+import { AgnoChat } from '@rodrigocoliveira/agno-react/ui'
 import type { ToolHandler } from '@rodrigocoliveira/agno-react'
 import { SessionSidebar } from '@/components/sessions/SessionSidebar'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { PanelLeftClose, PanelLeftOpen, Zap, Brain, Code2, Sparkles } from 'lucide-react'
+import { PanelLeftClose, PanelLeftOpen, Zap, Brain, Code2, Sparkles, Rocket, Cat } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { EXAMPLE_GENERATIVE_TOOLS } from '@/tools/exampleGenerativeTools'
@@ -66,14 +66,56 @@ export function ChatV2Page() {
           </span>
         </div>
 
-        {/* Chat Interface (library component) */}
+        {/* Chat Interface — compound component pattern */}
         <div className="flex-1 overflow-hidden">
-          <AgnoChatInterface
-            toolHandlers={toolHandlers}
-            suggestedPrompts={SUGGESTED_PROMPTS}
-            placeholder="Message your agent..."
-            showAudioRecorder={true}
-          />
+          <AgnoChat toolHandlers={toolHandlers}>
+            <AgnoChat.Messages
+              userAvatar={
+                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-md">
+                  <Cat className="h-4 w-4 text-white" />
+                </div>
+              }
+              assistantAvatar={
+                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-md">
+                  <Rocket className="h-4 w-4 text-white" />
+                </div>
+              }
+              messageItemProps={{
+                classNames: {
+                  userBubble: 'bg-gradient-to-br from-violet-500/90 to-fuchsia-500/90 text-white rounded-2xl rounded-br-md shadow-sm',
+                  assistantContainer: 'border-l-2 border-cyan-500/30 pl-3',
+                },
+              }}
+            >
+              <AgnoChat.EmptyState>
+                <div className="relative">
+                  <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-600/20 flex items-center justify-center border border-cyan-500/20">
+                    <Rocket className="h-10 w-10 text-cyan-500" />
+                  </div>
+                  <div className="absolute -bottom-1.5 -right-1.5 h-6 w-6 rounded-full bg-green-500 border-2 border-background flex items-center justify-center">
+                    <span className="h-2.5 w-2.5 rounded-full bg-white animate-pulse" />
+                  </div>
+                </div>
+                <div className="space-y-2 text-center">
+                  <h3 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text text-transparent">
+                    Chat v2 — Compound
+                  </h3>
+                  <p className="text-muted-foreground text-sm max-w-sm">
+                    This page uses the <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">AgnoChat</code> compound component with custom avatars, colors, and suggested prompts that actually work in custom empty states.
+                  </p>
+                </div>
+                <AgnoChat.SuggestedPrompts prompts={SUGGESTED_PROMPTS} />
+              </AgnoChat.EmptyState>
+            </AgnoChat.Messages>
+
+            <AgnoChat.ToolStatus className="bg-violet-500/5 border-violet-500/20" />
+            <AgnoChat.ErrorBar className="bg-red-500/5 border-t-2 border-red-500/30" />
+            <AgnoChat.Input
+              className="bg-muted/30 border-t-2 border-primary/10"
+              placeholder="Ask me anything..."
+              showAudioRecorder={true}
+            />
+          </AgnoChat>
         </div>
       </div>
     </div>
