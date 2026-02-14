@@ -1,0 +1,62 @@
+{
+  "name": "@rodrigocoliveira/agno-vue",
+  "version": "0.1.0",
+  "type": "module",
+  "description": "Vue 3 integration for agno-client with Composition API composables",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js",
+      "bun": "./dist/index.mjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "keywords": [
+    "vue",
+    "vue3",
+    "agno",
+    "ai",
+    "agents",
+    "client",
+    "composable"
+  ],
+  "author": "rodrigocoliveira",
+  "license": "MIT",
+  "peerDependencies": {
+    "vue": "^3.3.0",
+    "@rodrigocoliveira/agno-client": "*"
+  },
+  "dependencies": {
+    "@rodrigocoliveira/agno-types": "workspace:*"
+  },
+  "devDependencies": {
+    "@rodrigocoliveira/agno-client": "workspace:*",
+    "@types/node": "^20.10.0",
+    "@vue/test-utils": "^2.4.1",
+    "typescript": "^5.3.3",
+    "vite": "^5.0.0",
+    "vitest": "^1.0.0",
+    "vue": "^3.3.0"
+  },
+  "scripts": {
+    "build": "vite build",
+    "dev": "vite",
+    "preview": "vite preview",
+    "test": "vitest",
+    "test:bun": "bun test",
+    "typecheck": "tsc --noEmit"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/rodrigocoliveira/agno-client.git",
+    "directory": "packages/vue"
+  },
+  "bugs": {
+    "url": "https://github.com/rodrigocoliveira/agno-client/issues"
+  },
+  "homepage": "https://github.com/rodrigocoliveira/agno-client#readme"
+}
