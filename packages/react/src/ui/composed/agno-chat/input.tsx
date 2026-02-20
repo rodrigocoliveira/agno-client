@@ -29,6 +29,8 @@ export interface AgnoChatInputAreaProps {
   transcriptionHeaders?: Record<string, string>;
   /** Custom parser for the transcription response — receives the parsed JSON and returns the text */
   parseTranscriptionResponse?: (data: unknown) => string;
+  /** Async callback to request microphone permission before recording (e.g., for WebView bridges) */
+  onRequestPermission?: () => Promise<boolean>;
 }
 
 export function AgnoChatInputArea({
@@ -44,6 +46,7 @@ export function AgnoChatInputArea({
   transcriptionEndpoint,
   transcriptionHeaders,
   parseTranscriptionResponse,
+  onRequestPermission,
 }: AgnoChatInputAreaProps) {
   const { handleSend, inputDisabled, isStreaming, isPaused } = useAgnoChatContext();
 
@@ -66,6 +69,7 @@ export function AgnoChatInputArea({
             transcriptionEndpoint={transcriptionEndpoint}
             transcriptionHeaders={transcriptionHeaders}
             parseTranscriptionResponse={parseTranscriptionResponse}
+            onRequestPermission={onRequestPermission}
           />
         )}
       </div>

@@ -21,6 +21,10 @@ export interface AudioRecorderProps {
   /** Custom parser for the transcription response — receives the parsed JSON and returns the text.
    *  Default: looks for data.text || data.transcript || data.transcription */
   parseTranscriptionResponse?: (data: unknown) => string;
+  /** Optional async callback to request microphone permission before recording starts.
+   *  Useful in WebView environments (e.g., Expo) where you need to bridge to the native layer
+   *  via postMessage to request permissions. Return true to proceed, false to cancel. */
+  onRequestPermission?: () => Promise<boolean>;
 }
 
 function encodeWav(samples: Float32Array, sampleRate: number): Blob {
@@ -97,6 +101,7 @@ export function AudioRecorder({
   onTranscriptionComplete,
   transcriptionFieldName = 'file',
   parseTranscriptionResponse,
+  onRequestPermission,
 }: AudioRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -136,6 +141,10 @@ export function AudioRecorder({
 
   const startRecording = useCallback(async () => {
     try {
+      if (onRequestPermission) {
+        const granted = await onRequestPermission();
+        if (!granted) return;
+      }
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       streamRef.current = stream;
 
@@ -169,7 +178,7 @@ export function AudioRecorder({
     } catch {
       console.error('Failed to start recording');
     }
-  }, []);
+  }, [onRequestPermission]);
 
   const stopRecording = useCallback(async () => {
     if (workletNodeRef.current) {

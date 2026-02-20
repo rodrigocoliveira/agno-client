@@ -46,6 +46,8 @@ export interface AgnoChatInputProps {
   transcriptionHeaders?: Record<string, string>;
   /** Custom parser for the transcription response — receives the parsed JSON and returns the text */
   parseTranscriptionResponse?: (data: unknown) => string;
+  /** Async callback to request microphone permission before recording (e.g., for WebView bridges) */
+  onRequestPermission?: () => Promise<boolean>;
 }
 
 function dataUrlToBlob(dataUrl: string): Blob {
@@ -65,11 +67,13 @@ function TranscribeAudioRecorder({
   headers,
   disabled,
   parseResponse,
+  onRequestPermission,
 }: {
   endpoint: string;
   headers?: Record<string, string>;
   disabled?: boolean;
   parseResponse?: (data: unknown) => string;
+  onRequestPermission?: () => Promise<boolean>;
 }) {
   const { textInput } = usePromptInputController();
   return (
@@ -78,6 +82,7 @@ function TranscribeAudioRecorder({
       transcriptionEndpoint={endpoint}
       transcriptionHeaders={headers}
       parseTranscriptionResponse={parseResponse}
+      onRequestPermission={onRequestPermission}
       onRecordingComplete={() => {}}
       onTranscriptionComplete={(text) => {
         const current = textInput.value;
@@ -102,6 +107,7 @@ export function AgnoChatInput({
   transcriptionEndpoint,
   transcriptionHeaders,
   parseTranscriptionResponse,
+  onRequestPermission,
 }: AgnoChatInputProps) {
   const handleSubmit = (message: PromptInputMessage) => {
     const text = message.text?.trim() || '';
@@ -174,9 +180,10 @@ export function AgnoChatInput({
                 headers={transcriptionHeaders}
                 disabled={disabled}
                 parseResponse={parseTranscriptionResponse}
+                onRequestPermission={onRequestPermission}
               />
             ) : (
-              <AudioRecorder onRecordingComplete={handleAudioRecording} disabled={disabled} />
+              <AudioRecorder onRecordingComplete={handleAudioRecording} disabled={disabled} onRequestPermission={onRequestPermission} />
             ))}
           {extraTools}
         </PromptInputTools>
