@@ -1,4 +1,5 @@
 import { createContext, useContext } from 'react';
+import type { RefObject } from 'react';
 import type { ChatMessage, ClientState, ToolCall } from '@rodrigocoliveira/agno-types';
 
 export interface AgnoChatContextValue {
@@ -32,6 +33,9 @@ export interface AgnoChatContextValue {
   // Derived convenience
   handleSend: (message: string | FormData) => Promise<void>;
   inputDisabled: boolean;
+
+  // Drop zone
+  dropZoneContainerRef?: RefObject<HTMLElement | null>;
 }
 
 export const AgnoChatContext = createContext<AgnoChatContextValue | null>(null);

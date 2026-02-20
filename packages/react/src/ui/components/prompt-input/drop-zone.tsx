@@ -1,20 +1,23 @@
 import { Upload } from 'lucide-react';
+import { createPortal } from 'react-dom';
 import { cn } from '../../lib/cn';
 import { usePromptInputDropZone } from './context';
-import type { HTMLAttributes } from 'react';
+import type { HTMLAttributes, RefObject } from 'react';
 
 export type PromptInputDropZoneProps = HTMLAttributes<HTMLDivElement> & {
   label?: string;
+  container?: RefObject<HTMLElement | null>;
 };
 
 export const PromptInputDropZone = ({
   label = 'Drop files here',
   className,
+  container,
   ...props
 }: PromptInputDropZoneProps) => {
   const { isDraggingOver } = usePromptInputDropZone();
 
-  return (
+  const overlay = (
     <div
       className={cn(
         'absolute inset-0 z-10 pointer-events-none',
@@ -32,4 +35,10 @@ export const PromptInputDropZone = ({
       <span className="text-sm font-medium text-primary">{label}</span>
     </div>
   );
+
+  if (container?.current) {
+    return createPortal(overlay, container.current);
+  }
+
+  return overlay;
 };

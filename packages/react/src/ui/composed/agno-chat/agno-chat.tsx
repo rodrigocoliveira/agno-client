@@ -22,6 +22,8 @@ export function AgnoChatRoot({
   const chat = useAgnoChat();
   const toolExec = useAgnoToolExecution(toolHandlers, autoExecuteTools);
 
+  const containerRef = useRef<HTMLDivElement>(null);
+
   // Stable ref so handleSend never changes identity
   const sendRef = useRef(chat.sendMessage);
   sendRef.current = chat.sendMessage;
@@ -84,6 +86,9 @@ export function AgnoChatRoot({
       // derived
       handleSend,
       inputDisabled: isStreaming || isPaused,
+
+      // drop zone
+      dropZoneContainerRef: containerRef,
     }),
     [
       messages,
@@ -109,7 +114,7 @@ export function AgnoChatRoot({
 
   return (
     <AgnoChatContext.Provider value={contextValue}>
-      <div className={cn('h-full flex flex-col', className)} {...divProps}>
+      <div ref={containerRef} className={cn('relative h-full flex flex-col', className)} {...divProps}>
         {children}
       </div>
     </AgnoChatContext.Provider>
