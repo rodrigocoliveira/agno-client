@@ -10,14 +10,12 @@ import type { AgnoMessageItemClassNames } from '../types';
 import type { ReactNode } from 'react';
 import {
   AlertCircle,
-  Bot,
   FileIcon,
   FileText,
   Image as ImageIcon,
   Lightbulb,
   Music,
   Paperclip,
-  User,
   Video,
 } from 'lucide-react';
 
@@ -84,11 +82,7 @@ export function AgnoMessageItem({
       {isUser ? (
         /* User message */
         <div className="flex items-start gap-2.5 max-w-[80%] flex-row-reverse">
-          {userAvatar ?? (
-            <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
-              <User className="h-4 w-4 text-primary-foreground" />
-            </div>
-          )}
+          {userAvatar}
           <div className="space-y-1.5 flex flex-col items-end min-w-0">
             {/* Image thumbnails — outside bubble */}
             {message.images && message.images.length > 0 && (
@@ -156,11 +150,7 @@ export function AgnoMessageItem({
       ) : (
         /* Assistant message */
         <div className="flex items-start gap-3">
-          {assistantAvatar ?? (
-            <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-              <Bot className="h-4 w-4 text-primary" />
-            </div>
-          )}
+          {assistantAvatar}
           <div className={cn('flex-1 min-w-0 space-y-3', classNames?.assistantContainer)}>
             {/* Custom content render */}
             {renderContent ? (
