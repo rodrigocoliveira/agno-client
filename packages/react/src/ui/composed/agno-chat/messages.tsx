@@ -43,6 +43,8 @@ export function AgnoChatMessages({
   children,
 }: AgnoChatMessagesProps) {
   const { messages, isStreaming } = useAgnoChatContext();
+  const lastMessage = messages[messages.length - 1];
+  const isThinking = isStreaming && (!lastMessage || lastMessage.role !== 'user') && !lastMessage?.content;
 
   const resolvedEmptyState = children ??
     emptyState ?? (
@@ -71,8 +73,10 @@ export function AgnoChatMessages({
         {messages.length === 0 ? (
           <ConversationEmptyState>{resolvedEmptyState}</ConversationEmptyState>
         ) : (
-          messages.map((message, index) =>
-            renderMessage ? (
+          messages.map((message, index) => {
+            // Hide the empty placeholder while the thinking indicator is shown
+            if (isThinking && index === messages.length - 1 && message === lastMessage) return null;
+            return renderMessage ? (
               renderMessage(message, index)
             ) : (
               <AgnoMessageItem
@@ -82,11 +86,11 @@ export function AgnoChatMessages({
                 assistantAvatar={assistantAvatar}
                 {...messageItemProps}
               />
-            ),
-          )
+            );
+          })
         )}
 
-        {isStreaming && (
+        {isThinking && (
           <div className="py-2">
             <StreamingIndicator />
           </div>
