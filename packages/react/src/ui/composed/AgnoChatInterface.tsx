@@ -37,6 +37,8 @@ export interface AgnoChatInterfaceProps {
   fileUpload?: FileUploadConfig;
   /** Show audio recorder (default: true) */
   showAudioRecorder?: boolean;
+  /** Show attachments button and drop zone (default: true) */
+  showAttachments?: boolean;
   /** Props forwarded to AgnoMessageItem */
   messageItemProps?: Partial<Omit<AgnoMessageItemProps, 'message'>>;
   /** Props forwarded to AgnoChatInput */
@@ -66,6 +68,7 @@ export function AgnoChatInterface({
   assistantAvatar,
   fileUpload,
   showAudioRecorder = true,
+  showAttachments = true,
   messageItemProps,
   chatInputProps,
   dropZoneLabel,
@@ -96,6 +99,7 @@ export function AgnoChatInterface({
         placeholder={placeholder}
         fileUpload={fileUpload}
         showAudioRecorder={showAudioRecorder}
+        showAttachments={showAttachments}
         extraTools={inputToolbarSlot}
         chatInputProps={chatInputProps}
         dropZoneProps={{ className: classNames?.dropZone, label: dropZoneLabel }}
