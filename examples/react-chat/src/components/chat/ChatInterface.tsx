@@ -55,6 +55,8 @@ export function ChatInterface() {
     }
   }
 
+  console.log(messages)
+
   return (
     <div className="h-full flex flex-col">
       {/* Messages area - flex-1 fills remaining space */}
@@ -154,7 +156,7 @@ export function ChatInterface() {
 
       {/* Input area */}
       <div className="border-t border-border bg-background/80 backdrop-blur-sm">
-        <div className="max-w-3xl mx-auto px-4 py-3">
+        <div className="mx-auto px-4 py-3">
           <ChatInput
             onSend={handleSend}
             disabled={isStreaming || isPaused}

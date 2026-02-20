@@ -31,6 +31,8 @@ export interface AgnoMessageItemProps {
   renderToolCall?: (tool: NonNullable<ChatMessage['tool_calls']>[0], index: number) => ReactNode;
   /** Custom render for media sections */
   renderMedia?: (message: ChatMessage) => ReactNode;
+  /** Render action buttons below assistant messages (e.g., copy, like, dislike) */
+  renderActions?: (message: ChatMessage) => ReactNode;
   /** Custom user avatar */
   userAvatar?: ReactNode;
   /** Custom assistant avatar */
@@ -43,6 +45,8 @@ export interface AgnoMessageItemProps {
   showTimestamp?: boolean;
   /** Show generative UI renders (default: true) */
   showGenerativeUI?: boolean;
+  /** Show tool call details (default: true) */
+  showToolCalls?: boolean;
   /** Custom timestamp formatter */
   formatTimestamp?: (date: Date) => string;
 }
@@ -61,12 +65,14 @@ export function AgnoMessageItem({
   renderContent,
   renderToolCall,
   renderMedia,
+  renderActions,
   userAvatar,
   assistantAvatar,
   showReasoning = true,
   showReferences = true,
   showTimestamp = true,
   showGenerativeUI = true,
+  showToolCalls = true,
   formatTimestamp = defaultFormatTimestamp,
 }: AgnoMessageItemProps) {
   const isUser = message.role === 'user';
@@ -77,7 +83,7 @@ export function AgnoMessageItem({
     <div className={cn('py-5 first:pt-2', isUser ? 'flex justify-end' : '', classNames?.root, className)}>
       {isUser ? (
         /* User message */
-        <div className={cn('flex items-end gap-2.5 max-w-[80%] flex-row-reverse', classNames?.userBubble)}>
+        <div className="flex items-start gap-2.5 max-w-[80%] flex-row-reverse">
           {userAvatar ?? (
             <div className="h-8 w-8 rounded-full bg-primary flex items-center justify-center flex-shrink-0">
               <User className="h-4 w-4 text-primary-foreground" />
@@ -86,13 +92,13 @@ export function AgnoMessageItem({
           <div className="space-y-1.5">
             <div
               className={cn(
-                'rounded-2xl rounded-br-md px-4 py-2.5 bg-primary text-primary-foreground',
+                'rounded-2xl rounded-br-md px-4 py-2.5',
+                classNames?.userBubble ?? 'bg-primary text-primary-foreground',
                 hasError && 'opacity-70',
               )}
             >
-              {message.content && <p className="text-sm whitespace-pre-wrap">{message.content}</p>}
               {message.files && message.files.length > 0 && (
-                <div className="flex flex-wrap gap-1.5 mt-2">
+                <div className="flex flex-wrap gap-1.5 mb-2">
                   {message.files.map((file, idx) => (
                     <div
                       key={idx}
@@ -104,6 +110,7 @@ export function AgnoMessageItem({
                   ))}
                 </div>
               )}
+              {message.content && <p className="text-sm whitespace-pre-wrap">{message.content}</p>}
             </div>
             {showTimestamp && (
               <div className="flex items-center justify-end gap-1.5 px-1">
@@ -117,84 +124,18 @@ export function AgnoMessageItem({
         </div>
       ) : (
         /* Assistant message */
-        <div className={cn('flex items-start gap-3', classNames?.assistantContainer)}>
+        <div className="flex items-start gap-3">
           {assistantAvatar ?? (
             <div className="h-8 w-8 rounded-full bg-primary/10 flex items-center justify-center flex-shrink-0 mt-0.5">
               <Bot className="h-4 w-4 text-primary" />
             </div>
           )}
-          <div className="flex-1 min-w-0 space-y-3">
-            {/* Timestamp */}
-            {showTimestamp && (
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] text-muted-foreground">
-                  {formatTimestamp(new Date(message.created_at))}
-                </span>
-                {hasError && (
-                  <span className="flex items-center gap-1 text-[11px] text-destructive">
-                    <AlertCircle className="h-3 w-3" />
-                    Error
-                  </span>
-                )}
-              </div>
-            )}
-
+          <div className={cn('flex-1 min-w-0 space-y-3', classNames?.assistantContainer)}>
             {/* Custom content render */}
             {renderContent ? (
               renderContent(message)
             ) : (
               <>
-                {/* Generative UI */}
-                {showGenerativeUI && toolsWithUI.length > 0 && (
-                  <div className="space-y-3">
-                    {toolsWithUI.map((tool) => {
-                      const uiComponent = (tool as ToolCall & { ui_component?: any }).ui_component;
-                      return (
-                        <div key={tool.tool_call_id}>
-                          {uiComponent.layout === 'artifact' ? (
-                            <Artifact>
-                              <GenerativeUIRenderer spec={uiComponent} className="w-full p-2" />
-                            </Artifact>
-                          ) : (
-                            <GenerativeUIRenderer spec={uiComponent} className="w-full" />
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-
-                {/* Main Content */}
-                {message.content && (
-                  <div className="prose prose-sm dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-muted prose-pre:border prose-pre:border-border">
-                    <Response>{message.content}</Response>
-                  </div>
-                )}
-
-                {/* Tool Calls */}
-                {message.tool_calls && message.tool_calls.length > 0 && (
-                  <div className={cn('space-y-2 pt-1', classNames?.toolCalls)}>
-                    {message.tool_calls.map((tool, idx) =>
-                      renderToolCall ? (
-                        renderToolCall(tool, idx)
-                      ) : (
-                        <Tool key={tool.tool_call_id || idx} defaultOpen={idx === 0}>
-                          <ToolHeader title={tool.tool_name} type="tool-use" state={getToolState(tool)} />
-                          <ToolContent>
-                            <ToolInput input={tool.tool_args} />
-                            {tool.content && (
-                              <ToolOutput
-                                output={tool.content}
-                                errorText={tool.tool_call_error ? 'Tool execution failed' : undefined}
-                              />
-                            )}
-                          </ToolContent>
-                        </Tool>
-                      ),
-                    )}
-                  </div>
-                )}
-
                 {/* Reasoning Steps */}
                 {showReasoning &&
                   message.extra_data?.reasoning_steps &&
@@ -239,34 +180,32 @@ export function AgnoMessageItem({
                     </div>
                   )}
 
-                {/* References */}
-                {showReferences &&
-                  message.extra_data?.references &&
-                  message.extra_data.references.length > 0 && (
-                    <div className={cn('space-y-2 pt-1', classNames?.references)}>
-                      <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
-                        <FileText className="h-3.5 w-3.5" />
-                        References ({message.extra_data.references.length})
-                      </div>
-                      <div className="space-y-2">
-                        {message.extra_data.references.map((refData, idx) => (
-                          <div key={idx} className="text-xs space-y-1.5">
-                            {refData.query && (
-                              <div className="font-medium text-foreground">Query: {refData.query}</div>
-                            )}
-                            {refData.references.map((ref, refIdx) => (
-                              <div key={refIdx} className="bg-muted/50 border border-border p-2.5 rounded-lg">
-                                <div className="italic text-muted-foreground mb-1">"{ref.content}"</div>
-                                <div className="text-muted-foreground/70">
-                                  Source: {ref.name} (chunk {ref.meta_data.chunk}/{ref.meta_data.chunk_size})
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
+                {/* Main Content */}
+                {message.content && (
+                  <div className="prose prose-sm dark:prose-invert max-w-none prose-p:leading-relaxed prose-pre:bg-muted prose-pre:border prose-pre:border-border">
+                    <Response>{message.content}</Response>
+                  </div>
+                )}
+
+                {/* Generative UI */}
+                {showGenerativeUI && toolsWithUI.length > 0 && (
+                  <div className="space-y-3">
+                    {toolsWithUI.map((tool) => {
+                      const uiComponent = (tool as ToolCall & { ui_component?: any }).ui_component;
+                      return (
+                        <div key={tool.tool_call_id}>
+                          {uiComponent.layout === 'artifact' ? (
+                            <Artifact>
+                              <GenerativeUIRenderer spec={uiComponent} className="w-full p-2" />
+                            </Artifact>
+                          ) : (
+                            <GenerativeUIRenderer spec={uiComponent} className="w-full" />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
 
                 {/* Media - custom or default */}
                 {renderMedia
@@ -417,7 +356,82 @@ export function AgnoMessageItem({
                         </>
                       );
                     })()}
+
+                {/* Tool Calls */}
+                {showToolCalls && message.tool_calls && message.tool_calls.length > 0 && (
+                  <div className={cn('space-y-2 pt-1', classNames?.toolCalls)}>
+                    {message.tool_calls.map((tool, idx) =>
+                      renderToolCall ? (
+                        renderToolCall(tool, idx)
+                      ) : (
+                        <Tool key={tool.tool_call_id || idx} defaultOpen={idx === 0}>
+                          <ToolHeader title={tool.tool_name} type="tool-use" state={getToolState(tool)} />
+                          <ToolContent>
+                            <ToolInput input={tool.tool_args} />
+                            {tool.content && (
+                              <ToolOutput
+                                output={tool.content}
+                                errorText={tool.tool_call_error ? 'Tool execution failed' : undefined}
+                              />
+                            )}
+                          </ToolContent>
+                        </Tool>
+                      ),
+                    )}
+                  </div>
+                )}
+
+                {/* References */}
+                {showReferences &&
+                  message.extra_data?.references &&
+                  message.extra_data.references.length > 0 && (
+                    <div className={cn('space-y-2 pt-1', classNames?.references)}>
+                      <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
+                        <FileText className="h-3.5 w-3.5" />
+                        References ({message.extra_data.references.length})
+                      </div>
+                      <div className="space-y-2">
+                        {message.extra_data.references.map((refData, idx) => (
+                          <div key={idx} className="text-xs space-y-1.5">
+                            {refData.query && (
+                              <div className="font-medium text-foreground">Query: {refData.query}</div>
+                            )}
+                            {refData.references.map((ref, refIdx) => (
+                              <div key={refIdx} className="bg-muted/50 border border-border p-2.5 rounded-lg">
+                                <div className="italic text-muted-foreground mb-1">"{ref.content}"</div>
+                                <div className="text-muted-foreground/70">
+                                  Source: {ref.name} (chunk {ref.meta_data.chunk}/{ref.meta_data.chunk_size})
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
               </>
+            )}
+
+            {/* Footer: actions + timestamp, left-aligned */}
+            {(renderActions || showTimestamp || hasError) && (
+              <div className="flex items-center gap-2 pt-1">
+                {renderActions && (
+                  <div className={cn('flex items-center gap-1', classNames?.actions)}>
+                    {renderActions(message)}
+                  </div>
+                )}
+                {hasError && (
+                  <span className="flex items-center gap-1 text-[11px] text-destructive">
+                    <AlertCircle className="h-3 w-3" />
+                    Error
+                  </span>
+                )}
+                {showTimestamp && (
+                  <span className="text-[11px] text-muted-foreground">
+                    {formatTimestamp(new Date(message.created_at))}
+                  </span>
+                )}
+              </div>
             )}
           </div>
         </div>

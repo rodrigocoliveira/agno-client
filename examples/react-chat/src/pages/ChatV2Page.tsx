@@ -4,7 +4,7 @@ import type { ToolHandler } from '@rodrigocoliveira/agno-react'
 import { SessionSidebar } from '@/components/sessions/SessionSidebar'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
-import { PanelLeftClose, PanelLeftOpen, Zap, Brain, Code2, Sparkles, Rocket, Cat } from 'lucide-react'
+import { PanelLeftClose, PanelLeftOpen, Zap, Brain, Code2, Sparkles, Rocket, Cat, Copy, ThumbsUp, ThumbsDown } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { EXAMPLE_GENERATIVE_TOOLS } from '@/tools/exampleGenerativeTools'
@@ -82,9 +82,38 @@ export function ChatV2Page() {
               }
               messageItemProps={{
                 classNames: {
-                  userBubble: 'bg-gradient-to-br from-violet-500/90 to-fuchsia-500/90 text-white rounded-2xl rounded-br-md shadow-sm',
                   assistantContainer: 'border-l-2 border-cyan-500/30 pl-3',
                 },
+                showToolCalls: false,
+                showReasoning: false,
+                renderActions: (message) => (
+                  <>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(message.content || '')
+                        toast.success('Copied to clipboard')
+                      }}
+                      className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                      aria-label="Copy message"
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => toast.success('Thanks for the feedback!')}
+                      className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                      aria-label="Like message"
+                    >
+                      <ThumbsUp className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => toast.info('Sorry to hear that. We\'ll improve!')}
+                      className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                      aria-label="Dislike message"
+                    >
+                      <ThumbsDown className="h-3.5 w-3.5" />
+                    </button>
+                  </>
+                ),
               }}
             >
               <AgnoChat.EmptyState>
@@ -114,6 +143,8 @@ export function ChatV2Page() {
               className="bg-muted/30 border-t-2 border-primary/10"
               placeholder="Ask me anything..."
               showAudioRecorder={true}
+              audioMode="transcribe"
+              transcriptionEndpoint="http://localhost:8000/transcribe"
             />
           </AgnoChat>
         </div>

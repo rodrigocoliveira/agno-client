@@ -76,7 +76,7 @@ export function AgnoChatMessages({
               renderMessage(message, index)
             ) : (
               <AgnoMessageItem
-                key={index}
+                key={`msg-${index}-${message.created_at}`}
                 message={message}
                 userAvatar={userAvatar}
                 assistantAvatar={assistantAvatar}

@@ -1,12 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Mic, Square } from 'lucide-react';
+import { Loader2, Mic, Square } from 'lucide-react';
 import { Button } from '../primitives/button';
 import { cn } from '../lib/cn';
 
 export interface AudioRecorderProps {
+  /** Called with WAV blob when recording completes in 'send' mode */
   onRecordingComplete: (blob: Blob) => void;
   disabled?: boolean;
   className?: string;
+  /** Audio mode: 'send' sends blob immediately, 'transcribe' posts to endpoint and returns text */
+  mode?: 'send' | 'transcribe';
+  /** Transcription endpoint URL (required when mode='transcribe') */
+  transcriptionEndpoint?: string;
+  /** Extra headers for transcription request (e.g., Authorization) */
+  transcriptionHeaders?: Record<string, string>;
+  /** Called with transcribed text when transcription completes */
+  onTranscriptionComplete?: (text: string) => void;
+  /** Field name for the audio file in the FormData (default: 'file') */
+  transcriptionFieldName?: string;
 }
 
 function encodeWav(samples: Float32Array, sampleRate: number): Blob {
@@ -73,8 +84,18 @@ registerProcessor('recorder-processor', RecorderProcessor);
   return URL.createObjectURL(blob);
 }
 
-export function AudioRecorder({ onRecordingComplete, disabled, className }: AudioRecorderProps) {
+export function AudioRecorder({
+  onRecordingComplete,
+  disabled,
+  className,
+  mode = 'send',
+  transcriptionEndpoint,
+  transcriptionHeaders,
+  onTranscriptionComplete,
+  transcriptionFieldName = 'file',
+}: AudioRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const [duration, setDuration] = useState(0);
   const [isSupported, setIsSupported] = useState(true);
   const streamRef = useRef<MediaStream | null>(null);
@@ -83,6 +104,8 @@ export function AudioRecorder({ onRecordingComplete, disabled, className }: Audi
   const chunksRef = useRef<Float32Array[]>([]);
   const timerRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const workletUrlRef = useRef<string | null>(null);
+  const onTranscriptionCompleteRef = useRef(onTranscriptionComplete);
+  onTranscriptionCompleteRef.current = onTranscriptionComplete;
 
   useEffect(() => {
     if (typeof window === 'undefined' || !navigator.mediaDevices?.getUserMedia) {
@@ -144,7 +167,7 @@ export function AudioRecorder({ onRecordingComplete, disabled, className }: Audi
     }
   }, []);
 
-  const stopRecording = useCallback(() => {
+  const stopRecording = useCallback(async () => {
     if (workletNodeRef.current) {
       workletNodeRef.current.port.postMessage('stop');
       workletNodeRef.current.disconnect();
@@ -152,6 +175,7 @@ export function AudioRecorder({ onRecordingComplete, disabled, className }: Audi
     }
 
     const audioContext = audioContextRef.current;
+    let wavBlob: Blob | null = null;
     if (audioContext) {
       const sampleRate = audioContext.sampleRate;
 
@@ -164,8 +188,7 @@ export function AudioRecorder({ onRecordingComplete, disabled, className }: Audi
       }
       chunksRef.current = [];
 
-      const wavBlob = encodeWav(merged, sampleRate);
-      onRecordingComplete(wavBlob);
+      wavBlob = encodeWav(merged, sampleRate);
 
       audioContext.close();
       audioContextRef.current = null;
@@ -186,7 +209,32 @@ export function AudioRecorder({ onRecordingComplete, disabled, className }: Audi
       clearInterval(timerRef.current);
       timerRef.current = null;
     }
-  }, [onRecordingComplete]);
+
+    if (!wavBlob) return;
+
+    if (mode === 'transcribe' && transcriptionEndpoint) {
+      setIsTranscribing(true);
+      const formData = new FormData();
+      formData.append(transcriptionFieldName, wavBlob, 'recording.wav');
+      try {
+        const res = await fetch(transcriptionEndpoint, {
+          method: 'POST',
+          headers: transcriptionHeaders,
+          body: formData,
+        });
+        const data = await res.json();
+        const text =
+          data.text || data.transcript || data.transcription || (typeof data === 'string' ? data : '');
+        if (text) onTranscriptionCompleteRef.current?.(text);
+      } catch (err) {
+        console.error('Transcription failed:', err);
+      } finally {
+        setIsTranscribing(false);
+      }
+    } else {
+      onRecordingComplete(wavBlob);
+    }
+  }, [onRecordingComplete, mode, transcriptionEndpoint, transcriptionHeaders, transcriptionFieldName]);
 
   const formatDuration = (seconds: number) => {
     const m = Math.floor(seconds / 60);
@@ -201,16 +249,23 @@ export function AudioRecorder({ onRecordingComplete, disabled, className }: Audi
       {isRecording && (
         <span className="text-xs text-destructive font-mono animate-pulse">{formatDuration(duration)}</span>
       )}
+      {isTranscribing && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
       <Button
         type="button"
         variant="ghost"
         size="icon"
         className={cn('h-8 w-8', isRecording && 'text-destructive hover:text-destructive')}
-        disabled={disabled}
+        disabled={disabled || isTranscribing}
         onClick={isRecording ? stopRecording : startRecording}
-        title={isRecording ? 'Stop recording' : 'Record audio'}
+        title={isTranscribing ? 'Transcribing...' : isRecording ? 'Stop recording' : 'Record audio'}
       >
-        {isRecording ? <Square className="size-4 fill-current" /> : <Mic className="size-4" />}
+        {isTranscribing ? (
+          <Loader2 className="size-4 animate-spin" />
+        ) : isRecording ? (
+          <Square className="size-4 fill-current" />
+        ) : (
+          <Mic className="size-4" />
+        )}
       </Button>
     </div>
   );

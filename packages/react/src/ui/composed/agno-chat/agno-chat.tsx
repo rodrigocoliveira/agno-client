@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useCallback, useMemo, useRef } from 'react';
 import type { HTMLAttributes, ReactNode } from 'react';
 import { useAgnoChat, useAgnoToolExecution } from '@rodrigocoliveira/agno-react';
 import type { ToolHandler } from '@rodrigocoliveira/agno-react';
@@ -22,44 +22,89 @@ export function AgnoChatRoot({
   const chat = useAgnoChat();
   const toolExec = useAgnoToolExecution(toolHandlers, autoExecuteTools);
 
-  const handleSend = useMemo(() => {
-    return async (message: string | FormData) => {
-      try {
-        await chat.sendMessage(message);
-      } catch {
-        // Error is surfaced via the error state
-      }
-    };
-  }, [chat.sendMessage]);
+  // Stable ref so handleSend never changes identity
+  const sendRef = useRef(chat.sendMessage);
+  sendRef.current = chat.sendMessage;
+
+  const handleSend = useCallback(async (message: string | FormData) => {
+    try {
+      await sendRef.current(message);
+    } catch {
+      // Error is surfaced via the error state
+    }
+  }, []);
+
+  // Destructure individual values for stable dependency tracking
+  const {
+    messages,
+    sendMessage,
+    clearMessages,
+    cancelRun,
+    isStreaming,
+    isRefreshing,
+    isCancelling,
+    currentRunId,
+    error,
+    state,
+  } = chat;
+
+  const {
+    isPaused,
+    isExecuting,
+    pendingTools,
+    executeAndContinue,
+    executeTools,
+    continueWithResults,
+    executionError,
+  } = toolExec;
 
   const contextValue = useMemo<AgnoChatContextValue>(
     () => ({
       // chat
-      messages: chat.messages,
-      sendMessage: chat.sendMessage,
-      clearMessages: chat.clearMessages,
-      cancelRun: chat.cancelRun,
-      isStreaming: chat.isStreaming,
-      isRefreshing: chat.isRefreshing,
-      isCancelling: chat.isCancelling ?? false,
-      currentRunId: chat.currentRunId,
-      error: chat.error,
-      state: chat.state,
+      messages,
+      sendMessage,
+      clearMessages,
+      cancelRun,
+      isStreaming,
+      isRefreshing,
+      isCancelling: isCancelling ?? false,
+      currentRunId,
+      error,
+      state,
 
       // tool execution
-      isPaused: toolExec.isPaused,
-      isExecuting: toolExec.isExecuting,
-      pendingTools: toolExec.pendingTools,
-      executeAndContinue: toolExec.executeAndContinue,
-      executeTools: toolExec.executeTools,
-      continueWithResults: toolExec.continueWithResults,
-      executionError: toolExec.executionError,
+      isPaused,
+      isExecuting,
+      pendingTools,
+      executeAndContinue,
+      executeTools,
+      continueWithResults,
+      executionError,
 
       // derived
       handleSend,
-      inputDisabled: chat.isStreaming || toolExec.isPaused,
+      inputDisabled: isStreaming || isPaused,
     }),
-    [chat, toolExec, handleSend],
+    [
+      messages,
+      sendMessage,
+      clearMessages,
+      cancelRun,
+      isStreaming,
+      isRefreshing,
+      isCancelling,
+      currentRunId,
+      error,
+      state,
+      isPaused,
+      isExecuting,
+      pendingTools,
+      executeAndContinue,
+      executeTools,
+      continueWithResults,
+      executionError,
+      handleSend,
+    ],
   );
 
   return (

@@ -12,6 +12,7 @@ import {
   PromptInputActionMenuTrigger,
   PromptInputActionMenuContent,
   PromptInputActionAddAttachments,
+  usePromptInputController,
   type PromptInputMessage,
 } from '../components/prompt-input';
 import { AudioRecorder } from '../components/audio-recorder';
@@ -29,7 +30,7 @@ export interface AgnoChatInputProps {
   className?: string;
   /** File upload configuration */
   fileUpload?: FileUploadConfig;
-  /** Show audio recorder button (default: true) */
+  /** Show audio recorder button (default: false) */
   showAudioRecorder?: boolean;
   /** Show attachments button (default: true) */
   showAttachments?: boolean;
@@ -37,6 +38,12 @@ export interface AgnoChatInputProps {
   status?: ChatStatus;
   /** Extra tools to add to the toolbar */
   extraTools?: ReactNode;
+  /** Audio mode: 'send' sends blob immediately, 'transcribe' transcribes and adds text to input */
+  audioMode?: 'send' | 'transcribe';
+  /** Transcription endpoint URL (required when audioMode='transcribe') */
+  transcriptionEndpoint?: string;
+  /** Extra headers for transcription request */
+  transcriptionHeaders?: Record<string, string>;
 }
 
 function dataUrlToBlob(dataUrl: string): Blob {
@@ -50,16 +57,45 @@ function dataUrlToBlob(dataUrl: string): Blob {
   return new Blob([buf], { type: mime });
 }
 
+/** Internal wrapper that accesses PromptInput context to set transcribed text */
+function TranscribeAudioRecorder({
+  endpoint,
+  headers,
+  disabled,
+}: {
+  endpoint: string;
+  headers?: Record<string, string>;
+  disabled?: boolean;
+}) {
+  const { textInput } = usePromptInputController();
+  return (
+    <AudioRecorder
+      mode="transcribe"
+      transcriptionEndpoint={endpoint}
+      transcriptionHeaders={headers}
+      onRecordingComplete={() => {}}
+      onTranscriptionComplete={(text) => {
+        const current = textInput.value;
+        textInput.setInput(current + (current ? ' ' : '') + text);
+      }}
+      disabled={disabled}
+    />
+  );
+}
+
 export function AgnoChatInput({
   onSend,
   disabled,
   placeholder,
   className,
   fileUpload,
-  showAudioRecorder = true,
+  showAudioRecorder = false,
   showAttachments = true,
   status,
   extraTools,
+  audioMode = 'send',
+  transcriptionEndpoint,
+  transcriptionHeaders,
 }: AgnoChatInputProps) {
   const handleSubmit = (message: PromptInputMessage) => {
     const text = message.text?.trim() || '';
@@ -125,9 +161,16 @@ export function AgnoChatInput({
               </PromptInputActionMenuContent>
             </PromptInputActionMenu>
           )}
-          {showAudioRecorder && (
-            <AudioRecorder onRecordingComplete={handleAudioRecording} disabled={disabled} />
-          )}
+          {showAudioRecorder &&
+            (audioMode === 'transcribe' && transcriptionEndpoint ? (
+              <TranscribeAudioRecorder
+                endpoint={transcriptionEndpoint}
+                headers={transcriptionHeaders}
+                disabled={disabled}
+              />
+            ) : (
+              <AudioRecorder onRecordingComplete={handleAudioRecording} disabled={disabled} />
+            ))}
           {extraTools}
         </PromptInputTools>
         <PromptInputSubmit disabled={disabled} status={computedStatus} />

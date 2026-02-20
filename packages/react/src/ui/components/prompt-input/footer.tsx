@@ -11,7 +11,7 @@ export const PromptInputBody = ({ className, ...props }: PromptInputBodyProps) =
 export type PromptInputHeaderProps = Omit<ComponentProps<typeof InputGroupAddon>, 'align'>;
 
 export const PromptInputHeader = ({ className, ...props }: PromptInputHeaderProps) => (
-  <InputGroupAddon align="block-end" className={cn('order-first flex-wrap gap-1', className)} {...props} />
+  <InputGroupAddon align="block-start" className={cn('flex-wrap gap-1 empty:hidden empty:p-0', className)} {...props} />
 );
 
 export type PromptInputFooterProps = Omit<ComponentProps<typeof InputGroupAddon>, 'align'>;

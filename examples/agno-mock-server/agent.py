@@ -17,6 +17,7 @@ from agno.knowledge.knowledge import Knowledge
 from agno.knowledge.embedder.openai import OpenAIEmbedder
 from agno.vectordb.lancedb import LanceDb, SearchType
 from typing import TypedDict
+from agno.tools.reasoning import ReasoningTools
 
 
 # ============================================================================
@@ -353,7 +354,11 @@ def create_agent(db, knowledge=None):
             render_dashboard,
             render_visualization,
             show_alert,
+            # ReasoningTools(add_instructions=True)
         ],
+        reasoning=True,
+        
+        
         model=OpenAIChat(id="gpt-4o-mini"),
         description="AI assistant that demonstrates generative UI capabilities with interactive charts, cards, tables, and visualizations.",
         instructions=[
@@ -375,6 +380,7 @@ def create_agent(db, knowledge=None):
             "",
             "You also have access to a knowledge base. When users ask about uploaded documents,",
             "search the knowledge base to find relevant information.",
+            # "IMPORTANT: ALWAYS USE YOUR REASONING TOOLS BEFORE ANSWERING",
         ],
         add_history_to_context=True,
         markdown=True,

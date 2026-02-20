@@ -1,18 +1,10 @@
-import type { ComponentType } from 'react';
 import { AgnoChatRoot } from './agno-chat';
-import type { AgnoChatRootProps } from './agno-chat';
 import { AgnoChatMessages } from './messages';
-import type { AgnoChatMessagesProps } from './messages';
 import { AgnoChatEmptyState } from './empty-state';
-import type { AgnoChatEmptyStateProps } from './empty-state';
 import { AgnoChatSuggestedPrompts } from './suggested-prompts';
-import type { AgnoChatSuggestedPromptsProps } from './suggested-prompts';
 import { AgnoChatToolStatus } from './tool-status';
-import type { AgnoChatToolStatusProps } from './tool-status';
 import { AgnoChatErrorBar } from './error-bar';
-import type { AgnoChatErrorBarProps } from './error-bar';
 import { AgnoChatInputArea } from './input';
-import type { AgnoChatInputAreaProps } from './input';
 
 // Re-export context hook and type
 export { useAgnoChatContext } from './context';
@@ -34,23 +26,14 @@ export type { AgnoChatErrorBarProps } from './error-bar';
 export { AgnoChatInputArea } from './input';
 export type { AgnoChatInputAreaProps, AgnoChatInputRenderProps } from './input';
 
-// Compound component type
-type AgnoChatComponent = ComponentType<AgnoChatRootProps> & {
-  Messages: ComponentType<AgnoChatMessagesProps>;
-  EmptyState: ComponentType<AgnoChatEmptyStateProps>;
-  SuggestedPrompts: ComponentType<AgnoChatSuggestedPromptsProps>;
-  ToolStatus: ComponentType<AgnoChatToolStatusProps>;
-  ErrorBar: ComponentType<AgnoChatErrorBarProps>;
-  Input: ComponentType<AgnoChatInputAreaProps>;
-};
-
-// Static sub-component assignment
-const AgnoChat = AgnoChatRoot as unknown as AgnoChatComponent;
-AgnoChat.Messages = AgnoChatMessages;
-AgnoChat.EmptyState = AgnoChatEmptyState;
-AgnoChat.SuggestedPrompts = AgnoChatSuggestedPrompts;
-AgnoChat.ToolStatus = AgnoChatToolStatus;
-AgnoChat.ErrorBar = AgnoChatErrorBar;
-AgnoChat.Input = AgnoChatInputArea;
+// Compound component via Object.assign (type-safe, no double cast)
+const AgnoChat = Object.assign(AgnoChatRoot, {
+  Messages: AgnoChatMessages,
+  EmptyState: AgnoChatEmptyState,
+  SuggestedPrompts: AgnoChatSuggestedPrompts,
+  ToolStatus: AgnoChatToolStatus,
+  ErrorBar: AgnoChatErrorBar,
+  Input: AgnoChatInputArea,
+});
 
 export { AgnoChat };

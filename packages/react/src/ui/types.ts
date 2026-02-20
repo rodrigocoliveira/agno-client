@@ -64,4 +64,5 @@ export type AgnoMessageItemClassNames = {
   reasoning?: string;
   references?: string;
   media?: string;
+  actions?: string;
 };

@@ -1,8 +1,9 @@
 import { cn } from '../../lib/cn';
 import { MicIcon } from 'lucide-react';
-import type { ComponentProps, RefObject } from 'react';
+import type { ComponentProps } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { PromptInputButton } from './buttons';
+import { useOptionalPromptInputController } from './context';
 
 interface SpeechRecognition extends EventTarget {
   continuous: boolean;
@@ -50,14 +51,12 @@ declare global {
 }
 
 export type PromptInputSpeechButtonProps = ComponentProps<typeof PromptInputButton> & {
-  textareaRef?: RefObject<HTMLTextAreaElement | null>;
   onTranscriptionChange?: (text: string) => void;
   lang?: string;
 };
 
 export const PromptInputSpeechButton = ({
   className,
-  textareaRef,
   onTranscriptionChange,
   lang = 'en-US',
   ...props
@@ -67,6 +66,7 @@ export const PromptInputSpeechButton = ({
   const recognitionRef = useRef<SpeechRecognition | null>(null);
   const onTranscriptionChangeRef = useRef(onTranscriptionChange);
   onTranscriptionChangeRef.current = onTranscriptionChange;
+  const controller = useOptionalPromptInputController();
 
   useEffect(() => {
     if (typeof window !== 'undefined' && ('SpeechRecognition' in window || 'webkitSpeechRecognition' in window)) {
@@ -86,13 +86,13 @@ export const PromptInputSpeechButton = ({
         for (const result of results) {
           if (result.isFinal) finalTranscript += result[0]?.transcript ?? '';
         }
-        if (finalTranscript && textareaRef?.current) {
-          const textarea = textareaRef.current;
-          const currentValue = textarea.value;
-          const newValue = currentValue + (currentValue ? ' ' : '') + finalTranscript;
-          textarea.value = newValue;
-          textarea.dispatchEvent(new Event('input', { bubbles: true }));
-          onTranscriptionChangeRef.current?.(newValue);
+        if (finalTranscript) {
+          if (controller) {
+            const current = controller.textInput.value;
+            const newValue = current + (current ? ' ' : '') + finalTranscript;
+            controller.textInput.setInput(newValue);
+          }
+          onTranscriptionChangeRef.current?.(finalTranscript);
         }
       };
 
@@ -108,7 +108,7 @@ export const PromptInputSpeechButton = ({
     return () => {
       if (recognitionRef.current) recognitionRef.current.stop();
     };
-  }, [textareaRef, lang]);
+  }, [lang]);
 
   const toggleListening = useCallback(() => {
     if (!recognition) return;
