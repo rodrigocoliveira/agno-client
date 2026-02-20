@@ -1,6 +1,6 @@
 # @rodrigocoliveira/agno-react
 
-React hooks for Agno client with full TypeScript support.
+React hooks and pre-built UI components for Agno client with full TypeScript support.
 
 ## Installation
 
@@ -12,11 +12,14 @@ This package includes `@rodrigocoliveira/agno-client` and `@rodrigocoliveira/agn
 
 ## Features
 
-- ✅ **Easy Integration** - Drop-in React hooks for Agno agents
-- ✅ **Context Provider** - Manages client lifecycle automatically
-- ✅ **Real-time Updates** - React state synced with streaming updates
-- ✅ **Type-Safe** - Full TypeScript support
-- ✅ **Familiar API** - Matches the original Agno React hooks design
+- **Easy Integration** — Drop-in React hooks for Agno agents
+- **Context Provider** — Manages client lifecycle automatically
+- **Real-time Updates** — React state synced with streaming updates
+- **Pre-built UI Components** — Compound components and primitives via `/ui` sub-path
+- **Audio Recording & Transcription** — Record audio to send or transcribe to text
+- **Frontend Tool Execution (HITL)** — Execute agent tools in the browser
+- **Type-Safe** — Full TypeScript support
+- **Familiar API** — Matches the original Agno React hooks design
 
 ## Quick Start
 
@@ -32,13 +35,9 @@ function App() {
         endpoint: 'http://localhost:7777',
         mode: 'agent',
         agentId: 'your-agent-id',
-        userId: 'user-123', // Optional: Link sessions to a user
-        headers: {          // Optional: Global headers for all requests
-          'X-API-Version': 'v2'
-        },
-        params: {           // Optional: Global query params for all requests
-          locale: 'en-US'
-        }
+        userId: 'user-123',
+        headers: { 'X-API-Version': 'v2' },
+        params: { locale: 'en-US' }
       }}
     >
       <YourComponents />
@@ -80,6 +79,36 @@ function ChatComponent() {
 }
 ```
 
+### 3. Or Use Pre-built UI Components
+
+For a full-featured chat interface with minimal code, use the compound components from the `/ui` sub-path:
+
+```tsx
+import { AgnoChat } from '@rodrigocoliveira/agno-react/ui';
+
+function ChatPage() {
+  return (
+    <AgnoChat>
+      <AgnoChat.Messages>
+        <AgnoChat.EmptyState>
+          <h3>Welcome!</h3>
+          <p>Start a conversation with the agent.</p>
+          <AgnoChat.SuggestedPrompts
+            prompts={[
+              { text: 'What can you help me with?' },
+              { text: 'Show me a code example' },
+            ]}
+          />
+        </AgnoChat.EmptyState>
+      </AgnoChat.Messages>
+      <AgnoChat.ToolStatus />
+      <AgnoChat.ErrorBar />
+      <AgnoChat.Input placeholder="Ask me anything..." />
+    </AgnoChat>
+  );
+}
+```
+
 ## API Reference
 
 ### AgnoProvider
@@ -93,8 +122,8 @@ Provider component that creates and manages an `AgnoClient` instance.
 ```
 
 **Props:**
-- `config` (AgnoClientConfig) - Client configuration
-- `children` (ReactNode) - Child components
+- `config` (AgnoClientConfig) — Client configuration
+- `children` (ReactNode) — Child components
 
 ### useAgnoClient()
 
@@ -145,12 +174,6 @@ await sendMessage('Hello!', {
 await sendMessage('Hello!', {
   params: { temperature: '0.7', max_tokens: '500' }
 });
-
-// Send with both headers and params
-await sendMessage('Hello!', {
-  headers: { 'X-Request-ID': '12345' },
-  params: { debug: 'true' }
-});
 ```
 
 #### `clearMessages()`
@@ -167,41 +190,11 @@ Hook for session management.
 const {
   sessions,          // SessionEntry[] - Available sessions
   currentSessionId,  // string | undefined - Current session ID
-  loadSession,       // (sessionId) => Promise<ChatMessage[]>
-  fetchSessions,     // () => Promise<SessionEntry[]>
+  loadSession,       // (sessionId, options?) => Promise<ChatMessage[]>
+  fetchSessions,     // (options?) => Promise<SessionEntry[]>
   isLoading,         // boolean - Is loading session
   error,             // string | undefined - Current error
 } = useAgnoSession();
-```
-
-**Example:**
-
-```tsx
-function SessionList() {
-  const { sessions, loadSession, fetchSessions } = useAgnoSession();
-
-  useEffect(() => {
-    // Fetch sessions with optional query params
-    fetchSessions({ params: { limit: '50', status: 'active' } });
-  }, [fetchSessions]);
-
-  const handleLoadSession = (sessionId: string) => {
-    // Load session with optional params
-    loadSession(sessionId, { params: { include_metadata: 'true' } });
-  };
-
-  return (
-    <ul>
-      {sessions.map((session) => (
-        <li key={session.session_id}>
-          <button onClick={() => handleLoadSession(session.session_id)}>
-            {session.session_name}
-          </button>
-        </li>
-      ))}
-    </ul>
-  );
-}
 ```
 
 ### useAgnoActions()
@@ -210,52 +203,339 @@ Hook for common actions and initialization.
 
 ```tsx
 const {
-  initialize,       // () => Promise<{ agents, teams }>
-  checkStatus,      // () => Promise<boolean>
-  fetchAgents,      // () => Promise<AgentDetails[]>
-  fetchTeams,       // () => Promise<TeamDetails[]>
+  initialize,       // (options?) => Promise<{ agents, teams }>
+  checkStatus,      // (options?) => Promise<boolean>
+  fetchAgents,      // (options?) => Promise<AgentDetails[]>
+  fetchTeams,       // (options?) => Promise<TeamDetails[]>
   updateConfig,     // (updates) => void
   isInitializing,   // boolean
   error,            // string | undefined
 } = useAgnoActions();
 ```
 
-**Example:**
+### useAgnoToolExecution()
+
+Hook for frontend tool execution (Human-in-the-Loop).
 
 ```tsx
-function InitComponent() {
-  const { initialize, fetchAgents, updateConfig, isInitializing } = useAgnoActions();
-  const { state } = useAgnoChat();
+const toolHandlers = {
+  show_alert: async (args) => {
+    alert(args.content);
+    return { success: true };
+  },
+};
 
-  useEffect(() => {
-    // Initialize with optional params
-    initialize({ params: { filter: 'active' } });
-  }, [initialize]);
+// Auto-execute tools immediately
+useAgnoToolExecution(toolHandlers);
 
-  const loadMoreAgents = () => {
-    // Fetch agents with custom params
-    fetchAgents({ params: { page: '2', limit: '20' } });
-  };
+// Or require manual confirmation
+useAgnoToolExecution(toolHandlers, false);
+```
 
-  const switchAgent = (agentId: string) => {
-    updateConfig({ agentId, mode: 'agent' });
-  };
+### useAgnoMemory()
 
-  if (isInitializing) return <div>Loading...</div>;
+Hook for memory management.
 
+```tsx
+const {
+  memories,
+  topics,
+  isLoading,
+  fetchMemories,
+  createMemory,
+  updateMemory,
+  deleteMemory,
+} = useAgnoMemory();
+```
+
+### useAgnoCustomEvents()
+
+Hook for listening to custom events yielded by the backend.
+
+```tsx
+useAgnoCustomEvents((event) => {
+  console.log('Custom event:', event);
+});
+```
+
+---
+
+## Pre-built UI Components (`/ui` sub-path)
+
+The library ships with a complete set of pre-built UI components accessible via `@rodrigocoliveira/agno-react/ui`. These components provide a production-ready chat interface with full customization support.
+
+### Peer Dependencies
+
+UI components rely on optional peer dependencies. Install only what you need:
+
+```bash
+# Core UI dependencies
+npm install @radix-ui/react-slot class-variance-authority clsx tailwind-merge lucide-react
+
+# For markdown rendering
+npm install shiki streamdown
+
+# For auto-scroll behavior
+npm install use-stick-to-bottom
+
+# For additional primitives (as needed)
+npm install @radix-ui/react-accordion @radix-ui/react-avatar @radix-ui/react-collapsible \
+  @radix-ui/react-tooltip @radix-ui/react-dropdown-menu @radix-ui/react-hover-card \
+  @radix-ui/react-select cmdk
+```
+
+### Import Path
+
+All UI components are imported from the `/ui` sub-path:
+
+```tsx
+import { AgnoChat, AgnoChatInterface, AgnoChatInput, Button, Response } from '@rodrigocoliveira/agno-react/ui';
+```
+
+---
+
+### AgnoChat (Compound Component)
+
+The primary way to build a full-featured chat interface. Uses a compound component pattern — compose only the pieces you need.
+
+```tsx
+import { AgnoChat } from '@rodrigocoliveira/agno-react/ui';
+import type { ToolHandler } from '@rodrigocoliveira/agno-react';
+
+const toolHandlers: Record<string, ToolHandler> = {
+  show_alert: async (args) => {
+    alert(args.content);
+    return { success: true };
+  },
+};
+
+function ChatPage() {
   return (
-    <div>
-      <h3>Agents</h3>
-      {state.agents.map((agent) => (
-        <button key={agent.id} onClick={() => switchAgent(agent.id)}>
-          {agent.name}
-        </button>
-      ))}
-      <button onClick={loadMoreAgents}>Load More</button>
-    </div>
+    <AgnoChat toolHandlers={toolHandlers} autoExecuteTools={true}>
+      <AgnoChat.Messages
+        userAvatar={<img src="/user.png" className="h-8 w-8 rounded-full" />}
+        assistantAvatar={<img src="/bot.png" className="h-8 w-8 rounded-full" />}
+        messageItemProps={{
+          showToolCalls: false,
+          showReasoning: false,
+          renderActions: (message) => (
+            <button onClick={() => navigator.clipboard.writeText(message.content || '')}>
+              Copy
+            </button>
+          ),
+        }}
+      >
+        <AgnoChat.EmptyState>
+          <h3>Welcome!</h3>
+          <p>How can I help you today?</p>
+          <AgnoChat.SuggestedPrompts
+            prompts={[
+              { icon: <span>⚡</span>, text: 'What can you help me with?' },
+              { icon: <span>💡</span>, text: 'Show me a code example' },
+            ]}
+          />
+        </AgnoChat.EmptyState>
+      </AgnoChat.Messages>
+
+      <AgnoChat.ToolStatus className="bg-violet-500/5 border-violet-500/20" />
+      <AgnoChat.ErrorBar className="bg-red-500/5" />
+      <AgnoChat.Input
+        placeholder="Ask me anything..."
+        showAudioRecorder={true}
+        audioMode="transcribe"
+        transcriptionEndpoint="http://localhost:8000/transcribe"
+      />
+    </AgnoChat>
   );
 }
 ```
+
+**Sub-components:**
+
+| Component | Description |
+|-----------|-------------|
+| `AgnoChat` | Root wrapper. Accepts `toolHandlers` and `autoExecuteTools` props. |
+| `AgnoChat.Messages` | Message list with auto-scroll. Accepts `userAvatar`, `assistantAvatar`, `messageItemProps`. |
+| `AgnoChat.EmptyState` | Shown when there are no messages. Place inside `Messages`. |
+| `AgnoChat.SuggestedPrompts` | Clickable prompt suggestions. Place inside `EmptyState`. |
+| `AgnoChat.ToolStatus` | Status bar shown when tools are executing. |
+| `AgnoChat.ErrorBar` | Error display bar. |
+| `AgnoChat.Input` | Chat input with file uploads and optional audio recorder. |
+
+---
+
+### AgnoChatInterface
+
+A single-component shortcut that renders a complete chat interface. Less flexible than `AgnoChat` but requires zero composition.
+
+```tsx
+import { AgnoChatInterface } from '@rodrigocoliveira/agno-react/ui';
+
+function ChatPage() {
+  return (
+    <AgnoChatInterface
+      placeholder="Type a message..."
+      suggestedPrompts={[
+        { text: 'What can you help me with?' },
+        { text: 'Explain how you work' },
+      ]}
+      toolHandlers={toolHandlers}
+      showAudioRecorder={true}
+      userAvatar={<img src="/user.png" />}
+      assistantAvatar={<img src="/bot.png" />}
+      emptyState={<div>Start a conversation!</div>}
+      classNames={{
+        root: 'h-full',
+        messagesArea: 'px-4',
+        inputArea: 'border-t',
+      }}
+    />
+  );
+}
+```
+
+**Key props:** `className`, `classNames`, `renderMessage`, `renderInput`, `emptyState`, `headerSlot`, `inputToolbarSlot`, `suggestedPrompts`, `toolHandlers`, `autoExecuteTools`, `placeholder`, `userAvatar`, `assistantAvatar`, `fileUpload`, `showAudioRecorder`, `messageItemProps`, `chatInputProps`.
+
+---
+
+### AgnoChatInput
+
+Standalone chat input component with file uploads, audio recording, and transcription support.
+
+```tsx
+import { AgnoChatInput } from '@rodrigocoliveira/agno-react/ui';
+
+<AgnoChatInput
+  onSend={(message) => { /* handle message */ }}
+  placeholder="Type a message..."
+  showAudioRecorder={true}
+  showAttachments={true}
+  audioMode="transcribe"
+  transcriptionEndpoint="http://localhost:8000/transcribe"
+  parseTranscriptionResponse={(data) => data.text}
+  onRequestPermission={async () => {
+    // WebView: request mic permission from native bridge
+    return await NativeBridge.requestMicPermission();
+  }}
+  fileUpload={{
+    accept: 'image/*,.pdf',
+    multiple: true,
+    maxFiles: 5,
+    maxFileSize: 10 * 1024 * 1024,
+  }}
+/>
+```
+
+**Props:**
+
+| Prop | Type | Default | Description |
+|------|------|---------|-------------|
+| `onSend` | `(message: string \| FormData) => void` | required | Called when the user sends a message |
+| `disabled` | `boolean` | `false` | Disable the input |
+| `placeholder` | `string` | — | Input placeholder text |
+| `showAudioRecorder` | `boolean` | `false` | Show the audio recorder button |
+| `showAttachments` | `boolean` | `true` | Show the file attachment button |
+| `audioMode` | `'send' \| 'transcribe'` | `'send'` | Audio recording behavior |
+| `transcriptionEndpoint` | `string` | — | URL to POST audio for transcription (required when `audioMode='transcribe'`) |
+| `transcriptionHeaders` | `Record<string, string>` | — | Extra headers for transcription requests |
+| `parseTranscriptionResponse` | `(data: unknown) => string` | — | Custom parser for transcription API response |
+| `onRequestPermission` | `() => Promise<boolean>` | — | WebView mic permission bridge callback |
+| `fileUpload` | `FileUploadConfig` | — | File upload configuration |
+| `status` | `ChatStatus` | — | Input status (`'idle'`, `'submitted'`, `'streaming'`, `'error'`) |
+| `extraTools` | `ReactNode` | — | Additional toolbar buttons |
+
+---
+
+### Audio Recorder & Transcription
+
+The library includes an `AudioRecorder` component that supports two modes:
+
+#### Send mode (default)
+
+Records audio, encodes to WAV, and sends the blob directly as a file attachment:
+
+```tsx
+<AgnoChatInput
+  onSend={handleSend}
+  showAudioRecorder={true}
+  audioMode="send"
+/>
+```
+
+The audio blob is wrapped in a `FormData` with `message="Audio message"` and the WAV file.
+
+#### Transcribe mode
+
+Records audio, sends it to a transcription endpoint, and inserts the resulting text into the input:
+
+```tsx
+<AgnoChatInput
+  onSend={handleSend}
+  showAudioRecorder={true}
+  audioMode="transcribe"
+  transcriptionEndpoint="http://localhost:8000/transcribe"
+  parseTranscriptionResponse={(data) => data.text}
+/>
+```
+
+The component POSTs the WAV file to the endpoint and expects a JSON response. The default parser checks `data.text`, `data.transcript`, and `data.transcription` fields. Provide `parseTranscriptionResponse` to handle custom response shapes.
+
+#### WebView Permission Bridging
+
+For WebView environments where microphone access requires a native bridge:
+
+```tsx
+<AgnoChatInput
+  onSend={handleSend}
+  showAudioRecorder={true}
+  onRequestPermission={async () => {
+    // Ask the native app for mic permission before getUserMedia
+    return await NativeBridge.requestMicPermission();
+  }}
+/>
+```
+
+The `onRequestPermission` callback is called before the browser's `getUserMedia`. Return `true` to proceed or `false` to cancel.
+
+---
+
+### Primitive Components
+
+Thin wrappers over Radix UI primitives with Tailwind styling via `class-variance-authority`:
+
+| Component | Description |
+|-----------|-------------|
+| `Button` | Button with variants (`default`, `outline`, `ghost`, `destructive`, etc.) |
+| `Badge` | Status badge with variants |
+| `Avatar`, `AvatarImage`, `AvatarFallback` | User/assistant avatar |
+| `InputGroup`, `InputGroupAddon`, `InputGroupButton`, `InputGroupInput`, `InputGroupTextarea` | Composable input groups |
+| `Collapsible`, `CollapsibleTrigger`, `CollapsibleContent` | Expandable sections |
+| `Tooltip`, `TooltipTrigger`, `TooltipContent`, `TooltipProvider` | Hover tooltips |
+| `Accordion`, `AccordionItem`, `AccordionTrigger`, `AccordionContent` | Collapsible accordion |
+| `DropdownMenu` + sub-parts | Dropdown menu |
+| `HoverCard`, `HoverCardTrigger`, `HoverCardContent` | Hover card |
+| `Select` + sub-parts | Select dropdown |
+| `Command`, `CommandInput`, `CommandList`, `CommandItem`, ... | Command palette (cmdk) |
+
+---
+
+### Base Components
+
+Higher-level components for building chat interfaces:
+
+| Component | Description |
+|-----------|-------------|
+| `Message`, `MessageContent`, `MessageAvatar` | Low-level message layout shell |
+| `Conversation`, `ConversationContent`, `ConversationEmptyState`, `ConversationScrollButton` | Scrollable conversation container with auto-scroll |
+| `Response` | Markdown renderer with syntax highlighting (shiki + streamdown) |
+| `Tool`, `ToolHeader`, `ToolContent`, `ToolInput`, `ToolOutput` | Collapsible tool call display |
+| `CodeBlock`, `CodeBlockCopyButton` | Syntax-highlighted code block with copy button |
+| `Artifact`, `ArtifactHeader`, `ArtifactContent`, ... | Artifact panel layout |
+| `StreamingIndicator` | Animated typing/loading indicator |
+| `AudioRecorder` | Audio recording with WAV encoding via AudioWorklet |
+| `PromptInput` + sub-parts | Fully composable input system with attachments, speech, model select |
+
+---
 
 ## Complete Example
 

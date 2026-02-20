@@ -9,6 +9,7 @@ import { registerGenerativeUIComponents } from '@/components/generative-ui'
 import {
   Bot,
   MessageSquare,
+  Layers,
   History,
   Brain,
   Database,
@@ -151,8 +152,8 @@ function ConnectionStatus() {
  */
 const navItems = [
   { path: '/', label: 'Home', icon: Home },
-  { path: '/chat', label: 'Chat', icon: MessageSquare },
-  { path: '/chat-v2', label: 'Chat v2', icon: MessageSquare },
+  { path: '/chat-root', label: 'Chat (Root)', icon: MessageSquare },
+  { path: '/chat-composed', label: 'Chat (Composed)', icon: Layers },
   { path: '/sessions', label: 'Sessions', icon: History },
   { path: '/memory', label: 'Memory', icon: Brain },
   { path: '/knowledge', label: 'Knowledge', icon: Database },

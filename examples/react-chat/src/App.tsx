@@ -1,14 +1,14 @@
 import { BrowserRouter, Routes, Route } from 'react-router'
 import { AppLayout } from '@/layouts/AppLayout'
 import { HomePage } from '@/pages/HomePage'
-import { ChatPage } from '@/pages/ChatPage'
+import { ChatRootPage } from '@/pages/ChatRootPage'
+import { ChatComposedPage } from '@/pages/ChatComposedPage'
 import { SessionsPage } from '@/pages/SessionsPage'
 import { MemoryPage } from '@/pages/MemoryPage'
 import { KnowledgePage } from '@/pages/KnowledgePage'
 import { MetricsPage } from '@/pages/MetricsPage'
 import { EvalsPage } from '@/pages/EvalsPage'
 import { TracesPage } from '@/pages/TracesPage'
-import { ChatV2Page } from '@/pages/ChatV2Page'
 
 function App() {
   return (
@@ -16,8 +16,8 @@ function App() {
       <Routes>
         <Route element={<AppLayout />}>
           <Route path="/" element={<HomePage />} />
-          <Route path="/chat" element={<ChatPage />} />
-          <Route path="/chat-v2" element={<ChatV2Page />} />
+          <Route path="/chat-root" element={<ChatRootPage />} />
+          <Route path="/chat-composed" element={<ChatComposedPage />} />
           <Route path="/sessions" element={<SessionsPage />} />
           <Route path="/memory" element={<MemoryPage />} />
           <Route path="/knowledge" element={<KnowledgePage />} />

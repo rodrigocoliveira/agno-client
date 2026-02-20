@@ -31,6 +31,9 @@ pnpm typecheck  # TypeScript only
 
 ```
 src/
+  pages/
+    ChatRootPage.tsx      # Hooks-based chat (build from scratch with useAgnoChat)
+    ChatComposedPage.tsx   # Compound component chat (AgnoChat from /ui)
   components/
     ui/             # shadcn components (57+) - do NOT hand-edit
     ai-elements/    # Chat-specific UI (message, response, tool, code-block)
@@ -51,6 +54,13 @@ src/
 - Use **CSS variables** defined in `globals.css` for colors (e.g., `bg-background`, `text-foreground`).
 - Dark mode is handled via `.dark` class and CSS variable overrides.
 - Always use `cn()` when conditionally merging classNames.
+
+## Two Chat Approaches
+
+The example app demonstrates two ways to build a chat UI:
+
+1. **Chat (Root)** (`/chat-root`) — Uses hooks (`useAgnoChat`, `useAgnoSession`, etc.) with custom components. Full control over layout and behavior.
+2. **Chat (Composed)** (`/chat-composed`) — Uses the `AgnoChat` compound component from `@rodrigocoliveira/agno-react/ui`. Pre-built UI with customization via props and slots.
 
 ## Key Conventions
 

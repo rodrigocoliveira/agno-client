@@ -25,7 +25,7 @@ const toolHandlers: Record<string, ToolHandler> = {
   ...EXAMPLE_GENERATIVE_TOOLS,
 }
 
-export function ChatV2Page() {
+export function ChatComposedPage() {
   const [showSessionSidebar, setShowSessionSidebar] = useState(true)
 
   return (
@@ -127,7 +127,7 @@ export function ChatV2Page() {
                 </div>
                 <div className="space-y-2 text-center">
                   <h3 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text text-transparent">
-                    Chat v2 — Compound
+                    Chat (Composed)
                   </h3>
                   <p className="text-muted-foreground text-sm max-w-sm">
                     This page uses the <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">AgnoChat</code> compound component with custom avatars, colors, and suggested prompts that actually work in custom empty states.

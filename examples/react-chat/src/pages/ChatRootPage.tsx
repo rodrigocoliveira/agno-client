@@ -6,7 +6,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip
 import { PanelLeftClose, PanelLeftOpen } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-export function ChatPage() {
+export function ChatRootPage() {
   const [showSessionSidebar, setShowSessionSidebar] = useState(true)
 
   return (

@@ -1,39 +1,70 @@
 # Agno React Chat Example
 
-A comprehensive single-page chat application demonstrating all features of the `@rodrigocoliveira/agno-react` library with a modern UI built using shadcn/ui components.
+A comprehensive chat application demonstrating the `@rodrigocoliveira/agno-react` library with two distinct approaches: building from scratch with hooks, or using pre-built compound components. Built with a modern UI using shadcn/ui.
+
+## Two Chat Approaches
+
+This example showcases two ways to build a chat interface:
+
+### Chat (Root) — `/chat-root`
+
+Build from scratch using React hooks. You have full control over every piece of the UI: message rendering, input handling, layout, and styling.
+
+- Uses `useAgnoChat()`, `useAgnoSession()`, `useAgnoActions()`, `useAgnoClient()`
+- Custom `ChatInterface`, `MessageItem`, `PromptInput` components
+- Best for highly custom UIs or when you need fine-grained control
+
+### Chat (Composed) — `/chat-composed`
+
+Use the `AgnoChat` compound component from `@rodrigocoliveira/agno-react/ui`. Pre-built UI with customization via props and slots — get a full-featured chat interface with minimal code.
+
+- Uses `AgnoChat` with sub-components: `Messages`, `EmptyState`, `SuggestedPrompts`, `ToolStatus`, `ErrorBar`, `Input`
+- Customizable via props (avatars, classNames, action buttons, audio mode)
+- Best for rapid development or when the default UI fits your needs
 
 ## Features
 
-This example application demonstrates:
-
 ### Core Features
-- ✅ **Real-time message streaming** with live updates
-- ✅ **Agent/Team configuration** with dynamic endpoint management
-- ✅ **Session management** (create, load, and switch between sessions)
-- ✅ **Tool call execution** with detailed display of arguments and results
-- ✅ **Reasoning steps** visualization
-- ✅ **Media support** (images, videos, audio)
-- ✅ **RAG references** display
-- ✅ **Error handling** with user-friendly notifications
+- Real-time message streaming with live updates
+- Agent/Team configuration with dynamic endpoint management
+- Session management (create, load, switch between sessions)
+- Tool call execution with detailed display of arguments and results
+- Frontend tool execution (HITL) with auto-execute and manual confirmation
+- Reasoning steps visualization
+- Media support (images, videos, audio)
+- RAG references display
+- Audio recording and transcription
+- Error handling with user-friendly notifications
 
-### React Hooks Demonstrated
-- `useAgnoChat()` - Message management and streaming
-- `useAgnoSession()` - Session loading and management
-- `useAgnoActions()` - Initialization and configuration
-- `useAgnoClient()` - Direct client access for advanced features
+### React Hooks Demonstrated (Root approach)
+- `useAgnoChat()` — Message management and streaming
+- `useAgnoSession()` — Session loading and management
+- `useAgnoActions()` — Initialization and configuration
+- `useAgnoClient()` — Direct client access for advanced features
+- `useAgnoToolExecution()` — Frontend tool execution (HITL)
 
 ### UI Components
-- **Chat Interface** - Clean message display with role-based styling
-- **Configuration Panel** - Endpoint, auth, mode, and entity configuration
-- **Session Sidebar** - Browse and load previous conversations
-- **State Inspector** - Debug panel for real-time state and event monitoring
-- **Responsive Layout** - Collapsible sidebars for optimal screen usage
+
+**Custom components (Root approach):**
+- **ChatInterface** — Custom message display with role-based styling
+- **PromptInput** — Text input with send button and audio recorder
+- **MessageItem** — Individual message with tool calls, reasoning, media
+
+**Library components (Composed approach):**
+- **AgnoChat** — Compound component with Messages, EmptyState, SuggestedPrompts, ToolStatus, ErrorBar, Input
+- **AgnoMessageItem** — Pre-built message rendering with markdown, tool calls, reasoning
+- **AgnoChatInput** — Input with file uploads, audio recording, and transcription
+
+**Shared components:**
+- **Configuration Panel** — Endpoint, auth, mode, and entity configuration
+- **Session Sidebar** — Browse and load previous conversations
+- **State Inspector** — Debug panel for real-time state and event monitoring
+- **Responsive Layout** — Collapsible sidebars for optimal screen usage
 
 ## Setup
 
 ### Prerequisites
 
-Make sure you have the following installed:
 - Node.js 18+
 - pnpm 8+
 - An Agno instance running (default: `http://localhost:7777`)
@@ -101,7 +132,7 @@ The application will open at `http://localhost:3000`.
 
 ### 1. Initialize the Connection
 
-1. Click the **Settings** icon (gear) in the top-right corner
+1. Click the **Settings** icon in the top-right corner
 2. Verify the endpoint URL is correct
 3. Click **Initialize** to connect to Agno and fetch available agents/teams
 4. Check the "Endpoint Status" badge turns green
@@ -117,9 +148,10 @@ If you want to change the auto-selected agent/team:
 
 ### 3. Start Chatting
 
-1. Type your message in the input box at the bottom
-2. Press **Enter** or click the **Send** button
-3. Watch as the agent responds in real-time with streaming updates
+1. Navigate to **Chat (Root)** or **Chat (Composed)** in the sidebar
+2. Type your message in the input box at the bottom
+3. Press **Enter** or click the **Send** button
+4. Watch as the agent responds in real-time with streaming updates
 
 ### 4. Manage Sessions
 
@@ -133,6 +165,7 @@ If you want to change the auto-selected agent/team:
 - **Reasoning Steps**: View the agent's thought process (if available)
 - **References**: See RAG context sources
 - **Media**: Images, videos, and audio are displayed inline
+- **Audio Recording**: Record and send audio messages or transcribe speech to text
 - **Debug Panel**: Monitor state changes and events in real-time
 
 ## Project Structure
@@ -140,26 +173,35 @@ If you want to change the auto-selected agent/team:
 ```
 examples/react-chat/
 ├── src/
+│   ├── pages/
+│   │   ├── ChatRootPage.tsx         # Hooks-based chat (build from scratch)
+│   │   ├── ChatComposedPage.tsx     # Compound component chat (AgnoChat)
+│   │   ├── HomePage.tsx             # Landing page
+│   │   ├── SessionsPage.tsx         # Session management
+│   │   ├── MemoryPage.tsx           # Memory management
+│   │   └── ...                      # Other pages
 │   ├── components/
 │   │   ├── chat/
-│   │   │   ├── ChatInterface.tsx      # Main chat container
-│   │   │   ├── MessageList.tsx        # Scrollable message display
-│   │   │   ├── MessageItem.tsx        # Individual message with features
-│   │   │   ├── PromptInput.tsx        # Text input with send button
-│   │   │   └── StreamingIndicator.tsx # Loading indicator
+│   │   │   ├── ChatInterface.tsx    # Main chat container (Root approach)
+│   │   │   ├── MessageList.tsx      # Scrollable message display
+│   │   │   ├── MessageItem.tsx      # Individual message with features
+│   │   │   ├── PromptInput.tsx      # Text input with send button
+│   │   │   └── StreamingIndicator.tsx
 │   │   ├── config/
-│   │   │   └── ConfigPanel.tsx        # Configuration UI
+│   │   │   └── ConfigPanel.tsx      # Configuration UI
 │   │   ├── sessions/
-│   │   │   └── SessionSidebar.tsx     # Session list and management
+│   │   │   └── SessionSidebar.tsx   # Session list and management
 │   │   ├── debug/
-│   │   │   └── StateInspector.tsx     # Debug/monitoring panel
-│   │   └── ui/                        # shadcn components
+│   │   │   └── StateInspector.tsx   # Debug/monitoring panel
+│   │   ├── generative-ui/          # Custom renderers (charts, card grids)
+│   │   └── ui/                      # shadcn components
+│   ├── tools/                       # Example generative UI tool handlers
 │   ├── lib/
-│   │   └── utils.ts                   # Utility functions
+│   │   └── utils.ts                 # Utility functions
 │   ├── styles/
-│   │   └── globals.css                # Tailwind styles
-│   ├── App.tsx                        # Main app layout
-│   └── main.tsx                       # Entry point
+│   │   └── globals.css              # Tailwind styles
+│   ├── App.tsx                      # Router and route definitions
+│   └── main.tsx                     # Entry point
 ├── package.json
 ├── vite.config.ts
 ├── tsconfig.json

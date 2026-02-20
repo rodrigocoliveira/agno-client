@@ -1,5 +1,6 @@
 import {
   PromptInput,
+  PromptInputProvider,
   PromptInputBody,
   PromptInputTextarea,
   PromptInputFooter,
@@ -144,51 +145,53 @@ export function AgnoChatInput({
   const computedStatus = status ?? (disabled ? 'submitted' : undefined);
 
   return (
-    <PromptInput
-      onSubmit={handleSubmit}
-      accept={fileUpload?.accept ?? DEFAULT_ACCEPTED_FILE_TYPES}
-      multiple={fileUpload?.multiple ?? true}
-      maxFiles={fileUpload?.maxFiles}
-      maxFileSize={fileUpload?.maxFileSize}
-      className={cn('w-full', className)}
-    >
-      <PromptInputHeader>
-        <PromptInputAttachments>
-          {(attachment) => <PromptInputAttachment data={attachment} />}
-        </PromptInputAttachments>
-      </PromptInputHeader>
-      <PromptInputBody>
-        <PromptInputTextarea
-          placeholder={placeholder || 'Type your message... (Enter to send, Shift+Enter for new line)'}
-          disabled={disabled}
-        />
-      </PromptInputBody>
-      <PromptInputFooter>
-        <PromptInputTools>
-          {showAttachments && (
-            <PromptInputActionMenu>
-              <PromptInputActionMenuTrigger />
-              <PromptInputActionMenuContent>
-                <PromptInputActionAddAttachments label="Add files" />
-              </PromptInputActionMenuContent>
-            </PromptInputActionMenu>
-          )}
-          {showAudioRecorder &&
-            (audioMode === 'transcribe' && transcriptionEndpoint ? (
-              <TranscribeAudioRecorder
-                endpoint={transcriptionEndpoint}
-                headers={transcriptionHeaders}
-                disabled={disabled}
-                parseResponse={parseTranscriptionResponse}
-                onRequestPermission={onRequestPermission}
-              />
-            ) : (
-              <AudioRecorder onRecordingComplete={handleAudioRecording} disabled={disabled} onRequestPermission={onRequestPermission} />
-            ))}
-          {extraTools}
-        </PromptInputTools>
-        <PromptInputSubmit disabled={disabled} status={computedStatus} />
-      </PromptInputFooter>
-    </PromptInput>
+    <PromptInputProvider>
+      <PromptInput
+        onSubmit={handleSubmit}
+        accept={fileUpload?.accept ?? DEFAULT_ACCEPTED_FILE_TYPES}
+        multiple={fileUpload?.multiple ?? true}
+        maxFiles={fileUpload?.maxFiles}
+        maxFileSize={fileUpload?.maxFileSize}
+        className={cn('w-full', className)}
+      >
+        <PromptInputHeader>
+          <PromptInputAttachments>
+            {(attachment) => <PromptInputAttachment data={attachment} />}
+          </PromptInputAttachments>
+        </PromptInputHeader>
+        <PromptInputBody>
+          <PromptInputTextarea
+            placeholder={placeholder || 'Type your message... (Enter to send, Shift+Enter for new line)'}
+            disabled={disabled}
+          />
+        </PromptInputBody>
+        <PromptInputFooter>
+          <PromptInputTools>
+            {showAttachments && (
+              <PromptInputActionMenu>
+                <PromptInputActionMenuTrigger />
+                <PromptInputActionMenuContent>
+                  <PromptInputActionAddAttachments label="Add files" />
+                </PromptInputActionMenuContent>
+              </PromptInputActionMenu>
+            )}
+            {showAudioRecorder &&
+              (audioMode === 'transcribe' && transcriptionEndpoint ? (
+                <TranscribeAudioRecorder
+                  endpoint={transcriptionEndpoint}
+                  headers={transcriptionHeaders}
+                  disabled={disabled}
+                  parseResponse={parseTranscriptionResponse}
+                  onRequestPermission={onRequestPermission}
+                />
+              ) : (
+                <AudioRecorder onRecordingComplete={handleAudioRecording} disabled={disabled} onRequestPermission={onRequestPermission} />
+              ))}
+            {extraTools}
+          </PromptInputTools>
+          <PromptInputSubmit disabled={disabled} status={computedStatus} />
+        </PromptInputFooter>
+      </PromptInput>
+    </PromptInputProvider>
   );
 }
