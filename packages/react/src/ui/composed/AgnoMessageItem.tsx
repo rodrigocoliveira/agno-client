@@ -119,60 +119,42 @@ export function AgnoMessageItem({
         <div className="flex items-start gap-2.5 max-w-[80%] flex-row-reverse">
           {userAvatar}
           <div className="space-y-1.5 flex flex-col items-end min-w-0">
-            {/* Image thumbnails — outside bubble */}
-            {message.images && message.images.length > 0 && (
-              <div className={cn('grid gap-1.5', message.images.length > 1 ? 'grid-cols-2' : 'grid-cols-1')}>
-                {message.images.map((img, idx) =>
-                  showImageLightbox ? (
-                    <button
-                      key={idx}
-                      type="button"
-                      onClick={() =>
-                        openImageLightbox(
-                          message.images!.map((i) => ({ url: i.url, alt: i.revised_prompt })),
-                          idx,
-                        )
-                      }
-                      className="group relative overflow-hidden rounded-lg border border-border cursor-pointer hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
-                    >
-                      <img
-                        src={img.url}
-                        alt={img.revised_prompt || 'Uploaded image'}
-                        className="object-cover max-h-48"
-                      />
-                    </button>
-                  ) : (
-                    <img
-                      key={idx}
-                      src={img.url}
-                      alt={img.revised_prompt || 'Uploaded image'}
-                      className="rounded-lg border border-border object-cover max-h-48"
-                    />
-                  ),
-                )}
-              </div>
-            )}
-            {/* Audio chips — outside bubble */}
-            {message.audio && message.audio.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 justify-end">
-                {message.audio.map((audio, idx) => (
+            {/* Attachments row — images + files side-by-side as uniform cards */}
+            {((message.images && message.images.length > 0) ||
+              (message.audio && message.audio.length > 0) ||
+              (message.files && message.files.length > 0)) && (
+              <div className="flex flex-wrap gap-2 justify-end">
+                {/* Image thumbnails as square cards */}
+                {message.images?.map((img, idx) => (
+                  <FilePreviewCard
+                    key={`img-${idx}`}
+                    file={{ name: img.revised_prompt || `Image ${idx + 1}`, type: 'image/png', url: img.url }}
+                    onClick={
+                      showImageLightbox
+                        ? () =>
+                            openImageLightbox(
+                              message.images!.map((i) => ({ url: i.url, alt: i.revised_prompt })),
+                              idx,
+                            )
+                        : undefined
+                    }
+                  />
+                ))}
+                {/* Audio chips */}
+                {message.audio?.map((audio, idx) => (
                   <div
-                    key={idx}
-                    className="flex items-center gap-1.5 rounded-lg border border-border bg-muted/50 px-2.5 py-1.5 text-xs text-foreground"
+                    key={`audio-${idx}`}
+                    className="flex items-center gap-1.5 rounded-lg border border-border bg-muted/50 px-2.5 py-1.5 text-xs text-foreground self-end"
                   >
                     <Music className="h-3.5 w-3.5 text-muted-foreground" />
                     <span className="truncate max-w-[150px]">{audio.id || `Audio ${idx + 1}`}</span>
                   </div>
                 ))}
-              </div>
-            )}
-            {/* File chips — outside bubble */}
-            {message.files && message.files.length > 0 && (
-              <div className="flex flex-wrap gap-1.5 justify-end">
-                {message.files.map((file, idx) =>
+                {/* File cards */}
+                {message.files?.map((file, idx) =>
                   showFilePreview ? (
                     <FilePreviewCard
-                      key={idx}
+                      key={`file-${idx}`}
                       file={{ name: file.name, type: file.type, url: file.url, size: file.size }}
                       onClick={() =>
                         openFilePreview({ name: file.name, type: file.type, url: file.url, size: file.size })
@@ -180,8 +162,8 @@ export function AgnoMessageItem({
                     />
                   ) : (
                     <div
-                      key={idx}
-                      className="flex items-center gap-1.5 rounded-lg border border-border bg-muted/50 px-2.5 py-1.5 text-xs text-foreground"
+                      key={`file-${idx}`}
+                      className="flex items-center gap-1.5 rounded-lg border border-border bg-muted/50 px-2.5 py-1.5 text-xs text-foreground self-end"
                     >
                       <FileIcon className="h-3.5 w-3.5 text-muted-foreground" />
                       <span className="truncate max-w-[150px]">{file.name}</span>
