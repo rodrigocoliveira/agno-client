@@ -1,6 +1,7 @@
-import { Conversation, ConversationContent, ConversationEmptyState, ConversationScrollButton } from '@/components/ai-elements/conversation'
+import { Conversation, ConversationContent, ConversationEmptyState, ConversationScrollButton, useStickToBottomContext } from '@/components/ai-elements/conversation'
 import { useAgnoChat, useAgnoToolExecution, type ToolHandler } from '@rodrigocoliveira/agno-react'
 import { Bot, Loader2, Sparkles, Wrench, Zap, Brain, Code2 } from 'lucide-react'
+import { useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { ChatInput } from './ChatInput'
 import { MessageItem } from './MessageItem'
@@ -14,8 +15,24 @@ const SUGGESTED_PROMPTS = [
   { icon: <Sparkles className="h-3.5 w-3.5" />, text: "Surprise me with something creative" },
 ]
 
+/** Scrolls to bottom when a new user message arrives */
+function ScrollOnNewUserMessage({ messageCount }: { messageCount: number }) {
+  const { scrollToBottom } = useStickToBottomContext()
+  const prevCountRef = useRef(messageCount)
+
+  useEffect(() => {
+    if (messageCount > prevCountRef.current) {
+      scrollToBottom('smooth')
+    }
+    prevCountRef.current = messageCount
+  }, [messageCount, scrollToBottom])
+
+  return null
+}
+
 export function ChatInterface() {
-  const { messages, sendMessage, isStreaming, error } = useAgnoChat()
+  const { messages, sendMessage, isStreaming, cancelRun, error } = useAgnoChat()
+  const containerRef = useRef<HTMLDivElement>(null)
 
   // Combine example generative tools with other tool handlers
   const toolHandlers: Record<string, ToolHandler> = {
@@ -55,14 +72,22 @@ export function ChatInterface() {
     }
   }
 
-  console.log(messages)
+  // Thinking indicator logic
+  const lastMessage = messages[messages.length - 1]
+  const isThinking = isStreaming && (!lastMessage || lastMessage.role !== 'user') && !lastMessage?.content
+
+  // Messages to display (hide empty last assistant message during thinking)
+  const displayMessages = isThinking && messages.length > 0
+    ? messages.slice(0, -1)
+    : messages
 
   return (
-    <div className="h-full flex flex-col">
+    <div ref={containerRef} className="h-full flex flex-col relative">
       {/* Messages area - flex-1 fills remaining space */}
       <Conversation className="relative flex-1 w-full">
         <ConversationContent className="max-w-5xl mx-auto">
-          {messages.length === 0 ? (
+          <ScrollOnNewUserMessage messageCount={messages.length} />
+          {displayMessages.length === 0 && !isThinking ? (
             <ConversationEmptyState>
               <div className="flex flex-col items-center gap-6 animate-fade-in-up">
                 {/* Logo / Icon */}
@@ -106,13 +131,13 @@ export function ChatInterface() {
               </div>
             </ConversationEmptyState>
           ) : (
-            messages.map((message, index) => (
+            displayMessages.map((message, index) => (
               <MessageItem key={index} message={message} />
             ))
           )}
 
-          {/* Streaming indicator inline at bottom of messages */}
-          {isStreaming && (
+          {/* Thinking indicator - shown before first content arrives */}
+          {isThinking && (
             <div className="py-2 animate-message-in">
               <StreamingIndicator />
             </div>
@@ -164,6 +189,10 @@ export function ChatInterface() {
             onSend={handleSend}
             disabled={isStreaming || isPaused}
             placeholder="Message your agent..."
+            isStreaming={isStreaming}
+            onCancel={cancelRun}
+            allowCancelRun
+            containerRef={containerRef}
           />
         </div>
       </div>

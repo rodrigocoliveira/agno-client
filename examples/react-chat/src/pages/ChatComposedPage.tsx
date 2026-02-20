@@ -145,10 +145,9 @@ export function ChatComposedPage() {
               showAudioRecorder={true}
               audioMode="transcribe"
               transcriptionEndpoint="http://localhost:7777/transcribe"
-              audioRecorderLabels={{                                  
-                recordAudio: 'Gravar',
-                stopRecording: 'Parar',
-                transcribing: 'Transcrevendo...',
+              dropZoneProps={{
+                className: "bg-gray-300/50 border-gray-200 !text-black/70",
+                label: "Arraste documentos para anexar em sua mensagem",
               }}
             />
           </AgnoChat>

@@ -6,6 +6,7 @@ export default {
     './components/**/*.{ts,tsx}',
     './app/**/*.{ts,tsx}',
     './src/**/*.{ts,tsx}',
+    '../../packages/react/dist/**/*.{js,mjs}',
   ],
   prefix: "",
   theme: {
