@@ -12,6 +12,7 @@ import {
   PromptInputActionMenuTrigger,
   PromptInputActionMenuContent,
   PromptInputActionAddAttachments,
+  usePromptInputAttachments,
   type PromptInputMessage,
 } from '@/components/ai-elements/prompt-input'
 import { AudioRecorder } from './AudioRecorder'
@@ -37,6 +38,18 @@ function dataUrlToBlob(dataUrl: string): Blob {
     buf[i] = bytes.charCodeAt(i)
   }
   return new Blob([buf], { type: mime })
+}
+
+function AttachmentHeader() {
+  const { files } = usePromptInputAttachments()
+  if (files.length === 0) return null
+  return (
+    <PromptInputHeader>
+      <PromptInputAttachments>
+        {(attachment) => <PromptInputAttachment data={attachment} />}
+      </PromptInputAttachments>
+    </PromptInputHeader>
+  )
 }
 
 export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
@@ -93,11 +106,7 @@ export function ChatInput({ onSend, disabled, placeholder }: ChatInputProps) {
       multiple
       className="w-full"
     >
-      <PromptInputHeader>
-        <PromptInputAttachments>
-          {(attachment) => <PromptInputAttachment data={attachment} />}
-        </PromptInputAttachments>
-      </PromptInputHeader>
+      <AttachmentHeader />
       <PromptInputBody>
         <PromptInputTextarea
           placeholder={placeholder || 'Type your message... (Enter to send, Shift+Enter for new line)'}

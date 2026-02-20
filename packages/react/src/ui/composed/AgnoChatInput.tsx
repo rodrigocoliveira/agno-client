@@ -14,6 +14,7 @@ import {
   PromptInputActionMenuContent,
   PromptInputActionAddAttachments,
   usePromptInputController,
+  usePromptInputAttachments,
   type PromptInputMessage,
 } from '../components/prompt-input';
 import { AudioRecorder } from '../components/audio-recorder';
@@ -60,6 +61,19 @@ function dataUrlToBlob(dataUrl: string): Blob {
     buf[i] = bytes.charCodeAt(i);
   }
   return new Blob([buf], { type: mime });
+}
+
+/** Only renders the attachment header when files are present */
+function AttachmentHeader() {
+  const { files } = usePromptInputAttachments();
+  if (files.length === 0) return null;
+  return (
+    <PromptInputHeader>
+      <PromptInputAttachments>
+        {(attachment) => <PromptInputAttachment data={attachment} />}
+      </PromptInputAttachments>
+    </PromptInputHeader>
+  );
 }
 
 /** Internal wrapper that accesses PromptInput context to set transcribed text */
@@ -154,11 +168,7 @@ export function AgnoChatInput({
         maxFileSize={fileUpload?.maxFileSize}
         className={cn('w-full', className)}
       >
-        <PromptInputHeader>
-          <PromptInputAttachments>
-            {(attachment) => <PromptInputAttachment data={attachment} />}
-          </PromptInputAttachments>
-        </PromptInputHeader>
+        <AttachmentHeader />
         <PromptInputBody>
           <PromptInputTextarea
             placeholder={placeholder || 'Type your message... (Enter to send, Shift+Enter for new line)'}
