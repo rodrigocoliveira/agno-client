@@ -97,6 +97,34 @@ export function AgnoMessageItem({
                 hasError && 'opacity-70',
               )}
             >
+              {/* Image thumbnails */}
+              {message.images && message.images.length > 0 && (
+                <div className={cn('grid gap-1.5 mb-2', message.images.length > 1 ? 'grid-cols-2' : 'grid-cols-1')}>
+                  {message.images.map((img, idx) => (
+                    <img
+                      key={idx}
+                      src={img.url}
+                      alt={img.revised_prompt || 'Uploaded image'}
+                      className="w-full rounded-lg border border-primary-foreground/20 object-cover max-h-48"
+                    />
+                  ))}
+                </div>
+              )}
+              {/* Audio chips */}
+              {message.audio && message.audio.length > 0 && (
+                <div className="flex flex-wrap gap-1.5 mb-2">
+                  {message.audio.map((audio, idx) => (
+                    <div
+                      key={idx}
+                      className="flex items-center gap-1.5 rounded-lg bg-primary-foreground/10 px-2 py-1 text-xs"
+                    >
+                      <Music className="h-3 w-3" />
+                      <span className="truncate max-w-[150px]">{audio.id || `Audio ${idx + 1}`}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {/* File chips */}
               {message.files && message.files.length > 0 && (
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   {message.files.map((file, idx) => (
