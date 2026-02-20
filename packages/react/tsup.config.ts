@@ -25,6 +25,7 @@ export default defineConfig([
       '@radix-ui/react-accordion',
       '@radix-ui/react-avatar',
       '@radix-ui/react-collapsible',
+      '@radix-ui/react-dialog',
       '@radix-ui/react-dropdown-menu',
       '@radix-ui/react-hover-card',
       '@radix-ui/react-select',

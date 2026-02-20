@@ -1,10 +1,18 @@
+import { useState } from 'react';
 import type { ChatMessage, ToolCall } from '@rodrigocoliveira/agno-types';
 import { GenerativeUIRenderer } from '@rodrigocoliveira/agno-react';
 import { Response } from '../components/response';
 import { Tool, ToolContent, ToolHeader, ToolInput, ToolOutput } from '../components/tool';
 import { Artifact } from '../components/artifact';
+import { SmartTimestamp } from '../components/smart-timestamp';
+import { FilePreviewCard } from '../components/file-preview-card';
+import { FilePreviewModal } from '../components/file-preview-modal';
+import { ImageLightbox } from '../components/image-lightbox';
+import type { FilePreviewFile } from '../components/file-preview-card';
+import type { LightboxImage } from '../components/image-lightbox';
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '../primitives/accordion';
 import { cn } from '../lib/cn';
+import { formatSmartTimestamp } from '../lib/format-timestamp';
 import type { ToolState } from '../types';
 import type { AgnoMessageItemClassNames } from '../types';
 import type { ReactNode } from 'react';
@@ -45,16 +53,24 @@ export interface AgnoMessageItemProps {
   showGenerativeUI?: boolean;
   /** Show tool call details (default: true) */
   showToolCalls?: boolean;
+  /** Enable file preview cards with click-to-open modal (default: true) */
+  showFilePreview?: boolean;
+  /** Enable image lightbox on click (default: true) */
+  showImageLightbox?: boolean;
   /** Custom timestamp formatter */
   formatTimestamp?: (date: Date) => string;
 }
 
-const defaultFormatTimestamp = (date: Date) =>
-  date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+const defaultFormatTimestamp = formatSmartTimestamp;
 
 const getToolState = (tool: NonNullable<ChatMessage['tool_calls']>[0]): ToolState => {
   return tool.tool_call_error ? 'output-error' : 'output-available';
 };
+
+type PreviewState =
+  | { type: 'image'; images: LightboxImage[]; initialIndex: number }
+  | { type: 'file'; file: FilePreviewFile }
+  | null;
 
 export function AgnoMessageItem({
   message,
@@ -71,11 +87,30 @@ export function AgnoMessageItem({
   showTimestamp = true,
   showGenerativeUI = true,
   showToolCalls = true,
-  formatTimestamp = defaultFormatTimestamp,
+  showFilePreview = true,
+  showImageLightbox = true,
+  formatTimestamp,
 }: AgnoMessageItemProps) {
   const isUser = message.role === 'user';
   const hasError = message.streamingError;
   const toolsWithUI = message.tool_calls?.filter((tool) => (tool as ToolCall & { ui_component?: any }).ui_component) || [];
+
+  const [preview, setPreview] = useState<PreviewState>(null);
+
+  const isCustomTimestamp = !!formatTimestamp;
+  const resolvedFormatTimestamp = formatTimestamp ?? defaultFormatTimestamp;
+
+  const openImageLightbox = (images: LightboxImage[], index: number) => {
+    if (!showImageLightbox) return;
+    setPreview({ type: 'image', images, initialIndex: index });
+  };
+
+  const openFilePreview = (file: FilePreviewFile) => {
+    if (!showFilePreview) return;
+    setPreview({ type: 'file', file });
+  };
+
+  const closePreview = () => setPreview(null);
 
   return (
     <div className={cn('py-5 first:pt-2', isUser ? 'flex justify-end' : '', classNames?.root, className)}>
@@ -87,14 +122,34 @@ export function AgnoMessageItem({
             {/* Image thumbnails — outside bubble */}
             {message.images && message.images.length > 0 && (
               <div className={cn('grid gap-1.5', message.images.length > 1 ? 'grid-cols-2' : 'grid-cols-1')}>
-                {message.images.map((img, idx) => (
-                  <img
-                    key={idx}
-                    src={img.url}
-                    alt={img.revised_prompt || 'Uploaded image'}
-                    className="rounded-lg border border-border object-cover max-h-48"
-                  />
-                ))}
+                {message.images.map((img, idx) =>
+                  showImageLightbox ? (
+                    <button
+                      key={idx}
+                      type="button"
+                      onClick={() =>
+                        openImageLightbox(
+                          message.images!.map((i) => ({ url: i.url, alt: i.revised_prompt })),
+                          idx,
+                        )
+                      }
+                      className="group relative overflow-hidden rounded-lg border border-border cursor-pointer hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+                    >
+                      <img
+                        src={img.url}
+                        alt={img.revised_prompt || 'Uploaded image'}
+                        className="object-cover max-h-48"
+                      />
+                    </button>
+                  ) : (
+                    <img
+                      key={idx}
+                      src={img.url}
+                      alt={img.revised_prompt || 'Uploaded image'}
+                      className="rounded-lg border border-border object-cover max-h-48"
+                    />
+                  ),
+                )}
               </div>
             )}
             {/* Audio chips — outside bubble */}
@@ -114,15 +169,25 @@ export function AgnoMessageItem({
             {/* File chips — outside bubble */}
             {message.files && message.files.length > 0 && (
               <div className="flex flex-wrap gap-1.5 justify-end">
-                {message.files.map((file, idx) => (
-                  <div
-                    key={idx}
-                    className="flex items-center gap-1.5 rounded-lg border border-border bg-muted/50 px-2.5 py-1.5 text-xs text-foreground"
-                  >
-                    <FileIcon className="h-3.5 w-3.5 text-muted-foreground" />
-                    <span className="truncate max-w-[150px]">{file.name}</span>
-                  </div>
-                ))}
+                {message.files.map((file, idx) =>
+                  showFilePreview ? (
+                    <FilePreviewCard
+                      key={idx}
+                      file={{ name: file.name, type: file.type, url: file.url, size: file.size }}
+                      onClick={() =>
+                        openFilePreview({ name: file.name, type: file.type, url: file.url, size: file.size })
+                      }
+                    />
+                  ) : (
+                    <div
+                      key={idx}
+                      className="flex items-center gap-1.5 rounded-lg border border-border bg-muted/50 px-2.5 py-1.5 text-xs text-foreground"
+                    >
+                      <FileIcon className="h-3.5 w-3.5 text-muted-foreground" />
+                      <span className="truncate max-w-[150px]">{file.name}</span>
+                    </div>
+                  ),
+                )}
               </div>
             )}
             {/* Message bubble — text only */}
@@ -139,9 +204,11 @@ export function AgnoMessageItem({
             )}
             {showTimestamp && (
               <div className="flex items-center justify-end gap-1.5 px-1">
-                <span className="text-[11px] text-muted-foreground">
-                  {formatTimestamp(new Date(message.created_at))}
-                </span>
+                <SmartTimestamp
+                  date={new Date(message.created_at)}
+                  formatShort={isCustomTimestamp ? resolvedFormatTimestamp : undefined}
+                  className="text-[11px] text-muted-foreground"
+                />
                 {hasError && <AlertCircle className="h-3 w-3 text-destructive" />}
               </div>
             )}
@@ -245,11 +312,30 @@ export function AgnoMessageItem({
                               <div className="grid grid-cols-2 gap-2">
                                 {message.images.map((img, idx) => (
                                   <div key={idx} className="space-y-1">
-                                    <img
-                                      src={img.url}
-                                      alt={img.revised_prompt || 'Generated image'}
-                                      className="w-full rounded-lg border border-border"
-                                    />
+                                    {showImageLightbox ? (
+                                      <button
+                                        type="button"
+                                        onClick={() =>
+                                          openImageLightbox(
+                                            message.images!.map((i) => ({ url: i.url, alt: i.revised_prompt })),
+                                            idx,
+                                          )
+                                        }
+                                        className="group relative w-full overflow-hidden rounded-lg border border-border cursor-pointer hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring transition-colors"
+                                      >
+                                        <img
+                                          src={img.url}
+                                          alt={img.revised_prompt || 'Generated image'}
+                                          className="w-full rounded-lg"
+                                        />
+                                      </button>
+                                    ) : (
+                                      <img
+                                        src={img.url}
+                                        alt={img.revised_prompt || 'Generated image'}
+                                        className="w-full rounded-lg border border-border"
+                                      />
+                                    )}
                                     {img.revised_prompt && (
                                       <p className="text-[11px] text-muted-foreground italic px-0.5">
                                         {img.revised_prompt}
@@ -325,30 +411,40 @@ export function AgnoMessageItem({
                                 Files ({message.files.length})
                               </div>
                               <div className="flex flex-wrap gap-2">
-                                {message.files.map((file, idx) => (
-                                  <div
-                                    key={idx}
-                                    className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs bg-muted/30 hover:bg-muted/50 transition-colors"
-                                  >
-                                    <FileIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
-                                    <span className="truncate max-w-[180px]">{file.name}</span>
-                                    {file.size && (
-                                      <span className="text-muted-foreground/70">
-                                        ({(file.size / 1024).toFixed(1)}KB)
-                                      </span>
-                                    )}
-                                    {file.url && /^https?:\/\//i.test(file.url) && (
-                                      <a
-                                        href={file.url}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="text-primary hover:underline font-medium"
-                                      >
-                                        View
-                                      </a>
-                                    )}
-                                  </div>
-                                ))}
+                                {message.files.map((file, idx) =>
+                                  showFilePreview ? (
+                                    <FilePreviewCard
+                                      key={idx}
+                                      file={{ name: file.name, type: file.type, url: file.url, size: file.size }}
+                                      onClick={() =>
+                                        openFilePreview({ name: file.name, type: file.type, url: file.url, size: file.size })
+                                      }
+                                    />
+                                  ) : (
+                                    <div
+                                      key={idx}
+                                      className="flex items-center gap-2 rounded-lg border border-border px-3 py-2 text-xs bg-muted/30 hover:bg-muted/50 transition-colors"
+                                    >
+                                      <FileIcon className="h-3.5 w-3.5 shrink-0 text-muted-foreground" />
+                                      <span className="truncate max-w-[180px]">{file.name}</span>
+                                      {file.size && (
+                                        <span className="text-muted-foreground/70">
+                                          ({(file.size / 1024).toFixed(1)}KB)
+                                        </span>
+                                      )}
+                                      {file.url && /^https?:\/\//i.test(file.url) && (
+                                        <a
+                                          href={file.url}
+                                          target="_blank"
+                                          rel="noopener noreferrer"
+                                          className="text-primary hover:underline font-medium"
+                                        >
+                                          View
+                                        </a>
+                                      )}
+                                    </div>
+                                  ),
+                                )}
                               </div>
                             </div>
                           )}
@@ -448,14 +544,35 @@ export function AgnoMessageItem({
                   </span>
                 )}
                 {showTimestamp && (
-                  <span className="text-[11px] text-muted-foreground">
-                    {formatTimestamp(new Date(message.created_at))}
-                  </span>
+                  <SmartTimestamp
+                    date={new Date(message.created_at)}
+                    formatShort={isCustomTimestamp ? resolvedFormatTimestamp : undefined}
+                    className="text-[11px] text-muted-foreground"
+                  />
                 )}
               </div>
             )}
           </div>
         </div>
+      )}
+
+      {/* Image Lightbox */}
+      {preview?.type === 'image' && (
+        <ImageLightbox
+          open
+          onOpenChange={(open) => { if (!open) closePreview(); }}
+          images={preview.images}
+          initialIndex={preview.initialIndex}
+        />
+      )}
+
+      {/* File Preview Modal */}
+      {preview?.type === 'file' && (
+        <FilePreviewModal
+          open
+          onOpenChange={(open) => { if (!open) closePreview(); }}
+          file={preview.file}
+        />
       )}
     </div>
   );

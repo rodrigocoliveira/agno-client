@@ -57,3 +57,17 @@ export {
   CommandShortcut,
   CommandSeparator,
 } from './command';
+
+export {
+  Dialog,
+  DialogPortal,
+  DialogOverlay,
+  DialogTrigger,
+  DialogClose,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+} from './dialog';
+export type { DialogContentProps } from './dialog';

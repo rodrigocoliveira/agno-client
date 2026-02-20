@@ -5,6 +5,9 @@
 
 // Utility
 export { cn } from './lib/cn';
+export { formatSmartTimestamp, formatFullTimestamp } from './lib/format-timestamp';
+export { getFilePreviewType, formatFileSize, getFileExtension, isPreviewable } from './lib/file-utils';
+export type { FilePreviewType } from './lib/file-utils';
 
 // Types
 export type {
@@ -86,6 +89,20 @@ export {
   CommandSeparator,
 } from './primitives/command';
 
+export {
+  Dialog,
+  DialogPortal,
+  DialogOverlay,
+  DialogTrigger,
+  DialogClose,
+  DialogContent,
+  DialogHeader,
+  DialogFooter,
+  DialogTitle,
+  DialogDescription,
+} from './primitives/dialog';
+export type { DialogContentProps } from './primitives/dialog';
+
 // ── Base Components ─────────────────────────────────────────────────────────
 
 // Message
@@ -153,6 +170,21 @@ export type { StreamingIndicatorProps } from './components/streaming-indicator';
 // Audio Recorder
 export { AudioRecorder } from './components/audio-recorder';
 export type { AudioRecorderProps, AudioRecorderLabels } from './components/audio-recorder';
+
+// Smart Timestamp
+export { SmartTimestamp } from './components/smart-timestamp';
+export type { SmartTimestampProps } from './components/smart-timestamp';
+
+// File Preview
+export { FilePreviewCard } from './components/file-preview-card';
+export type { FilePreviewCardProps, FilePreviewFile } from './components/file-preview-card';
+
+export { FilePreviewModal } from './components/file-preview-modal';
+export type { FilePreviewModalProps } from './components/file-preview-modal';
+
+// Image Lightbox
+export { ImageLightbox } from './components/image-lightbox';
+export type { ImageLightboxProps, LightboxImage } from './components/image-lightbox';
 
 // ── Prompt Input (composable) ───────────────────────────────────────────────
 
