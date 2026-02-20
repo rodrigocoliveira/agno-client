@@ -66,6 +66,13 @@ function dataUrlToBlob(dataUrl: string): Blob {
   return new Blob([buf], { type: mime });
 }
 
+/** Submit button that is disabled when the textarea is empty */
+function SubmitButton({ disabled, status }: { disabled?: boolean; status?: ChatStatus }) {
+  const { textInput } = usePromptInputController();
+  const hasText = textInput.value.trim().length > 0;
+  return <PromptInputSubmit disabled={disabled || !hasText} status={status} />;
+}
+
 /** Only renders the attachment header when files are present */
 function AttachmentHeader() {
   const { files } = usePromptInputAttachments();
@@ -135,7 +142,7 @@ export function AgnoChatInput({
     const text = message.text?.trim() || '';
     const files = message.files || [];
 
-    if (!text && files.length === 0) return;
+    if (!text) return;
 
     if (files.length === 0) {
       onSend(text);
@@ -207,7 +214,7 @@ export function AgnoChatInput({
               ))}
             {extraTools}
           </PromptInputTools>
-          <PromptInputSubmit disabled={disabled} status={computedStatus} />
+          <SubmitButton disabled={disabled} status={computedStatus} />
         </PromptInputFooter>
       </PromptInput>
     </PromptInputProvider>
