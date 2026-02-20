@@ -187,7 +187,7 @@ export function AgnoMessageItem({
             {showTimestamp && (
               <div className="flex items-center justify-end gap-1.5 px-1">
                 <SmartTimestamp
-                  date={new Date(message.created_at)}
+                  date={new Date(message.created_at * 1000)}
                   formatShort={isCustomTimestamp ? resolvedFormatTimestamp : undefined}
                   className="text-[11px] text-muted-foreground"
                 />
@@ -527,7 +527,7 @@ export function AgnoMessageItem({
                 )}
                 {showTimestamp && (
                   <SmartTimestamp
-                    date={new Date(message.created_at)}
+                    date={new Date(message.created_at * 1000)}
                     formatShort={isCustomTimestamp ? resolvedFormatTimestamp : undefined}
                     className="text-[11px] text-muted-foreground"
                   />

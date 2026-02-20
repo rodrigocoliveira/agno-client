@@ -28,11 +28,47 @@ export function formatFileSize(bytes: number): string {
 
 /**
  * Extracts the file extension from a filename.
+ * Optionally falls back to deriving extension from MIME type.
  */
-export function getFileExtension(filename: string): string {
+export function getFileExtension(filename: string, mimeType?: string): string {
   const lastDot = filename.lastIndexOf('.');
-  if (lastDot === -1 || lastDot === 0) return '';
-  return filename.slice(lastDot + 1).toLowerCase();
+  if (lastDot !== -1 && lastDot !== 0) {
+    return filename.slice(lastDot + 1).toLowerCase();
+  }
+  // Fallback: derive from MIME type
+  if (mimeType) {
+    return extensionFromMime(mimeType);
+  }
+  return '';
+}
+
+const mimeToExt: Record<string, string> = {
+  'application/pdf': 'pdf',
+  'application/zip': 'zip',
+  'application/x-rar-compressed': 'rar',
+  'application/json': 'json',
+  'application/xml': 'xml',
+  'application/msword': 'doc',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': 'docx',
+  'application/vnd.ms-excel': 'xls',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': 'xlsx',
+  'application/vnd.ms-powerpoint': 'ppt',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': 'pptx',
+  'text/csv': 'csv',
+  'text/plain': 'txt',
+  'text/html': 'html',
+  'text/css': 'css',
+  'text/javascript': 'js',
+};
+
+function extensionFromMime(mimeType: string): string {
+  if (mimeToExt[mimeType]) return mimeToExt[mimeType];
+  // Generic fallback: "image/png" -> "png", "audio/mp3" -> "mp3"
+  const subtype = mimeType.split('/')[1];
+  if (subtype && !subtype.includes('.') && !subtype.includes('+')) {
+    return subtype.toLowerCase();
+  }
+  return '';
 }
 
 /**

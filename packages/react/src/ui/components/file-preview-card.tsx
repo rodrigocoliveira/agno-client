@@ -1,6 +1,6 @@
 import { cn } from '../lib/cn';
 import { getFilePreviewType, formatFileSize, getFileExtension } from '../lib/file-utils';
-import { Search } from 'lucide-react';
+import { FileIcon, Search } from 'lucide-react';
 
 export interface FilePreviewFile {
   name: string;
@@ -15,63 +15,33 @@ export interface FilePreviewCardProps {
   className?: string;
 }
 
-const extColorMap: Record<string, string> = {
-  pdf: 'bg-red-500/15 text-red-700 dark:text-red-400',
-  doc: 'bg-blue-500/15 text-blue-700 dark:text-blue-400',
-  docx: 'bg-blue-500/15 text-blue-700 dark:text-blue-400',
-  xls: 'bg-green-500/15 text-green-700 dark:text-green-400',
-  xlsx: 'bg-green-500/15 text-green-700 dark:text-green-400',
-  csv: 'bg-green-500/15 text-green-700 dark:text-green-400',
-  ppt: 'bg-orange-500/15 text-orange-700 dark:text-orange-400',
-  pptx: 'bg-orange-500/15 text-orange-700 dark:text-orange-400',
-  zip: 'bg-yellow-500/15 text-yellow-700 dark:text-yellow-400',
-  rar: 'bg-yellow-500/15 text-yellow-700 dark:text-yellow-400',
-  txt: 'bg-gray-500/15 text-gray-700 dark:text-gray-400',
-  json: 'bg-amber-500/15 text-amber-700 dark:text-amber-400',
-  mp3: 'bg-purple-500/15 text-purple-700 dark:text-purple-400',
-  mp4: 'bg-pink-500/15 text-pink-700 dark:text-pink-400',
-  png: 'bg-teal-500/15 text-teal-700 dark:text-teal-400',
-  jpg: 'bg-teal-500/15 text-teal-700 dark:text-teal-400',
-  jpeg: 'bg-teal-500/15 text-teal-700 dark:text-teal-400',
-  svg: 'bg-teal-500/15 text-teal-700 dark:text-teal-400',
-};
-
-function getExtColor(ext: string): string {
-  return extColorMap[ext] || 'bg-muted text-muted-foreground';
+/** Small corner badge for the file extension */
+function ExtBadge({ ext }: { ext: string }) {
+  if (!ext) return null;
+  return (
+    <span className="absolute bottom-1.5 left-1.5 rounded px-1 py-0.5 text-[9px] font-semibold uppercase leading-none bg-background/80 text-muted-foreground border border-border/50 backdrop-blur-sm">
+      {ext}
+    </span>
+  );
 }
 
 export function FilePreviewCard({ file, onClick, className }: FilePreviewCardProps) {
   const previewType = getFilePreviewType(file.type);
   const isClickable = !!onClick;
-  const ext = getFileExtension(file.name);
+  const ext = getFileExtension(file.name, file.type);
 
-  // Image with thumbnail
+  const cardBase = cn(
+    'group relative flex flex-col overflow-hidden rounded-xl border border-border bg-muted/20 w-28 h-28',
+    isClickable && 'cursor-pointer hover:border-foreground/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-colors',
+    className,
+  );
+
+  // Image thumbnail
   if (previewType === 'image' && file.url) {
     return (
-      <button
-        type="button"
-        onClick={onClick}
-        disabled={!isClickable}
-        className={cn(
-          'group relative flex flex-col overflow-hidden rounded-xl border border-border bg-muted/30 w-28 h-28',
-          isClickable && 'cursor-pointer hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-colors',
-          className,
-        )}
-      >
-        <img
-          src={file.url}
-          alt={file.name}
-          className="w-full h-full object-cover"
-        />
-        {/* Extension badge */}
-        {ext && (
-          <span className={cn(
-            'absolute bottom-1.5 left-1.5 rounded-md px-1.5 py-0.5 text-[10px] font-bold uppercase leading-none',
-            getExtColor(ext),
-          )}>
-            {ext}
-          </span>
-        )}
+      <button type="button" onClick={onClick} disabled={!isClickable} className={cardBase}>
+        <img src={file.url} alt={file.name} className="w-full h-full object-cover" />
+        <ExtBadge ext={ext} />
         {isClickable && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/30 transition-colors">
             <Search className="h-5 w-5 text-white opacity-0 group-hover:opacity-100 transition-opacity" />
@@ -81,30 +51,42 @@ export function FilePreviewCard({ file, onClick, className }: FilePreviewCardPro
     );
   }
 
-  // Non-image file: uniform square card with extension badge
+  // PDF thumbnail — render actual first page
+  if (previewType === 'pdf' && file.url) {
+    return (
+      <button type="button" onClick={onClick} disabled={!isClickable} className={cardBase}>
+        <div className="w-full h-full overflow-hidden pointer-events-none">
+          <object
+            data={`${file.url}#page=1&view=FitH`}
+            type="application/pdf"
+            className="w-[200%] h-[200%] origin-top-left scale-50"
+            aria-label={file.name}
+          >
+            {/* Fallback if PDF can't render */}
+            <div className="flex items-center justify-center w-full h-full">
+              <FileIcon className="h-8 w-8 text-muted-foreground/40" />
+            </div>
+          </object>
+        </div>
+        <ExtBadge ext={ext} />
+        {isClickable && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/0 group-hover:bg-black/10 transition-colors">
+            <Search className="h-5 w-5 text-muted-foreground opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
+        )}
+      </button>
+    );
+  }
+
+  // Generic file — icon + extension badge in corner
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={!isClickable}
-      className={cn(
-        'group relative flex flex-col items-center justify-between overflow-hidden rounded-xl border border-border bg-muted/30 w-28 h-28 p-2.5',
-        isClickable && 'cursor-pointer hover:bg-muted/50 hover:border-primary/50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 transition-colors',
-        className,
-      )}
-    >
-      {/* Extension badge — large, centered */}
+    <button type="button" onClick={onClick} disabled={!isClickable} className={cardBase}>
       <div className="flex-1 flex items-center justify-center">
-        <span className={cn(
-          'rounded-lg px-2.5 py-1.5 text-sm font-bold uppercase leading-none',
-          ext ? getExtColor(ext) : 'bg-muted text-muted-foreground',
-        )}>
-          {ext || 'FILE'}
-        </span>
+        <FileIcon className="h-8 w-8 text-muted-foreground/40" />
       </div>
 
       {/* Filename + size at bottom */}
-      <div className="w-full text-center min-w-0 space-y-0.5">
+      <div className="w-full text-center min-w-0 px-2 pb-2 space-y-0.5">
         <p className="text-[10px] text-foreground truncate leading-tight" title={file.name}>
           {file.name}
         </p>
@@ -114,6 +96,8 @@ export function FilePreviewCard({ file, onClick, className }: FilePreviewCardPro
           </p>
         )}
       </div>
+
+      <ExtBadge ext={ext} />
     </button>
   );
 }
