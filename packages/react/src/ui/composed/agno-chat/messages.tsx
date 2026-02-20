@@ -1,10 +1,11 @@
 import type { ChatMessage } from '@rodrigocoliveira/agno-types';
-import type { ReactNode } from 'react';
+import { useEffect, useRef, type ReactNode } from 'react';
 import {
   Conversation,
   ConversationContent,
   ConversationEmptyState,
   ConversationScrollButton,
+  useStickToBottomContext,
 } from '../../components/conversation';
 import { StreamingIndicator } from '../../components/streaming-indicator';
 import { AgnoMessageItem } from '../AgnoMessageItem';
@@ -25,6 +26,21 @@ export interface AgnoChatMessagesProps {
   suggestedPrompts?: SuggestedPrompt[];
   /** Custom empty state via children — takes priority over emptyState prop */
   children?: ReactNode;
+}
+
+/** Scrolls to bottom only when the user sends a new message */
+function ScrollOnNewUserMessage({ messageCount }: { messageCount: number }) {
+  const { scrollToBottom } = useStickToBottomContext();
+  const prevCount = useRef(messageCount);
+
+  useEffect(() => {
+    if (messageCount > prevCount.current) {
+      scrollToBottom('smooth');
+    }
+    prevCount.current = messageCount;
+  }, [messageCount, scrollToBottom]);
+
+  return null;
 }
 
 const DEFAULT_PROMPTS: SuggestedPrompt[] = [
@@ -69,6 +85,7 @@ export function AgnoChatMessages({
 
   return (
     <Conversation className={cn('relative flex-1 w-full', className)}>
+      <ScrollOnNewUserMessage messageCount={messages.length} />
       <ConversationContent className="max-w-3xl mx-auto">
         {messages.length === 0 ? (
           <ConversationEmptyState>{resolvedEmptyState}</ConversationEmptyState>

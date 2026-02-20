@@ -11,7 +11,6 @@ export const Conversation = ({ className, ...props }: ConversationProps) => (
   <StickToBottom
     className={cn('relative flex-1 overflow-y-auto', className)}
     initial="smooth"
-    resize="smooth"
     role="log"
     {...props}
   />
@@ -52,6 +51,8 @@ export const ConversationEmptyState = ({
     )}
   </div>
 );
+
+export { useStickToBottomContext } from 'use-stick-to-bottom';
 
 export type ConversationScrollButtonProps = ComponentProps<typeof Button>;
 

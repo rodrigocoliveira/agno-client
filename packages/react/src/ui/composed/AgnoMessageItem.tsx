@@ -89,7 +89,7 @@ export function AgnoMessageItem({
               <User className="h-4 w-4 text-primary-foreground" />
             </div>
           )}
-          <div className="space-y-1.5 flex flex-col items-end">
+          <div className="space-y-1.5 flex flex-col items-end min-w-0">
             {/* Image thumbnails — outside bubble */}
             {message.images && message.images.length > 0 && (
               <div className={cn('grid gap-1.5', message.images.length > 1 ? 'grid-cols-2' : 'grid-cols-1')}>
