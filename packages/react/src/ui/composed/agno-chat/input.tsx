@@ -27,6 +27,8 @@ export interface AgnoChatInputAreaProps {
   transcriptionEndpoint?: string;
   /** Extra headers for transcription request */
   transcriptionHeaders?: Record<string, string>;
+  /** Custom parser for the transcription response — receives the parsed JSON and returns the text */
+  parseTranscriptionResponse?: (data: unknown) => string;
 }
 
 export function AgnoChatInputArea({
@@ -41,6 +43,7 @@ export function AgnoChatInputArea({
   audioMode,
   transcriptionEndpoint,
   transcriptionHeaders,
+  parseTranscriptionResponse,
 }: AgnoChatInputAreaProps) {
   const { handleSend, inputDisabled, isStreaming, isPaused } = useAgnoChatContext();
 
@@ -62,6 +65,7 @@ export function AgnoChatInputArea({
             audioMode={audioMode}
             transcriptionEndpoint={transcriptionEndpoint}
             transcriptionHeaders={transcriptionHeaders}
+            parseTranscriptionResponse={parseTranscriptionResponse}
           />
         )}
       </div>

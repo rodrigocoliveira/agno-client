@@ -18,6 +18,9 @@ export interface AudioRecorderProps {
   onTranscriptionComplete?: (text: string) => void;
   /** Field name for the audio file in the FormData (default: 'file') */
   transcriptionFieldName?: string;
+  /** Custom parser for the transcription response — receives the parsed JSON and returns the text.
+   *  Default: looks for data.text || data.transcript || data.transcription */
+  parseTranscriptionResponse?: (data: unknown) => string;
 }
 
 function encodeWav(samples: Float32Array, sampleRate: number): Blob {
@@ -93,6 +96,7 @@ export function AudioRecorder({
   transcriptionHeaders,
   onTranscriptionComplete,
   transcriptionFieldName = 'file',
+  parseTranscriptionResponse,
 }: AudioRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -220,11 +224,13 @@ export function AudioRecorder({
         const res = await fetch(transcriptionEndpoint, {
           method: 'POST',
           headers: transcriptionHeaders,
+          credentials: 'include',
           body: formData,
         });
         const data = await res.json();
-        const text =
-          data.text || data.transcript || data.transcription || (typeof data === 'string' ? data : '');
+        const text = parseTranscriptionResponse
+          ? parseTranscriptionResponse(data)
+          : data.text || data.transcript || data.transcription || (typeof data === 'string' ? data : '');
         if (text) onTranscriptionCompleteRef.current?.(text);
       } catch (err) {
         console.error('Transcription failed:', err);
@@ -234,7 +240,7 @@ export function AudioRecorder({
     } else {
       onRecordingComplete(wavBlob);
     }
-  }, [onRecordingComplete, mode, transcriptionEndpoint, transcriptionHeaders, transcriptionFieldName]);
+  }, [onRecordingComplete, mode, transcriptionEndpoint, transcriptionHeaders, transcriptionFieldName, parseTranscriptionResponse]);
 
   const formatDuration = (seconds: number) => {
     const m = Math.floor(seconds / 60);

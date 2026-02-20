@@ -44,6 +44,8 @@ export interface AgnoChatInputProps {
   transcriptionEndpoint?: string;
   /** Extra headers for transcription request */
   transcriptionHeaders?: Record<string, string>;
+  /** Custom parser for the transcription response — receives the parsed JSON and returns the text */
+  parseTranscriptionResponse?: (data: unknown) => string;
 }
 
 function dataUrlToBlob(dataUrl: string): Blob {
@@ -62,10 +64,12 @@ function TranscribeAudioRecorder({
   endpoint,
   headers,
   disabled,
+  parseResponse,
 }: {
   endpoint: string;
   headers?: Record<string, string>;
   disabled?: boolean;
+  parseResponse?: (data: unknown) => string;
 }) {
   const { textInput } = usePromptInputController();
   return (
@@ -73,6 +77,7 @@ function TranscribeAudioRecorder({
       mode="transcribe"
       transcriptionEndpoint={endpoint}
       transcriptionHeaders={headers}
+      parseTranscriptionResponse={parseResponse}
       onRecordingComplete={() => {}}
       onTranscriptionComplete={(text) => {
         const current = textInput.value;
@@ -96,6 +101,7 @@ export function AgnoChatInput({
   audioMode = 'send',
   transcriptionEndpoint,
   transcriptionHeaders,
+  parseTranscriptionResponse,
 }: AgnoChatInputProps) {
   const handleSubmit = (message: PromptInputMessage) => {
     const text = message.text?.trim() || '';
@@ -167,6 +173,7 @@ export function AgnoChatInput({
                 endpoint={transcriptionEndpoint}
                 headers={transcriptionHeaders}
                 disabled={disabled}
+                parseResponse={parseTranscriptionResponse}
               />
             ) : (
               <AudioRecorder onRecordingComplete={handleAudioRecording} disabled={disabled} />
