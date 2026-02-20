@@ -53,6 +53,18 @@ agent_os = AgentOS(
 
 app = agent_os.get_app()
 
+# --- Fake transcription endpoint for testing audio transcription mode ---
+import asyncio
+from starlette.requests import Request
+from starlette.responses import JSONResponse
+
+async def transcribe(request: Request):
+    """Fake transcription endpoint that returns a fixed string after a simulated delay."""
+    await asyncio.sleep(1.5)  # Simulate API latency
+    return JSONResponse({"transcription": "This is a fake transcription. Implement the backend to transcribe."})
+
+app.add_route("/transcribe", transcribe, methods=["POST"])
+
 if __name__ == "__main__":
     print("\n" + "="*70)
     print("Agno Demo Server")

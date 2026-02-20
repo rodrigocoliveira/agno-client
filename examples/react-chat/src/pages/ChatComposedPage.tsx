@@ -144,7 +144,7 @@ export function ChatComposedPage() {
               placeholder="Ask me anything..."
               showAudioRecorder={true}
               audioMode="transcribe"
-              transcriptionEndpoint="http://localhost:8000/transcribe"
+              transcriptionEndpoint="http://localhost:7777/transcribe"
             />
           </AgnoChat>
         </div>
