@@ -109,7 +109,7 @@ export function AgnoChatMessages({
 
         {isThinking && (
           <div className="py-2">
-            <StreamingIndicator />
+            <StreamingIndicator avatar={assistantAvatar} />
           </div>
         )}
       </ConversationContent>
