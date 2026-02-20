@@ -4,6 +4,7 @@ import { AgnoChatInput } from '../AgnoChatInput';
 import type { AgnoChatInputProps } from '../AgnoChatInput';
 import { cn } from '../../lib/cn';
 import type { FileUploadConfig } from '../../types';
+import type { AudioRecorderLabels } from '../../components/audio-recorder';
 
 export interface AgnoChatInputRenderProps {
   onSend: (message: string | FormData) => Promise<void>;
@@ -31,6 +32,8 @@ export interface AgnoChatInputAreaProps {
   parseTranscriptionResponse?: (data: unknown) => string;
   /** Async callback to request microphone permission before recording (e.g., for WebView bridges) */
   onRequestPermission?: () => Promise<boolean>;
+  /** Custom labels for the audio recorder button (useful for i18n) */
+  audioRecorderLabels?: AudioRecorderLabels;
 }
 
 export function AgnoChatInputArea({
@@ -47,6 +50,7 @@ export function AgnoChatInputArea({
   transcriptionHeaders,
   parseTranscriptionResponse,
   onRequestPermission,
+  audioRecorderLabels,
 }: AgnoChatInputAreaProps) {
   const { handleSend, inputDisabled, isStreaming, isPaused } = useAgnoChatContext();
 
@@ -70,6 +74,7 @@ export function AgnoChatInputArea({
             transcriptionHeaders={transcriptionHeaders}
             parseTranscriptionResponse={parseTranscriptionResponse}
             onRequestPermission={onRequestPermission}
+            audioRecorderLabels={audioRecorderLabels}
           />
         )}
       </div>

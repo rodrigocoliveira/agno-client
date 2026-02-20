@@ -3,6 +3,12 @@ import { Loader2, Mic, Square } from 'lucide-react';
 import { Button } from '../primitives/button';
 import { cn } from '../lib/cn';
 
+export interface AudioRecorderLabels {
+  recordAudio?: string;
+  stopRecording?: string;
+  transcribing?: string;
+}
+
 export interface AudioRecorderProps {
   /** Called with WAV blob when recording completes in 'send' mode */
   onRecordingComplete: (blob: Blob) => void;
@@ -25,6 +31,8 @@ export interface AudioRecorderProps {
    *  Useful in WebView environments (e.g., Expo) where you need to bridge to the native layer
    *  via postMessage to request permissions. Return true to proceed, false to cancel. */
   onRequestPermission?: () => Promise<boolean>;
+  /** Custom labels for the audio recorder button (useful for i18n) */
+  labels?: AudioRecorderLabels;
 }
 
 function encodeWav(samples: Float32Array, sampleRate: number): Blob {
@@ -102,6 +110,7 @@ export function AudioRecorder({
   transcriptionFieldName = 'file',
   parseTranscriptionResponse,
   onRequestPermission,
+  labels,
 }: AudioRecorderProps) {
   const [isRecording, setIsRecording] = useState(false);
   const [isTranscribing, setIsTranscribing] = useState(false);
@@ -251,6 +260,12 @@ export function AudioRecorder({
     }
   }, [onRecordingComplete, mode, transcriptionEndpoint, transcriptionHeaders, transcriptionFieldName, parseTranscriptionResponse]);
 
+  const resolvedLabels = {
+    recordAudio: labels?.recordAudio ?? 'Record audio',
+    stopRecording: labels?.stopRecording ?? 'Stop recording',
+    transcribing: labels?.transcribing ?? 'Transcribing...',
+  };
+
   const formatDuration = (seconds: number) => {
     const m = Math.floor(seconds / 60);
     const s = seconds % 60;
@@ -261,10 +276,12 @@ export function AudioRecorder({
 
   return (
     <div className={cn('flex items-center gap-1', className)}>
+      {isTranscribing && (
+        <span className="text-xs text-muted-foreground animate-pulse">{resolvedLabels.transcribing}</span>
+      )}
       {isRecording && (
         <span className="text-xs text-destructive font-mono animate-pulse">{formatDuration(duration)}</span>
       )}
-      {isTranscribing && <Loader2 className="size-4 animate-spin text-muted-foreground" />}
       <Button
         type="button"
         variant="ghost"
@@ -272,7 +289,7 @@ export function AudioRecorder({
         className={cn('h-8 w-8', isRecording && 'text-destructive hover:text-destructive')}
         disabled={disabled || isTranscribing}
         onClick={isRecording ? stopRecording : startRecording}
-        title={isTranscribing ? 'Transcribing...' : isRecording ? 'Stop recording' : 'Record audio'}
+        title={isTranscribing ? resolvedLabels.transcribing : isRecording ? resolvedLabels.stopRecording : resolvedLabels.recordAudio}
       >
         {isTranscribing ? (
           <Loader2 className="size-4 animate-spin" />

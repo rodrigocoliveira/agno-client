@@ -18,6 +18,7 @@ import {
   type PromptInputMessage,
 } from '../components/prompt-input';
 import { AudioRecorder } from '../components/audio-recorder';
+import type { AudioRecorderLabels } from '../components/audio-recorder';
 import { cn } from '../lib/cn';
 import type { ChatStatus, FileUploadConfig } from '../types';
 import type { ReactNode } from 'react';
@@ -50,6 +51,8 @@ export interface AgnoChatInputProps {
   parseTranscriptionResponse?: (data: unknown) => string;
   /** Async callback to request microphone permission before recording (e.g., for WebView bridges) */
   onRequestPermission?: () => Promise<boolean>;
+  /** Custom labels for the audio recorder button (useful for i18n) */
+  audioRecorderLabels?: AudioRecorderLabels;
 }
 
 function dataUrlToBlob(dataUrl: string): Blob {
@@ -83,12 +86,14 @@ function TranscribeAudioRecorder({
   disabled,
   parseResponse,
   onRequestPermission,
+  labels,
 }: {
   endpoint: string;
   headers?: Record<string, string>;
   disabled?: boolean;
   parseResponse?: (data: unknown) => string;
   onRequestPermission?: () => Promise<boolean>;
+  labels?: AudioRecorderLabels;
 }) {
   const { textInput } = usePromptInputController();
   return (
@@ -104,6 +109,7 @@ function TranscribeAudioRecorder({
         textInput.setInput(current + (current ? ' ' : '') + text);
       }}
       disabled={disabled}
+      labels={labels}
     />
   );
 }
@@ -123,6 +129,7 @@ export function AgnoChatInput({
   transcriptionHeaders,
   parseTranscriptionResponse,
   onRequestPermission,
+  audioRecorderLabels,
 }: AgnoChatInputProps) {
   const handleSubmit = (message: PromptInputMessage) => {
     const text = message.text?.trim() || '';
@@ -193,9 +200,10 @@ export function AgnoChatInput({
                   disabled={disabled}
                   parseResponse={parseTranscriptionResponse}
                   onRequestPermission={onRequestPermission}
+                  labels={audioRecorderLabels}
                 />
               ) : (
-                <AudioRecorder onRecordingComplete={handleAudioRecording} disabled={disabled} onRequestPermission={onRequestPermission} />
+                <AudioRecorder onRecordingComplete={handleAudioRecording} disabled={disabled} onRequestPermission={onRequestPermission} labels={audioRecorderLabels} />
               ))}
             {extraTools}
           </PromptInputTools>

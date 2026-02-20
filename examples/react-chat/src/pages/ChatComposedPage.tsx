@@ -82,7 +82,7 @@ export function ChatComposedPage() {
               }
               messageItemProps={{
                 classNames: {
-                  assistantContainer: 'border-l-2 border-cyan-500/30 pl-3',
+                  assistantContainer: 'pl-3',
                 },
                 showToolCalls: false,
                 showReasoning: false,
@@ -145,6 +145,11 @@ export function ChatComposedPage() {
               showAudioRecorder={true}
               audioMode="transcribe"
               transcriptionEndpoint="http://localhost:7777/transcribe"
+              audioRecorderLabels={{                                  
+                recordAudio: 'Gravar',
+                stopRecording: 'Parar',
+                transcribing: 'Transcrevendo...',
+              }}
             />
           </AgnoChat>
         </div>

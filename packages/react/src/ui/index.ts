@@ -152,7 +152,7 @@ export type { StreamingIndicatorProps } from './components/streaming-indicator';
 
 // Audio Recorder
 export { AudioRecorder } from './components/audio-recorder';
-export type { AudioRecorderProps } from './components/audio-recorder';
+export type { AudioRecorderProps, AudioRecorderLabels } from './components/audio-recorder';
 
 // ── Prompt Input (composable) ───────────────────────────────────────────────
 
