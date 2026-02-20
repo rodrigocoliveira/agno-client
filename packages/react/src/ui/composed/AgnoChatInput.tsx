@@ -19,6 +19,8 @@ import {
 } from '../components/prompt-input';
 import { AudioRecorder } from '../components/audio-recorder';
 import type { AudioRecorderLabels } from '../components/audio-recorder';
+import { Button } from '../primitives/button';
+import { CircleStop } from 'lucide-react';
 import { cn } from '../lib/cn';
 import type { ChatStatus, FileUploadConfig } from '../types';
 import type { ReactNode } from 'react';
@@ -39,6 +41,12 @@ export interface AgnoChatInputProps {
   showAttachments?: boolean;
   /** Override chat status for submit button icon */
   status?: ChatStatus;
+  /** Whether a run is currently streaming */
+  isStreaming?: boolean;
+  /** Called when the user clicks stop during streaming */
+  onCancel?: () => void;
+  /** Show a stop button that cancels the run while streaming (default: false) */
+  allowCancelRun?: boolean;
   /** Extra tools to add to the toolbar */
   extraTools?: ReactNode;
   /** Audio mode: 'send' sends blob immediately, 'transcribe' transcribes and adds text to input */
@@ -66,7 +74,23 @@ function dataUrlToBlob(dataUrl: string): Blob {
   return new Blob([buf], { type: mime });
 }
 
-/** Submit button that is disabled when the textarea is empty */
+/** Stop button shown during streaming when allowCancelRun is enabled */
+function CancelButton({ onCancel }: { onCancel: () => void }) {
+  return (
+    <Button
+      type="button"
+      variant="destructive"
+      size="icon"
+      className="h-8 w-8 rounded-lg"
+      onClick={onCancel}
+      aria-label="Stop"
+    >
+      <CircleStop className="size-4" />
+    </Button>
+  );
+}
+
+/** Submit button disabled until text exists */
 function SubmitButton({ disabled, status }: { disabled?: boolean; status?: ChatStatus }) {
   const { textInput } = usePromptInputController();
   const hasText = textInput.value.trim().length > 0;
@@ -130,6 +154,9 @@ export function AgnoChatInput({
   showAudioRecorder = false,
   showAttachments = true,
   status,
+  isStreaming,
+  onCancel,
+  allowCancelRun = false,
   extraTools,
   audioMode = 'send',
   transcriptionEndpoint,
@@ -171,6 +198,7 @@ export function AgnoChatInput({
   };
 
   const computedStatus = status ?? (disabled ? 'submitted' : undefined);
+  const showCancelButton = allowCancelRun && isStreaming && onCancel;
 
   return (
     <PromptInputProvider>
@@ -214,7 +242,11 @@ export function AgnoChatInput({
               ))}
             {extraTools}
           </PromptInputTools>
-          <SubmitButton disabled={disabled} status={computedStatus} />
+          {showCancelButton ? (
+            <CancelButton onCancel={onCancel} />
+          ) : (
+            <SubmitButton disabled={disabled} status={computedStatus} />
+          )}
         </PromptInputFooter>
       </PromptInput>
     </PromptInputProvider>

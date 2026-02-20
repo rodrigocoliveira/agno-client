@@ -34,6 +34,8 @@ export interface AgnoChatInputAreaProps {
   onRequestPermission?: () => Promise<boolean>;
   /** Custom labels for the audio recorder button (useful for i18n) */
   audioRecorderLabels?: AudioRecorderLabels;
+  /** Show a stop button that cancels the run while streaming (default: false) */
+  allowCancelRun?: boolean;
 }
 
 export function AgnoChatInputArea({
@@ -51,8 +53,9 @@ export function AgnoChatInputArea({
   parseTranscriptionResponse,
   onRequestPermission,
   audioRecorderLabels,
+  allowCancelRun = false,
 }: AgnoChatInputAreaProps) {
-  const { handleSend, inputDisabled, isStreaming, isPaused } = useAgnoChatContext();
+  const { handleSend, inputDisabled, isStreaming, isPaused, cancelRun } = useAgnoChatContext();
 
   return (
     <div className={cn('border-t border-border bg-background/80 backdrop-blur-sm', className)}>
@@ -64,6 +67,9 @@ export function AgnoChatInputArea({
             {...chatInputProps}
             onSend={handleSend}
             disabled={inputDisabled}
+            isStreaming={isStreaming}
+            onCancel={cancelRun}
+            allowCancelRun={allowCancelRun}
             placeholder={placeholder ?? chatInputProps?.placeholder ?? 'Message your agent...'}
             fileUpload={fileUpload}
             showAudioRecorder={showAudioRecorder}
