@@ -61,7 +61,7 @@ export function ChatInterface() {
     <div className="h-full flex flex-col">
       {/* Messages area - flex-1 fills remaining space */}
       <Conversation className="relative flex-1 w-full">
-        <ConversationContent className="max-w-3xl mx-auto">
+        <ConversationContent className="max-w-5xl mx-auto">
           {messages.length === 0 ? (
             <ConversationEmptyState>
               <div className="flex flex-col items-center gap-6 animate-fade-in-up">
@@ -78,6 +78,9 @@ export function ChatInterface() {
                 {/* Welcome text */}
                 <div className="space-y-2 text-center">
                   <h3 className="text-xl font-semibold tracking-tight">Welcome to Agno Chat</h3>
+                  <p className="text-muted-foreground text-sm max-w-sm">
+                    This is an example chat page that show how to build a custom chat interface using agno-client hooks from the root, giving maximum flexibility to implement frontend.
+                  </p>
                   <p className="text-muted-foreground text-sm max-w-sm">
                     Start a conversation with your AI agent. Ask questions, explore ideas, or run tools.
                   </p>
