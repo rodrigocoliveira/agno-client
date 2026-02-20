@@ -26,6 +26,10 @@ export interface AgnoChatMessagesProps {
   suggestedPrompts?: SuggestedPrompt[];
   /** Custom empty state via children — takes priority over emptyState prop */
   children?: ReactNode;
+  /** Show the thinking indicator while waiting for the first response content (default: true) */
+  showThinkingIndicator?: boolean;
+  /** Custom component to render instead of the default thinking indicator */
+  renderThinkingIndicator?: ReactNode;
 }
 
 /** Scrolls to bottom only when the user sends a new message */
@@ -57,10 +61,12 @@ export function AgnoChatMessages({
   emptyState,
   suggestedPrompts = DEFAULT_PROMPTS,
   children,
+  showThinkingIndicator = true,
+  renderThinkingIndicator,
 }: AgnoChatMessagesProps) {
   const { messages, isStreaming } = useAgnoChatContext();
   const lastMessage = messages[messages.length - 1];
-  const isThinking = isStreaming && (!lastMessage || lastMessage.role !== 'user') && !lastMessage?.content;
+  const isThinking = showThinkingIndicator && isStreaming && (!lastMessage || lastMessage.role !== 'user') && !lastMessage?.content;
 
   const resolvedEmptyState = children ??
     emptyState ?? (
@@ -109,7 +115,7 @@ export function AgnoChatMessages({
 
         {isThinking && (
           <div className="py-2">
-            <StreamingIndicator avatar={assistantAvatar} />
+            {renderThinkingIndicator ?? <StreamingIndicator avatar={assistantAvatar} />}
           </div>
         )}
       </ConversationContent>
