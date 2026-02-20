@@ -1,7 +1,7 @@
 import { cn } from '../../lib/cn';
 import type { FileAttachment } from '../../types';
 import { InputGroup } from '../../primitives/input-group';
-import type { ChangeEventHandler, FormEvent, FormEventHandler, HTMLAttributes } from 'react';
+import type { ChangeEventHandler, FormEvent, FormEventHandler, HTMLAttributes, RefObject } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AttachmentsContext } from './context';
 import { DropZoneContext, LocalAttachmentsContext, useOptionalPromptInputController } from './context';
@@ -25,6 +25,7 @@ export type PromptInputProps = Omit<HTMLAttributes<HTMLFormElement>, 'onSubmit' 
   syncHiddenInput?: boolean;
   maxFiles?: number;
   maxFileSize?: number;
+  dragListenerTarget?: RefObject<HTMLElement | null>;
   onError?: (err: { code: 'max_files' | 'max_file_size' | 'accept'; message: string }) => void;
   onSubmit: (message: PromptInputMessage, event: FormEvent<HTMLFormElement>) => void | Promise<void>;
 };
@@ -37,6 +38,7 @@ export const PromptInput = ({
   syncHiddenInput,
   maxFiles,
   maxFileSize,
+  dragListenerTarget,
   onError,
   onSubmit,
   children,
@@ -152,6 +154,7 @@ export const PromptInput = ({
   }, [files, syncHiddenInput]);
 
   useEffect(() => {
+    if (globalDrop) return; // document-level listeners handle everything
     const form = formRef.current;
     if (!form) return;
 
@@ -185,10 +188,12 @@ export const PromptInput = ({
       form.removeEventListener('dragleave', onDragLeave);
       form.removeEventListener('drop', onDrop);
     };
-  }, [add]);
+  }, [add, globalDrop]);
 
   useEffect(() => {
     if (!globalDrop) return;
+
+    const target = dragListenerTarget?.current ?? document;
 
     const onDragOver = (e: DragEvent) => {
       if (e.dataTransfer?.types?.includes('Files')) e.preventDefault();
@@ -210,17 +215,17 @@ export const PromptInput = ({
       setIsDraggingOver(false);
       if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) add(e.dataTransfer.files);
     };
-    document.addEventListener('dragover', onDragOver);
-    document.addEventListener('dragenter', onDragEnter);
-    document.addEventListener('dragleave', onDragLeave);
-    document.addEventListener('drop', onDrop);
+    target.addEventListener('dragover', onDragOver as EventListener);
+    target.addEventListener('dragenter', onDragEnter as EventListener);
+    target.addEventListener('dragleave', onDragLeave as EventListener);
+    target.addEventListener('drop', onDrop as EventListener);
     return () => {
-      document.removeEventListener('dragover', onDragOver);
-      document.removeEventListener('dragenter', onDragEnter);
-      document.removeEventListener('dragleave', onDragLeave);
-      document.removeEventListener('drop', onDrop);
+      target.removeEventListener('dragover', onDragOver as EventListener);
+      target.removeEventListener('dragenter', onDragEnter as EventListener);
+      target.removeEventListener('dragleave', onDragLeave as EventListener);
+      target.removeEventListener('drop', onDrop as EventListener);
     };
-  }, [add, globalDrop]);
+  }, [add, globalDrop, dragListenerTarget]);
 
   const filesRef = useRef(files);
   filesRef.current = files;

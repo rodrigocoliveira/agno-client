@@ -2,6 +2,7 @@ import type { ReactNode } from 'react';
 import { useAgnoChatContext } from './context';
 import { AgnoChatInput } from '../AgnoChatInput';
 import type { AgnoChatInputProps } from '../AgnoChatInput';
+import type { PromptInputDropZoneProps } from '../../components/prompt-input/drop-zone';
 import { cn } from '../../lib/cn';
 import type { FileUploadConfig } from '../../types';
 import type { AudioRecorderLabels } from '../../components/audio-recorder';
@@ -36,6 +37,8 @@ export interface AgnoChatInputAreaProps {
   audioRecorderLabels?: AudioRecorderLabels;
   /** Show a stop button that cancels the run while streaming (default: false) */
   allowCancelRun?: boolean;
+  /** Props forwarded to PromptInputDropZone (className, label) */
+  dropZoneProps?: Partial<Pick<PromptInputDropZoneProps, 'label' | 'className'>>;
 }
 
 export function AgnoChatInputArea({
@@ -54,8 +57,9 @@ export function AgnoChatInputArea({
   onRequestPermission,
   audioRecorderLabels,
   allowCancelRun = false,
+  dropZoneProps,
 }: AgnoChatInputAreaProps) {
-  const { handleSend, inputDisabled, isStreaming, isPaused, cancelRun } = useAgnoChatContext();
+  const { handleSend, inputDisabled, isStreaming, isPaused, cancelRun, dropZoneContainerRef } = useAgnoChatContext();
 
   return (
     <div className={cn('border-t border-border bg-background/80 backdrop-blur-sm', className)}>
@@ -81,6 +85,8 @@ export function AgnoChatInputArea({
             parseTranscriptionResponse={parseTranscriptionResponse}
             onRequestPermission={onRequestPermission}
             audioRecorderLabels={audioRecorderLabels}
+            dropZoneContainerRef={dropZoneContainerRef}
+            dropZoneProps={dropZoneProps}
           />
         )}
       </div>

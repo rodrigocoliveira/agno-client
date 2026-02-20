@@ -54,6 +54,7 @@ export type AgnoChatInterfaceClassNames = {
   inputArea?: string;
   toolStatusBar?: string;
   errorBar?: string;
+  dropZone?: string;
 };
 
 export type AgnoMessageItemClassNames = {

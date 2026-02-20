@@ -41,6 +41,8 @@ export interface AgnoChatInterfaceProps {
   messageItemProps?: Partial<Omit<AgnoMessageItemProps, 'message'>>;
   /** Props forwarded to AgnoChatInput */
   chatInputProps?: Partial<Omit<AgnoChatInputProps, 'onSend'>>;
+  /** Custom label for the drop zone overlay */
+  dropZoneLabel?: string;
 }
 
 const DEFAULT_PROMPTS: SuggestedPrompt[] = [
@@ -66,6 +68,7 @@ export function AgnoChatInterface({
   showAudioRecorder = true,
   messageItemProps,
   chatInputProps,
+  dropZoneLabel,
 }: AgnoChatInterfaceProps) {
   return (
     <AgnoChat
@@ -95,6 +98,7 @@ export function AgnoChatInterface({
         showAudioRecorder={showAudioRecorder}
         extraTools={inputToolbarSlot}
         chatInputProps={chatInputProps}
+        dropZoneProps={{ className: classNames?.dropZone, label: dropZoneLabel }}
       >
         {renderInput
           ? ({ onSend, disabled }) => renderInput({ onSend, disabled })

@@ -18,13 +18,14 @@ import {
   usePromptInputAttachments,
   type PromptInputMessage,
 } from '../components/prompt-input';
+import type { PromptInputDropZoneProps } from '../components/prompt-input/drop-zone';
 import { AudioRecorder } from '../components/audio-recorder';
 import type { AudioRecorderLabels } from '../components/audio-recorder';
 import { Button } from '../primitives/button';
 import { CircleStop } from 'lucide-react';
 import { cn } from '../lib/cn';
 import type { ChatStatus, FileUploadConfig } from '../types';
-import type { ReactNode } from 'react';
+import type { ReactNode, RefObject } from 'react';
 
 const DEFAULT_ACCEPTED_FILE_TYPES =
   'image/*,audio/*,.pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,.ppt,.pptx,.md,.json,.xml';
@@ -62,6 +63,10 @@ export interface AgnoChatInputProps {
   onRequestPermission?: () => Promise<boolean>;
   /** Custom labels for the audio recorder button (useful for i18n) */
   audioRecorderLabels?: AudioRecorderLabels;
+  /** Ref to a container element for rendering the drop zone overlay via portal */
+  dropZoneContainerRef?: RefObject<HTMLElement | null>;
+  /** Props forwarded to PromptInputDropZone (className, label) */
+  dropZoneProps?: Partial<Pick<PromptInputDropZoneProps, 'label' | 'className'>>;
 }
 
 function dataUrlToBlob(dataUrl: string): Blob {
@@ -165,6 +170,8 @@ export function AgnoChatInput({
   parseTranscriptionResponse,
   onRequestPermission,
   audioRecorderLabels,
+  dropZoneContainerRef,
+  dropZoneProps,
 }: AgnoChatInputProps) {
   const handleSubmit = (message: PromptInputMessage) => {
     const text = message.text?.trim() || '';
@@ -209,6 +216,8 @@ export function AgnoChatInput({
         multiple={fileUpload?.multiple ?? true}
         maxFiles={fileUpload?.maxFiles}
         maxFileSize={fileUpload?.maxFileSize}
+        globalDrop={!!dropZoneContainerRef}
+        dragListenerTarget={dropZoneContainerRef}
         className={cn('w-full', className)}
       >
         <AttachmentHeader />
@@ -249,7 +258,7 @@ export function AgnoChatInput({
             <SubmitButton disabled={disabled} status={computedStatus} />
           )}
         </PromptInputFooter>
-        {showAttachments && <PromptInputDropZone />}
+        {showAttachments && <PromptInputDropZone {...dropZoneProps} container={dropZoneContainerRef} />}
       </PromptInput>
     </PromptInputProvider>
   );
