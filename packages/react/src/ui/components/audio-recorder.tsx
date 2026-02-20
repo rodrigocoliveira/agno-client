@@ -276,29 +276,31 @@ export function AudioRecorder({
 
   return (
     <div className={cn('flex items-center gap-1', className)}>
-      {isTranscribing && (
-        <span className="text-xs text-muted-foreground animate-pulse">{resolvedLabels.transcribing}</span>
-      )}
       {isRecording && (
         <span className="text-xs text-destructive font-mono animate-pulse">{formatDuration(duration)}</span>
       )}
-      <Button
-        type="button"
-        variant="ghost"
-        size="icon"
-        className={cn('h-8 w-8', isRecording && 'text-destructive hover:text-destructive')}
-        disabled={disabled || isTranscribing}
-        onClick={isRecording ? stopRecording : startRecording}
-        title={isTranscribing ? resolvedLabels.transcribing : isRecording ? resolvedLabels.stopRecording : resolvedLabels.recordAudio}
-      >
-        {isTranscribing ? (
-          <Loader2 className="size-4 animate-spin" />
-        ) : isRecording ? (
-          <Square className="size-4 fill-current" />
-        ) : (
-          <Mic className="size-4" />
-        )}
-      </Button>
+      {isTranscribing ? (
+        <span className="flex items-center gap-1.5 text-xs text-muted-foreground">
+          <Loader2 className="size-3.5 animate-spin" />
+          {resolvedLabels.transcribing}
+        </span>
+      ) : (
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          className={cn('h-8 w-8', isRecording && 'text-destructive hover:text-destructive')}
+          disabled={disabled}
+          onClick={isRecording ? stopRecording : startRecording}
+          title={isRecording ? resolvedLabels.stopRecording : resolvedLabels.recordAudio}
+        >
+          {isRecording ? (
+            <Square className="size-4 fill-current" />
+          ) : (
+            <Mic className="size-4" />
+          )}
+        </Button>
+      )}
     </div>
   );
 }
