@@ -52,7 +52,7 @@ export function AgnoChatInputArea({
 
   return (
     <div className={cn('border-t border-border bg-background/80 backdrop-blur-sm', className)}>
-      <div className="mx-auto px-4 py-3">
+      <div className="mx-auto px-4 py-2">
         {children ? (
           children({ onSend: handleSend, disabled: inputDisabled, isStreaming, isPaused })
         ) : (

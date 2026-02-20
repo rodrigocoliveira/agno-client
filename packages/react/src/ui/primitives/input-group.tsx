@@ -67,7 +67,7 @@ const inputGroupAddonVariants = cva(
         'inline-start': 'order-first pl-3 has-[>button]:ml-[-0.45rem] has-[>kbd]:ml-[-0.35rem]',
         'inline-end': 'order-last pr-3 has-[>button]:mr-[-0.4rem] has-[>kbd]:mr-[-0.35rem]',
         'block-start': '[.border-b]:pb-3 order-first w-full justify-start px-3 pt-3 group-has-[>input]/input-group:pt-2.5',
-        'block-end': '[.border-t]:pt-3 order-last w-full justify-start px-3 pb-2 group-has-[>input]/input-group:pb-2',
+        'block-end': '[.border-t]:pt-3 order-last w-full justify-start px-3 pb-1.5 group-has-[>input]/input-group:pb-1.5',
       },
     },
     defaultVariants: {
@@ -157,7 +157,7 @@ function InputGroupTextarea({ className, ...props }: React.ComponentProps<'texta
     <Textarea
       data-slot="input-group-control"
       className={cn(
-        'flex-1 resize-none rounded-none border-0 bg-transparent min-h-0 py-2.5 pl-3.5 shadow-none focus-visible:ring-0 dark:bg-transparent',
+        'flex-1 resize-none rounded-none border-0 bg-transparent min-h-0 py-1.5 pl-3.5 shadow-none focus-visible:ring-0 dark:bg-transparent',
         className,
       )}
       {...props}
