@@ -161,6 +161,7 @@ export {
   usePromptInputController,
   usePromptInputAttachments,
   useProviderAttachments,
+  usePromptInputDropZone,
   // Provider
   PromptInputProvider,
   // Main form
@@ -171,6 +172,8 @@ export {
   PromptInputAttachment,
   PromptInputAttachments,
   PromptInputActionAddAttachments,
+  // Drop zone
+  PromptInputDropZone,
   // Layout
   PromptInputBody,
   PromptInputHeader,
@@ -218,6 +221,8 @@ export type {
   PromptInputAttachmentProps,
   PromptInputAttachmentsProps,
   PromptInputActionAddAttachmentsProps,
+  PromptInputDropZoneProps,
+  DropZoneContextValue,
   PromptInputBodyProps,
   PromptInputHeaderProps,
   PromptInputFooterProps,

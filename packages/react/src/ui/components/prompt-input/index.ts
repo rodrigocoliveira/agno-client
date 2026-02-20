@@ -3,8 +3,9 @@ export {
   usePromptInputController,
   usePromptInputAttachments,
   useProviderAttachments,
+  usePromptInputDropZone,
 } from './context';
-export type { AttachmentsContext, TextInputContext, PromptInputControllerProps } from './context';
+export type { AttachmentsContext, TextInputContext, PromptInputControllerProps, DropZoneContextValue } from './context';
 
 // Provider
 export { PromptInputProvider } from './provider';
@@ -52,6 +53,10 @@ export type {
   PromptInputActionMenuContentProps,
   PromptInputActionMenuItemProps,
 } from './buttons';
+
+// Drop zone
+export { PromptInputDropZone } from './drop-zone';
+export type { PromptInputDropZoneProps } from './drop-zone';
 
 // Speech
 export { PromptInputSpeechButton } from './speech';

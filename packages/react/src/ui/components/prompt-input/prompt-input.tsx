@@ -4,7 +4,7 @@ import { InputGroup } from '../../primitives/input-group';
 import type { ChangeEventHandler, FormEvent, FormEventHandler, HTMLAttributes } from 'react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import type { AttachmentsContext } from './context';
-import { LocalAttachmentsContext, useOptionalPromptInputController } from './context';
+import { DropZoneContext, LocalAttachmentsContext, useOptionalPromptInputController } from './context';
 
 function generateId(): string {
   if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -50,6 +50,9 @@ export const PromptInput = ({
 
   const [items, setItems] = useState<(FileAttachment & { id: string })[]>([]);
   const files = usingProvider ? controller.attachments.files : items;
+
+  const [isDraggingOver, setIsDraggingOver] = useState(false);
+  const dragCounter = useRef(0);
 
   const openFileDialogLocal = useCallback(() => {
     inputRef.current?.click();
@@ -155,14 +158,31 @@ export const PromptInput = ({
     const onDragOver = (e: DragEvent) => {
       if (e.dataTransfer?.types?.includes('Files')) e.preventDefault();
     };
+    const onDragEnter = (e: DragEvent) => {
+      if (e.dataTransfer?.types?.includes('Files')) {
+        e.preventDefault();
+        dragCounter.current++;
+        if (dragCounter.current === 1) setIsDraggingOver(true);
+      }
+    };
+    const onDragLeave = (_e: DragEvent) => {
+      dragCounter.current--;
+      if (dragCounter.current === 0) setIsDraggingOver(false);
+    };
     const onDrop = (e: DragEvent) => {
       if (e.dataTransfer?.types?.includes('Files')) e.preventDefault();
+      dragCounter.current = 0;
+      setIsDraggingOver(false);
       if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) add(e.dataTransfer.files);
     };
     form.addEventListener('dragover', onDragOver);
+    form.addEventListener('dragenter', onDragEnter);
+    form.addEventListener('dragleave', onDragLeave);
     form.addEventListener('drop', onDrop);
     return () => {
       form.removeEventListener('dragover', onDragOver);
+      form.removeEventListener('dragenter', onDragEnter);
+      form.removeEventListener('dragleave', onDragLeave);
       form.removeEventListener('drop', onDrop);
     };
   }, [add]);
@@ -173,14 +193,31 @@ export const PromptInput = ({
     const onDragOver = (e: DragEvent) => {
       if (e.dataTransfer?.types?.includes('Files')) e.preventDefault();
     };
+    const onDragEnter = (e: DragEvent) => {
+      if (e.dataTransfer?.types?.includes('Files')) {
+        e.preventDefault();
+        dragCounter.current++;
+        if (dragCounter.current === 1) setIsDraggingOver(true);
+      }
+    };
+    const onDragLeave = (_e: DragEvent) => {
+      dragCounter.current--;
+      if (dragCounter.current === 0) setIsDraggingOver(false);
+    };
     const onDrop = (e: DragEvent) => {
       if (e.dataTransfer?.types?.includes('Files')) e.preventDefault();
+      dragCounter.current = 0;
+      setIsDraggingOver(false);
       if (e.dataTransfer?.files && e.dataTransfer.files.length > 0) add(e.dataTransfer.files);
     };
     document.addEventListener('dragover', onDragOver);
+    document.addEventListener('dragenter', onDragEnter);
+    document.addEventListener('dragleave', onDragLeave);
     document.addEventListener('drop', onDrop);
     return () => {
       document.removeEventListener('dragover', onDragOver);
+      document.removeEventListener('dragenter', onDragEnter);
+      document.removeEventListener('dragleave', onDragLeave);
       document.removeEventListener('drop', onDrop);
     };
   }, [add, globalDrop]);
@@ -264,20 +301,24 @@ export const PromptInput = ({
     });
   };
 
+  const dropZoneValue = useMemo(() => ({ isDraggingOver }), [isDraggingOver]);
+
   const inner = (
-    <form className={cn('w-full', className)} onSubmit={handleSubmit} ref={formRef} {...props}>
-      <input
-        accept={accept}
-        aria-label="Upload files"
-        className="hidden"
-        multiple={multiple}
-        onChange={handleChange}
-        ref={inputRef}
-        title="Upload files"
-        type="file"
-      />
-      <InputGroup>{children}</InputGroup>
-    </form>
+    <DropZoneContext.Provider value={dropZoneValue}>
+      <form className={cn('relative w-full', className)} onSubmit={handleSubmit} ref={formRef} {...props}>
+        <input
+          accept={accept}
+          aria-label="Upload files"
+          className="hidden"
+          multiple={multiple}
+          onChange={handleChange}
+          ref={inputRef}
+          title="Upload files"
+          type="file"
+        />
+        <InputGroup>{children}</InputGroup>
+      </form>
+    </DropZoneContext.Provider>
   );
 
   return usingProvider ? inner : <LocalAttachmentsContext.Provider value={ctx}>{inner}</LocalAttachmentsContext.Provider>;

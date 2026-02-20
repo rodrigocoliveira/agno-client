@@ -56,3 +56,11 @@ export const usePromptInputAttachments = () => {
   }
   return context;
 };
+
+export type DropZoneContextValue = {
+  isDraggingOver: boolean;
+};
+
+export const DropZoneContext = createContext<DropZoneContextValue>({ isDraggingOver: false });
+
+export const usePromptInputDropZone = () => useContext(DropZoneContext);

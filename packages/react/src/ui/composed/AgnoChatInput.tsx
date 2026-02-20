@@ -13,6 +13,7 @@ import {
   PromptInputActionMenuTrigger,
   PromptInputActionMenuContent,
   PromptInputActionAddAttachments,
+  PromptInputDropZone,
   usePromptInputController,
   usePromptInputAttachments,
   type PromptInputMessage,
@@ -248,6 +249,7 @@ export function AgnoChatInput({
             <SubmitButton disabled={disabled} status={computedStatus} />
           )}
         </PromptInputFooter>
+        {showAttachments && <PromptInputDropZone />}
       </PromptInput>
     </PromptInputProvider>
   );
