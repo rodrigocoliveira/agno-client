@@ -9,7 +9,6 @@ import { registerGenerativeUIComponents } from '@/components/generative-ui'
 import {
   Bot,
   MessageSquare,
-  Layers,
   History,
   Brain,
   Database,
@@ -152,8 +151,7 @@ function ConnectionStatus() {
  */
 const navItems = [
   { path: '/', label: 'Home', icon: Home },
-  { path: '/chat-root', label: 'Chat (Root)', icon: MessageSquare },
-  { path: '/chat-composed', label: 'Chat (Composed)', icon: Layers },
+  { path: '/chat', label: 'Chat', icon: MessageSquare },
   { path: '/sessions', label: 'Sessions', icon: History },
   { path: '/memory', label: 'Memory', icon: Brain },
   { path: '/knowledge', label: 'Knowledge', icon: Database },
@@ -188,7 +186,9 @@ function Sidebar() {
         <nav className="flex flex-col gap-1">
           {navItems.map((item) => {
             const Icon = item.icon
-            const isActive = location.pathname === item.path
+            const isActive = item.path === '/'
+              ? location.pathname === '/'
+              : location.pathname === item.path || location.pathname.startsWith(item.path + '/')
             return (
               <NavLink
                 key={item.path}
@@ -223,7 +223,11 @@ function MainLayout() {
   }, [])
 
   // Get current page title
-  const currentPage = navItems.find(item => item.path === location.pathname)
+  const currentPage = navItems.find(item =>
+    item.path === '/'
+      ? location.pathname === '/'
+      : location.pathname === item.path || location.pathname.startsWith(item.path + '/')
+  )
   const pageTitle = currentPage?.label || 'Agno Demo'
 
   return (

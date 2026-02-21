@@ -25,7 +25,7 @@ const toolHandlers: Record<string, ToolHandler> = {
   ...EXAMPLE_GENERATIVE_TOOLS,
 }
 
-export function ChatComposedPage() {
+export function ChatComponentsPage() {
   const [showSessionSidebar, setShowSessionSidebar] = useState(true)
 
   return (
@@ -70,48 +70,54 @@ export function ChatComposedPage() {
         <div className="flex-1 overflow-hidden">
           <AgnoChat toolHandlers={toolHandlers}>
             <AgnoChat.Messages
-              userAvatar={
-                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-md">
-                  <Cat className="h-4 w-4 text-white" />
-                </div>
-              }
-              assistantAvatar={
-                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-md">
-                  <Rocket className="h-4 w-4 text-white" />
-                </div>
-              }
+              avatars={{
+                user: (
+                  <div className="h-8 w-8 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-md">
+                    <Cat className="h-4 w-4 text-white" />
+                  </div>
+                ),
+                assistant: (
+                  <div className="h-8 w-8 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-md">
+                    <Rocket className="h-4 w-4 text-white" />
+                  </div>
+                ),
+              }}
               showToolCalls={false}
               showReasoning={false}
-              messageClassNames={{ assistantContainer: 'pl-3' }}
-              renderActions={(message) => (
-                <>
-                  <button
-                    onClick={() => {
-                      navigator.clipboard.writeText(message.content || '')
-                      toast.success('Copied to clipboard')
-                    }}
-                    className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                    aria-label="Copy message"
-                  >
-                    <Copy className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    onClick={() => toast.success('Thanks for the feedback!')}
-                    className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                    aria-label="Like message"
-                  >
-                    <ThumbsUp className="h-3.5 w-3.5" />
-                  </button>
-                  <button
-                    onClick={() => toast.info('Sorry to hear that. We\'ll improve!')}
-                    className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                    aria-label="Dislike message"
-                  >
-                    <ThumbsDown className="h-3.5 w-3.5" />
-                  </button>
-                </>
-              )}
+              messageClassNames={{ assistant: { container: 'pl-3' } }}
+              actions={{
+                visibility: 'hover-last-visible',
+                assistant: (message) => (
+                  <>
+                    <button
+                      onClick={() => {
+                        navigator.clipboard.writeText(message.content || '')
+                        toast.success('Copied to clipboard')
+                      }}
+                      className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                      aria-label="Copy message"
+                    >
+                      <Copy className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => toast.success('Thanks for the feedback!')}
+                      className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                      aria-label="Like message"
+                    >
+                      <ThumbsUp className="h-3.5 w-3.5" />
+                    </button>
+                    <button
+                      onClick={() => toast.info('Sorry to hear that. We\'ll improve!')}
+                      className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                      aria-label="Dislike message"
+                    >
+                      <ThumbsDown className="h-3.5 w-3.5" />
+                    </button>
+                  </>
+                ),
+              }}
             >
+              
               <AgnoChat.EmptyState>
                 <div className="relative">
                   <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-600/20 flex items-center justify-center border border-cyan-500/20">
@@ -123,7 +129,7 @@ export function ChatComposedPage() {
                 </div>
                 <div className="space-y-2 text-center">
                   <h3 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text text-transparent">
-                    Chat (Composed)
+                    Compound Components Chat
                   </h3>
                   <p className="text-muted-foreground text-sm max-w-sm">
                     This page uses the <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">AgnoChat</code> compound component with custom avatars, colors, and suggested prompts that actually work in custom empty states.
@@ -133,8 +139,8 @@ export function ChatComposedPage() {
               </AgnoChat.EmptyState>
             </AgnoChat.Messages>
 
-            <AgnoChat.ToolStatus className="bg-violet-500/5 border-violet-500/20" />
             <AgnoChat.ErrorBar className="bg-red-500/5 border-t-2 border-red-500/30" />
+            <AgnoChat.ToolStatus className="bg-violet-500/5 border-violet-500/20" />
             <AgnoChat.Input
               className="bg-muted/30 border-t-2 border-primary/10"
               placeholder="Ask me anything..."
