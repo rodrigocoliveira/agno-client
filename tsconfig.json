@@ -17,5 +17,7 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "noFallthroughCasesInSwitch": true
-  }
+  },
+  "include": ["packages/*/src"],
+  "exclude": ["node_modules", "**/dist", "examples"]
 }
