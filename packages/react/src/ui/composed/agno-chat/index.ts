@@ -8,7 +8,7 @@ import { AgnoChatInputArea } from './input';
 
 // Re-export context hook and types
 export { useAgnoChatContext } from './context';
-export type { AgnoChatContextValue, AgnoChatAvatars } from './context';
+export type { AgnoChatContextValue } from './context';
 
 // Re-export individual sub-components for tree-shaking / named imports
 export { AgnoChatRoot } from './agno-chat';

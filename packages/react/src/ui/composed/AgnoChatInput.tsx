@@ -30,36 +30,11 @@ import type { ReactNode, RefObject } from 'react';
 const DEFAULT_ACCEPTED_FILE_TYPES =
   'image/*,audio/*,.pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,.ppt,.pptx,.md,.json,.xml';
 
-/** Resolve `audio` shorthand (`true` → default config) and merge with legacy flat props */
-function resolveAudioConfig(
-  audio: AudioConfig | boolean | undefined,
-  legacyShowAudioRecorder?: boolean,
-  legacyAudioMode?: 'send' | 'transcribe',
-  legacyTranscriptionEndpoint?: string,
-  legacyTranscriptionHeaders?: Record<string, string>,
-  legacyParseTranscriptionResponse?: (data: unknown) => string,
-  legacyOnRequestPermission?: () => Promise<boolean>,
-  legacyAudioRecorderLabels?: AudioRecorderLabels,
-): AudioConfig | undefined {
-  // New `audio` prop takes precedence
-  if (audio !== undefined) {
-    if (audio === true) return { enabled: true };
-    if (audio === false) return undefined;
-    return audio;
-  }
-  // Fall back to legacy flat props
-  if (legacyShowAudioRecorder) {
-    return {
-      enabled: true,
-      mode: legacyAudioMode ?? 'send',
-      endpoint: legacyTranscriptionEndpoint,
-      headers: legacyTranscriptionHeaders,
-      parseResponse: legacyParseTranscriptionResponse,
-      requestPermission: legacyOnRequestPermission,
-      labels: legacyAudioRecorderLabels as Record<string, string> | undefined,
-    };
-  }
-  return undefined;
+/** Normalize `audio` prop: `true` → default config, `false`/`undefined` → undefined */
+function normalizeAudio(audio: AudioConfig | boolean | undefined): AudioConfig | undefined {
+  if (audio === true) return { enabled: true };
+  if (!audio) return undefined;
+  return audio;
 }
 
 export interface AgnoChatInputProps {
@@ -94,22 +69,6 @@ export interface AgnoChatInputProps {
   dropZoneContainerRef?: RefObject<HTMLElement | null>;
   /** Props forwarded to PromptInputDropZone (className, label) */
   dropZoneProps?: Partial<Pick<PromptInputDropZoneProps, 'label' | 'className'>>;
-
-  // ── Legacy props (deprecated — use `audio` instead) ──────────────
-  /** @deprecated Use `audio={{ enabled: true }}` instead */
-  showAudioRecorder?: boolean;
-  /** @deprecated Use `audio={{ mode: '...' }}` instead */
-  audioMode?: 'send' | 'transcribe';
-  /** @deprecated Use `audio={{ endpoint: '...' }}` instead */
-  transcriptionEndpoint?: string;
-  /** @deprecated Use `audio={{ headers: { ... } }}` instead */
-  transcriptionHeaders?: Record<string, string>;
-  /** @deprecated Use `audio={{ parseResponse: fn }}` instead */
-  parseTranscriptionResponse?: (data: unknown) => string;
-  /** @deprecated Use `audio={{ requestPermission: fn }}` instead */
-  onRequestPermission?: () => Promise<boolean>;
-  /** @deprecated Use `audio={{ labels: { ... } }}` instead */
-  audioRecorderLabels?: AudioRecorderLabels;
 }
 
 function dataUrlToBlob(dataUrl: string): Blob {
@@ -209,28 +168,10 @@ export function AgnoChatInput({
   extraTools,
   dropZoneContainerRef,
   dropZoneProps,
-  // Legacy props
-  showAudioRecorder,
-  audioMode,
-  transcriptionEndpoint,
-  transcriptionHeaders,
-  parseTranscriptionResponse,
-  onRequestPermission,
-  audioRecorderLabels,
 }: AgnoChatInputProps) {
-  const resolvedAudio = resolveAudioConfig(
-    audio,
-    showAudioRecorder,
-    audioMode,
-    transcriptionEndpoint,
-    transcriptionHeaders,
-    parseTranscriptionResponse,
-    onRequestPermission,
-    audioRecorderLabels,
-  );
-
+  const resolvedAudio = normalizeAudio(audio);
   const audioEnabled = resolvedAudio?.enabled ?? false;
-  const audioResolvedMode = resolvedAudio?.mode ?? 'send';
+  const audioMode = resolvedAudio?.mode ?? 'send';
 
   const handleSubmit = (message: PromptInputMessage) => {
     const text = message.text?.trim() || '';
@@ -297,7 +238,7 @@ export function AgnoChatInput({
               </PromptInputActionMenu>
             )}
             {audioEnabled &&
-              (audioResolvedMode === 'transcribe' && resolvedAudio?.endpoint ? (
+              (audioMode === 'transcribe' && resolvedAudio?.endpoint ? (
                 <TranscribeAudioRecorder
                   endpoint={resolvedAudio.endpoint}
                   headers={resolvedAudio.headers}

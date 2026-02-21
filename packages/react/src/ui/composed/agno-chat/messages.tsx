@@ -20,18 +20,12 @@ export interface AgnoChatMessagesProps {
   className?: string;
   renderMessage?: (message: ChatMessage, index: number) => ReactNode;
 
-  /**
-   * Custom user avatar. Overrides `avatars.user` from `<AgnoChat>`.
-   * @deprecated Prefer setting avatars on `<AgnoChat avatars={{ user: ... }}>`.
-   */
+  /** Custom user avatar */
   userAvatar?: ReactNode;
-  /**
-   * Custom assistant avatar. Overrides `avatars.assistant` from `<AgnoChat>`.
-   * @deprecated Prefer setting avatars on `<AgnoChat avatars={{ assistant: ... }}>`.
-   */
+  /** Custom assistant avatar */
   assistantAvatar?: ReactNode;
 
-  // ── Promoted from messageItemProps ────────────────────────────────
+  // ── Message display options ────────────────────────────────────────
   /** Show reasoning steps (default: true) */
   showReasoning?: boolean;
   /** Show references (default: true) */
@@ -70,12 +64,6 @@ export interface AgnoChatMessagesProps {
   showThinkingIndicator?: boolean;
   /** Custom component to render instead of the default thinking indicator */
   renderThinkingIndicator?: ReactNode;
-
-  /**
-   * @deprecated Pass message customization props directly to `<AgnoChat.Messages>` instead.
-   * E.g., `showToolCalls={false}` instead of `messageItemProps={{ showToolCalls: false }}`.
-   */
-  messageItemProps?: Partial<Omit<AgnoMessageItemProps, 'message'>>;
 }
 
 /** Scrolls to bottom only when the user sends a new message */
@@ -103,7 +91,7 @@ export function AgnoChatMessages({
   renderMessage,
   userAvatar,
   assistantAvatar,
-  // Promoted message item props
+  // Message display options
   showReasoning,
   showReferences,
   showTimestamp,
@@ -124,20 +112,13 @@ export function AgnoChatMessages({
   // Thinking indicator
   showThinkingIndicator = true,
   renderThinkingIndicator,
-  // Legacy bag (deprecated)
-  messageItemProps,
 }: AgnoChatMessagesProps) {
-  const { messages, isStreaming, avatars } = useAgnoChatContext();
+  const { messages, isStreaming } = useAgnoChatContext();
   const lastMessage = messages[messages.length - 1];
   const isThinking = showThinkingIndicator && isStreaming && (!lastMessage || lastMessage.role !== 'user') && !lastMessage?.content;
 
-  // Resolve avatars: local prop > context > undefined
-  const resolvedUserAvatar = userAvatar ?? avatars?.user;
-  const resolvedAssistantAvatar = assistantAvatar ?? avatars?.assistant;
-
-  // Build message item props: direct props override legacy bag
-  const resolvedMessageItemProps: Partial<Omit<AgnoMessageItemProps, 'message'>> = {
-    ...messageItemProps,
+  // Build message item props from direct props
+  const messageItemProps: Partial<Omit<AgnoMessageItemProps, 'message'>> = {
     ...(showReasoning !== undefined && { showReasoning }),
     ...(showReferences !== undefined && { showReferences }),
     ...(showTimestamp !== undefined && { showTimestamp }),
@@ -190,9 +171,9 @@ export function AgnoChatMessages({
               <AgnoMessageItem
                 key={`msg-${index}-${message.created_at}`}
                 message={message}
-                userAvatar={resolvedUserAvatar}
-                assistantAvatar={resolvedAssistantAvatar}
-                {...resolvedMessageItemProps}
+                userAvatar={userAvatar}
+                assistantAvatar={assistantAvatar}
+                {...messageItemProps}
               />
             );
           })
@@ -200,7 +181,7 @@ export function AgnoChatMessages({
 
         {isThinking && (
           <div className="py-2">
-            {renderThinkingIndicator ?? <StreamingIndicator avatar={resolvedAssistantAvatar} />}
+            {renderThinkingIndicator ?? <StreamingIndicator avatar={assistantAvatar} />}
           </div>
         )}
       </ConversationContent>

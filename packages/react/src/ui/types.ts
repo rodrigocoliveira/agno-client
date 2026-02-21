@@ -74,18 +74,6 @@ export type AudioConfig = {
   labels?: Record<string, string>;
 };
 
-/**
- * ClassNames override map for composed components
- */
-export type AgnoChatInterfaceClassNames = {
-  root?: string;
-  messagesArea?: string;
-  inputArea?: string;
-  toolStatusBar?: string;
-  errorBar?: string;
-  dropZone?: string;
-};
-
 export type AgnoMessageItemClassNames = {
   root?: string;
   userBubble?: string;

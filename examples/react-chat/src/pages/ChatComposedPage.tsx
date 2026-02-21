@@ -68,22 +68,18 @@ export function ChatComposedPage() {
 
         {/* Chat Interface — compound component pattern */}
         <div className="flex-1 overflow-hidden">
-          <AgnoChat
-            toolHandlers={toolHandlers}
-            avatars={{
-              user: (
+          <AgnoChat toolHandlers={toolHandlers}>
+            <AgnoChat.Messages
+              userAvatar={
                 <div className="h-8 w-8 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-md">
                   <Cat className="h-4 w-4 text-white" />
                 </div>
-              ),
-              assistant: (
+              }
+              assistantAvatar={
                 <div className="h-8 w-8 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-md">
                   <Rocket className="h-4 w-4 text-white" />
                 </div>
-              ),
-            }}
-          >
-            <AgnoChat.Messages
+              }
               showToolCalls={false}
               showReasoning={false}
               messageClassNames={{ assistantContainer: 'pl-3' }}

@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 import { useAgnoChatContext } from './context';
 import { AgnoChatInput } from '../AgnoChatInput';
-import type { AgnoChatInputProps } from '../AgnoChatInput';
 import type { PromptInputDropZoneProps } from '../../components/prompt-input/drop-zone';
 import { cn } from '../../lib/cn';
 import type { AudioConfig, FileUploadConfig } from '../../types';
@@ -35,27 +34,6 @@ export interface AgnoChatInputAreaProps {
   allowCancelRun?: boolean;
   /** Props forwarded to PromptInputDropZone (className, label) */
   dropZoneProps?: Partial<Pick<PromptInputDropZoneProps, 'label' | 'className'>>;
-
-  // ── Legacy props (deprecated — use `audio` instead) ──────────────
-  /** @deprecated Use `audio={{ enabled: true }}` instead */
-  showAudioRecorder?: boolean;
-  /** @deprecated Use `audio={{ mode: '...' }}` instead */
-  audioMode?: 'send' | 'transcribe';
-  /** @deprecated Use `audio={{ endpoint: '...' }}` instead */
-  transcriptionEndpoint?: string;
-  /** @deprecated Use `audio={{ headers: { ... } }}` instead */
-  transcriptionHeaders?: Record<string, string>;
-  /** @deprecated Use `audio={{ parseResponse: fn }}` instead */
-  parseTranscriptionResponse?: (data: unknown) => string;
-  /** @deprecated Use `audio={{ requestPermission: fn }}` instead */
-  onRequestPermission?: () => Promise<boolean>;
-  /** @deprecated Use `audio={{ labels: { ... } }}` instead */
-  audioRecorderLabels?: Record<string, string>;
-  /**
-   * @deprecated Pass props directly to `<AgnoChat.Input>` instead.
-   * All common AgnoChatInput props are available as direct props.
-   */
-  chatInputProps?: Partial<Omit<AgnoChatInputProps, 'onSend'>>;
 }
 
 export function AgnoChatInputArea({
@@ -68,15 +46,6 @@ export function AgnoChatInputArea({
   extraTools,
   allowCancelRun = false,
   dropZoneProps,
-  // Legacy props
-  showAudioRecorder,
-  audioMode,
-  transcriptionEndpoint,
-  transcriptionHeaders,
-  parseTranscriptionResponse,
-  onRequestPermission,
-  audioRecorderLabels,
-  chatInputProps,
 }: AgnoChatInputAreaProps) {
   const { handleSend, inputDisabled, isStreaming, isPaused, cancelRun, dropZoneContainerRef } = useAgnoChatContext();
 
@@ -87,26 +56,18 @@ export function AgnoChatInputArea({
           children({ onSend: handleSend, disabled: inputDisabled, isStreaming, isPaused })
         ) : (
           <AgnoChatInput
-            {...chatInputProps}
             onSend={handleSend}
             disabled={inputDisabled}
             isStreaming={isStreaming}
             onCancel={cancelRun}
             allowCancelRun={allowCancelRun}
-            placeholder={placeholder ?? chatInputProps?.placeholder ?? 'Message your agent...'}
-            fileUpload={fileUpload ?? chatInputProps?.fileUpload}
+            placeholder={placeholder ?? 'Message your agent...'}
+            fileUpload={fileUpload}
             audio={audio}
-            showAudioRecorder={showAudioRecorder ?? chatInputProps?.showAudioRecorder}
-            audioMode={audioMode ?? chatInputProps?.audioMode}
-            transcriptionEndpoint={transcriptionEndpoint ?? chatInputProps?.transcriptionEndpoint}
-            transcriptionHeaders={transcriptionHeaders ?? chatInputProps?.transcriptionHeaders}
-            parseTranscriptionResponse={parseTranscriptionResponse ?? chatInputProps?.parseTranscriptionResponse}
-            onRequestPermission={onRequestPermission ?? chatInputProps?.onRequestPermission}
-            audioRecorderLabels={audioRecorderLabels ?? chatInputProps?.audioRecorderLabels}
-            showAttachments={showAttachments ?? chatInputProps?.showAttachments}
-            extraTools={extraTools ?? chatInputProps?.extraTools}
+            showAttachments={showAttachments}
+            extraTools={extraTools}
             dropZoneContainerRef={dropZoneContainerRef}
-            dropZoneProps={dropZoneProps ?? chatInputProps?.dropZoneProps}
+            dropZoneProps={dropZoneProps}
           />
         )}
       </div>
