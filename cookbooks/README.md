@@ -59,8 +59,8 @@ These cookbooks cover three packages:
 # Using npm
 npm install @rodrigocoliveira/agno-client @rodrigocoliveira/agno-react
 
-# Using pnpm
-pnpm add @rodrigocoliveira/agno-client @rodrigocoliveira/agno-react
+# Using bun
+bun add @rodrigocoliveira/agno-client @rodrigocoliveira/agno-react
 
 # Using yarn
 yarn add @rodrigocoliveira/agno-client @rodrigocoliveira/agno-react

@@ -136,22 +136,22 @@ await client.sendMessage('Hello!');
 ### Prerequisites
 
 - Node.js 18+
-- pnpm 8+
+- [Bun](https://bun.sh) 1.0+
 
 ### Setup
 
 ```bash
 # Install dependencies
-pnpm install
+bun install
 
 # Build all packages
-pnpm build
+bun run build
 
 # Watch mode for development
-pnpm dev
+bun run dev
 
 # Type checking
-pnpm typecheck
+bun run typecheck
 ```
 
 ### Project Structure
