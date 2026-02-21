@@ -157,10 +157,10 @@ To publish this package to npm:
 npm login
 
 # Build the package
-pnpm build
+bun run build
 
 # Publish (use --access public for scoped packages)
-pnpm publish --access public
+npm publish --access public
 ```
 
 **Note:** This package must be published before `@rodrigocoliveira/agno-client` and `@rodrigocoliveira/agno-react` since they depend on it.

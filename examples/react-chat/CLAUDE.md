@@ -10,10 +10,10 @@
 ## Commands
 
 ```bash
-pnpm install    # Install deps
-pnpm dev        # Dev server on :3000
-pnpm build      # Typecheck + production build
-pnpm typecheck  # TypeScript only
+bun install       # Install deps
+bun run dev       # Dev server on :3000
+bun run build     # Typecheck + production build
+bun run typecheck # TypeScript only
 ```
 
 ## shadcn/ui Usage
@@ -64,7 +64,7 @@ The example app demonstrates two ways to build a chat UI:
 
 ## Key Conventions
 
-- This project uses **workspace packages** from the parent monorepo (`@rodrigocoliveira/agno-client`, `agno-react`, `agno-types`). Build the monorepo root first with `pnpm build` if types are missing.
+- This project uses **workspace packages** from the parent monorepo (`@rodrigocoliveira/agno-client`, `agno-react`, `agno-types`). Build the monorepo root first with `bun run build` if types are missing.
 - Environment variables use `VITE_` prefix (e.g., `VITE_AGNO_ENDPOINT`).
 - Forms use **react-hook-form** + **zod** for validation.
 - Do not modify files in `src/components/ui/` by hand; use the shadcn CLI to update them.
