@@ -68,53 +68,53 @@ export function ChatComposedPage() {
 
         {/* Chat Interface — compound component pattern */}
         <div className="flex-1 overflow-hidden">
-          <AgnoChat toolHandlers={toolHandlers}>
-            <AgnoChat.Messages
-              userAvatar={
+          <AgnoChat
+            toolHandlers={toolHandlers}
+            avatars={{
+              user: (
                 <div className="h-8 w-8 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-md">
                   <Cat className="h-4 w-4 text-white" />
                 </div>
-              }
-              assistantAvatar={
+              ),
+              assistant: (
                 <div className="h-8 w-8 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-md">
                   <Rocket className="h-4 w-4 text-white" />
                 </div>
-              }
-              messageItemProps={{
-                classNames: {
-                  assistantContainer: 'pl-3',
-                },
-                showToolCalls: false,
-                showReasoning: false,
-                renderActions: (message) => (
-                  <>
-                    <button
-                      onClick={() => {
-                        navigator.clipboard.writeText(message.content || '')
-                        toast.success('Copied to clipboard')
-                      }}
-                      className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                      aria-label="Copy message"
-                    >
-                      <Copy className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      onClick={() => toast.success('Thanks for the feedback!')}
-                      className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                      aria-label="Like message"
-                    >
-                      <ThumbsUp className="h-3.5 w-3.5" />
-                    </button>
-                    <button
-                      onClick={() => toast.info('Sorry to hear that. We\'ll improve!')}
-                      className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
-                      aria-label="Dislike message"
-                    >
-                      <ThumbsDown className="h-3.5 w-3.5" />
-                    </button>
-                  </>
-                ),
-              }}
+              ),
+            }}
+          >
+            <AgnoChat.Messages
+              showToolCalls={false}
+              showReasoning={false}
+              messageClassNames={{ assistantContainer: 'pl-3' }}
+              renderActions={(message) => (
+                <>
+                  <button
+                    onClick={() => {
+                      navigator.clipboard.writeText(message.content || '')
+                      toast.success('Copied to clipboard')
+                    }}
+                    className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                    aria-label="Copy message"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => toast.success('Thanks for the feedback!')}
+                    className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                    aria-label="Like message"
+                  >
+                    <ThumbsUp className="h-3.5 w-3.5" />
+                  </button>
+                  <button
+                    onClick={() => toast.info('Sorry to hear that. We\'ll improve!')}
+                    className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
+                    aria-label="Dislike message"
+                  >
+                    <ThumbsDown className="h-3.5 w-3.5" />
+                  </button>
+                </>
+              )}
             >
               <AgnoChat.EmptyState>
                 <div className="relative">
@@ -142,9 +142,11 @@ export function ChatComposedPage() {
             <AgnoChat.Input
               className="bg-muted/30 border-t-2 border-primary/10"
               placeholder="Ask me anything..."
-              showAudioRecorder={true}
-              audioMode="transcribe"
-              transcriptionEndpoint="http://localhost:7777/transcribe"
+              audio={{
+                enabled: true,
+                mode: 'transcribe',
+                endpoint: 'http://localhost:7777/transcribe',
+              }}
               dropZoneProps={{
                 className: "bg-gray-300/50 border-gray-200 !text-black/70",
                 label: "Arraste documentos aqui para anexar em sua mensagem",

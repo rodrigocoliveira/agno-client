@@ -16,6 +16,7 @@ export type {
   ChatStatus,
   SuggestedPrompt,
   FileUploadConfig,
+  AudioConfig,
   AgnoChatInterfaceClassNames,
   AgnoMessageItemClassNames,
 } from './types';
@@ -312,6 +313,7 @@ export {
 
 export type {
   AgnoChatContextValue,
+  AgnoChatAvatars,
   AgnoChatRootProps,
   AgnoChatMessagesProps,
   AgnoChatEmptyStateProps,

@@ -1,6 +1,11 @@
 import { createContext, useContext } from 'react';
-import type { RefObject } from 'react';
+import type { ReactNode, RefObject } from 'react';
 import type { ChatMessage, ClientState, ToolCall } from '@rodrigocoliveira/agno-types';
+
+export interface AgnoChatAvatars {
+  user?: ReactNode;
+  assistant?: ReactNode;
+}
 
 export interface AgnoChatContextValue {
   // From useAgnoChat()
@@ -33,6 +38,9 @@ export interface AgnoChatContextValue {
   // Derived convenience
   handleSend: (message: string | FormData) => Promise<void>;
   inputDisabled: boolean;
+
+  // Shared UI config
+  avatars?: AgnoChatAvatars;
 
   // Drop zone
   dropZoneContainerRef?: RefObject<HTMLElement | null>;

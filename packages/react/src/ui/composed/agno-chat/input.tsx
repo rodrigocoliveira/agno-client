@@ -4,8 +4,7 @@ import { AgnoChatInput } from '../AgnoChatInput';
 import type { AgnoChatInputProps } from '../AgnoChatInput';
 import type { PromptInputDropZoneProps } from '../../components/prompt-input/drop-zone';
 import { cn } from '../../lib/cn';
-import type { FileUploadConfig } from '../../types';
-import type { AudioRecorderLabels } from '../../components/audio-recorder';
+import type { AudioConfig, FileUploadConfig } from '../../types';
 
 export interface AgnoChatInputRenderProps {
   onSend: (message: string | FormData) => Promise<void>;
@@ -19,26 +18,44 @@ export interface AgnoChatInputAreaProps {
   children?: (props: AgnoChatInputRenderProps) => ReactNode;
   placeholder?: string;
   fileUpload?: FileUploadConfig;
-  showAudioRecorder?: boolean;
+  /**
+   * Audio recording/transcription configuration.
+   * Pass `true` for send-mode defaults, or an `AudioConfig` object.
+   *
+   * @example
+   * audio={true}
+   * audio={{ enabled: true, mode: 'transcribe', endpoint: 'http://...' }}
+   */
+  audio?: AudioConfig | boolean;
+  /** Show attachments button (default: true) */
   showAttachments?: boolean;
+  /** Extra tools to add to the toolbar */
   extraTools?: ReactNode;
-  chatInputProps?: Partial<Omit<AgnoChatInputProps, 'onSend'>>;
-  /** Audio mode: 'send' sends blob immediately, 'transcribe' transcribes and adds text to input */
-  audioMode?: 'send' | 'transcribe';
-  /** Transcription endpoint URL (required when audioMode='transcribe') */
-  transcriptionEndpoint?: string;
-  /** Extra headers for transcription request */
-  transcriptionHeaders?: Record<string, string>;
-  /** Custom parser for the transcription response — receives the parsed JSON and returns the text */
-  parseTranscriptionResponse?: (data: unknown) => string;
-  /** Async callback to request microphone permission before recording (e.g., for WebView bridges) */
-  onRequestPermission?: () => Promise<boolean>;
-  /** Custom labels for the audio recorder button (useful for i18n) */
-  audioRecorderLabels?: AudioRecorderLabels;
   /** Show a stop button that cancels the run while streaming (default: false) */
   allowCancelRun?: boolean;
   /** Props forwarded to PromptInputDropZone (className, label) */
   dropZoneProps?: Partial<Pick<PromptInputDropZoneProps, 'label' | 'className'>>;
+
+  // ── Legacy props (deprecated — use `audio` instead) ──────────────
+  /** @deprecated Use `audio={{ enabled: true }}` instead */
+  showAudioRecorder?: boolean;
+  /** @deprecated Use `audio={{ mode: '...' }}` instead */
+  audioMode?: 'send' | 'transcribe';
+  /** @deprecated Use `audio={{ endpoint: '...' }}` instead */
+  transcriptionEndpoint?: string;
+  /** @deprecated Use `audio={{ headers: { ... } }}` instead */
+  transcriptionHeaders?: Record<string, string>;
+  /** @deprecated Use `audio={{ parseResponse: fn }}` instead */
+  parseTranscriptionResponse?: (data: unknown) => string;
+  /** @deprecated Use `audio={{ requestPermission: fn }}` instead */
+  onRequestPermission?: () => Promise<boolean>;
+  /** @deprecated Use `audio={{ labels: { ... } }}` instead */
+  audioRecorderLabels?: Record<string, string>;
+  /**
+   * @deprecated Pass props directly to `<AgnoChat.Input>` instead.
+   * All common AgnoChatInput props are available as direct props.
+   */
+  chatInputProps?: Partial<Omit<AgnoChatInputProps, 'onSend'>>;
 }
 
 export function AgnoChatInputArea({
@@ -46,18 +63,20 @@ export function AgnoChatInputArea({
   children,
   placeholder,
   fileUpload,
-  showAudioRecorder = false,
+  audio,
   showAttachments,
   extraTools,
-  chatInputProps,
+  allowCancelRun = false,
+  dropZoneProps,
+  // Legacy props
+  showAudioRecorder,
   audioMode,
   transcriptionEndpoint,
   transcriptionHeaders,
   parseTranscriptionResponse,
   onRequestPermission,
   audioRecorderLabels,
-  allowCancelRun = false,
-  dropZoneProps,
+  chatInputProps,
 }: AgnoChatInputAreaProps) {
   const { handleSend, inputDisabled, isStreaming, isPaused, cancelRun, dropZoneContainerRef } = useAgnoChatContext();
 
@@ -75,18 +94,19 @@ export function AgnoChatInputArea({
             onCancel={cancelRun}
             allowCancelRun={allowCancelRun}
             placeholder={placeholder ?? chatInputProps?.placeholder ?? 'Message your agent...'}
-            fileUpload={fileUpload}
-            showAudioRecorder={showAudioRecorder}
-            showAttachments={showAttachments}
-            extraTools={extraTools}
-            audioMode={audioMode}
-            transcriptionEndpoint={transcriptionEndpoint}
-            transcriptionHeaders={transcriptionHeaders}
-            parseTranscriptionResponse={parseTranscriptionResponse}
-            onRequestPermission={onRequestPermission}
-            audioRecorderLabels={audioRecorderLabels}
+            fileUpload={fileUpload ?? chatInputProps?.fileUpload}
+            audio={audio}
+            showAudioRecorder={showAudioRecorder ?? chatInputProps?.showAudioRecorder}
+            audioMode={audioMode ?? chatInputProps?.audioMode}
+            transcriptionEndpoint={transcriptionEndpoint ?? chatInputProps?.transcriptionEndpoint}
+            transcriptionHeaders={transcriptionHeaders ?? chatInputProps?.transcriptionHeaders}
+            parseTranscriptionResponse={parseTranscriptionResponse ?? chatInputProps?.parseTranscriptionResponse}
+            onRequestPermission={onRequestPermission ?? chatInputProps?.onRequestPermission}
+            audioRecorderLabels={audioRecorderLabels ?? chatInputProps?.audioRecorderLabels}
+            showAttachments={showAttachments ?? chatInputProps?.showAttachments}
+            extraTools={extraTools ?? chatInputProps?.extraTools}
             dropZoneContainerRef={dropZoneContainerRef}
-            dropZoneProps={dropZoneProps}
+            dropZoneProps={dropZoneProps ?? chatInputProps?.dropZoneProps}
           />
         )}
       </div>

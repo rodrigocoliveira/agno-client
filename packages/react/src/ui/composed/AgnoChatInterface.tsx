@@ -1,13 +1,35 @@
 import type { ReactNode } from 'react';
 import type { ChatMessage } from '@rodrigocoliveira/agno-types';
 import type { ToolHandler } from '@rodrigocoliveira/agno-react';
-import type { AgnoChatInterfaceClassNames, FileUploadConfig, SuggestedPrompt } from '../types';
+import type { AgnoChatInterfaceClassNames, AudioConfig, FileUploadConfig, SuggestedPrompt } from '../types';
 import type { AgnoMessageItemProps } from './AgnoMessageItem';
 import type { AgnoChatInputProps } from './AgnoChatInput';
 import { AgnoChat } from './agno-chat';
 import { cn } from '../lib/cn';
 import { Bot, Sparkles } from 'lucide-react';
 
+/**
+ * @deprecated Use the `<AgnoChat>` compound component instead for better composability
+ * and clearer prop ownership. See migration example:
+ *
+ * ```tsx
+ * // Before (AgnoChatInterface)
+ * <AgnoChatInterface
+ *   toolHandlers={handlers}
+ *   userAvatar={<UserIcon />}
+ *   placeholder="Ask..."
+ *   showAudioRecorder={true}
+ * />
+ *
+ * // After (AgnoChat compound)
+ * <AgnoChat toolHandlers={handlers} avatars={{ user: <UserIcon /> }}>
+ *   <AgnoChat.Messages />
+ *   <AgnoChat.ToolStatus />
+ *   <AgnoChat.ErrorBar />
+ *   <AgnoChat.Input placeholder="Ask..." audio={true} />
+ * </AgnoChat>
+ * ```
+ */
 export interface AgnoChatInterfaceProps {
   className?: string;
   classNames?: AgnoChatInterfaceClassNames;
@@ -35,13 +57,18 @@ export interface AgnoChatInterfaceProps {
   assistantAvatar?: ReactNode;
   /** File upload config */
   fileUpload?: FileUploadConfig;
-  /** Show audio recorder (default: true) */
+  /**
+   * Audio recording/transcription configuration.
+   * Pass `true` for send-mode defaults, or an `AudioConfig` object.
+   */
+  audio?: AudioConfig | boolean;
+  /** @deprecated Use `audio={{ enabled: true }}` instead */
   showAudioRecorder?: boolean;
   /** Show attachments button and drop zone (default: true) */
   showAttachments?: boolean;
-  /** Props forwarded to AgnoMessageItem */
+  /** @deprecated Pass message customization props directly instead */
   messageItemProps?: Partial<Omit<AgnoMessageItemProps, 'message'>>;
-  /** Props forwarded to AgnoChatInput */
+  /** @deprecated Pass input props directly instead */
   chatInputProps?: Partial<Omit<AgnoChatInputProps, 'onSend'>>;
   /** Custom label for the drop zone overlay */
   dropZoneLabel?: string;
@@ -52,6 +79,10 @@ const DEFAULT_PROMPTS: SuggestedPrompt[] = [
   { icon: <Bot className="h-3.5 w-3.5" />, text: 'Explain how you work' },
 ];
 
+/**
+ * @deprecated Use `<AgnoChat>` compound component instead.
+ * This component is a thin wrapper around `<AgnoChat>` and will be removed in a future version.
+ */
 export function AgnoChatInterface({
   className,
   classNames,
@@ -67,6 +98,7 @@ export function AgnoChatInterface({
   userAvatar,
   assistantAvatar,
   fileUpload,
+  audio,
   showAudioRecorder = true,
   showAttachments = true,
   messageItemProps,
@@ -77,6 +109,7 @@ export function AgnoChatInterface({
     <AgnoChat
       toolHandlers={toolHandlers}
       autoExecuteTools={autoExecuteTools}
+      avatars={{ user: userAvatar, assistant: assistantAvatar }}
       className={cn(classNames?.root, className)}
     >
       {headerSlot}
@@ -84,8 +117,6 @@ export function AgnoChatInterface({
       <AgnoChat.Messages
         className={classNames?.messagesArea}
         renderMessage={renderMessage}
-        userAvatar={userAvatar}
-        assistantAvatar={assistantAvatar}
         messageItemProps={messageItemProps}
         emptyState={emptyState}
         suggestedPrompts={suggestedPrompts}
@@ -98,6 +129,7 @@ export function AgnoChatInterface({
         className={classNames?.inputArea}
         placeholder={placeholder}
         fileUpload={fileUpload}
+        audio={audio}
         showAudioRecorder={showAudioRecorder}
         showAttachments={showAttachments}
         extraTools={inputToolbarSlot}

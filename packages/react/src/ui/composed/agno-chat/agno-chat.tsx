@@ -3,19 +3,22 @@ import type { HTMLAttributes, ReactNode } from 'react';
 import { useAgnoChat, useAgnoToolExecution } from '@rodrigocoliveira/agno-react';
 import type { ToolHandler } from '@rodrigocoliveira/agno-react';
 import { AgnoChatContext } from './context';
-import type { AgnoChatContextValue } from './context';
+import type { AgnoChatContextValue, AgnoChatAvatars } from './context';
 import { cn } from '../../lib/cn';
 
 export interface AgnoChatRootProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
   toolHandlers?: Record<string, ToolHandler>;
   autoExecuteTools?: boolean;
+  /** Shared avatars for user and assistant messages. Sub-components can override. */
+  avatars?: AgnoChatAvatars;
 }
 
 export function AgnoChatRoot({
   children,
   toolHandlers = {},
   autoExecuteTools = true,
+  avatars,
   className,
   ...divProps
 }: AgnoChatRootProps) {
@@ -87,6 +90,9 @@ export function AgnoChatRoot({
       handleSend,
       inputDisabled: isStreaming || isPaused,
 
+      // shared UI config
+      avatars,
+
       // drop zone
       dropZoneContainerRef: containerRef,
     }),
@@ -109,6 +115,7 @@ export function AgnoChatRoot({
       continueWithResults,
       executionError,
       handleSend,
+      avatars,
     ],
   );
 
