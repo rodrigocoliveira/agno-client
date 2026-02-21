@@ -1,6 +1,6 @@
 {
   "name": "@rodrigocoliveira/agno-types",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "TypeScript types for Agno client libraries",
   "author": "rodrigocoliveira",
   "license": "MIT",
