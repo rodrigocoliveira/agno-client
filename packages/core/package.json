@@ -1,6 +1,6 @@
 {
   "name": "@rodrigocoliveira/agno-client",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "Core client library for Agno agents with streaming support and HITL frontend tool execution",
   "author": "rodrigocoliveira",
   "license": "MIT",
