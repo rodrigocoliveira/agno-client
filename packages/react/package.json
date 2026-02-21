@@ -41,8 +41,8 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsup",
-    "dev": "tsup --watch",
+    "build": "bun run build.ts",
+    "dev": "bun build src/index.ts src/ui.ts --outdir dist --format esm --packages external --entry-naming '[name].mjs' --watch",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -153,7 +153,6 @@
     "shiki": "^3.2.1",
     "streamdown": "^2.2.0",
     "tailwind-merge": "^3.0.2",
-    "tsup": "^8.0.1",
     "typescript": "^5.3.3",
     "use-stick-to-bottom": "^1.1.3"
   }
