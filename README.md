@@ -2,6 +2,8 @@
 
 Independent open-source client libraries for [Agno](https://www.agno.com) agents with streaming support.
 
+![Agno Client API Demo](./assets/demo.png)
+
 ## 📦 Packages
 
 This monorepo contains three packages:
@@ -56,12 +58,18 @@ See [Secure Authentication Cookbook](./cookbooks/17_secure_auth.md) for complete
 ```bash
 # For React applications
 npm install @rodrigocoliveira/agno-react
+# or
+bun add @rodrigocoliveira/agno-react
 
 # For other JavaScript/TypeScript projects
 npm install @rodrigocoliveira/agno-client
+# or
+bun add @rodrigocoliveira/agno-client
 
 # For types only (if using the core library)
 npm install @rodrigocoliveira/agno-types
+# or
+bun add @rodrigocoliveira/agno-types
 ```
 
 ### React Example
