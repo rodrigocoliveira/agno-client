@@ -66,7 +66,7 @@ Use the `AgnoChat` compound component from `@rodrigocoliveira/agno-react/ui`. Pr
 ### Prerequisites
 
 - Node.js 18+
-- pnpm 8+
+- [Bun](https://bun.sh) 1.0+
 - An Agno instance running (default: `http://localhost:7777`)
 
 ### Installation
@@ -75,16 +75,16 @@ From the repository root:
 
 ```bash
 # Install all dependencies
-pnpm install
+bun install
 
 # Build the library packages (required before running the example)
-pnpm build
+bun run build
 
 # Navigate to the example directory
 cd examples/react-chat
 
 # Install example dependencies (if not already installed)
-pnpm install
+bun install
 ```
 
 ### Configuration
@@ -123,7 +123,7 @@ VITE_AGNO_DB_ID=
 
 ```bash
 # From examples/react-chat directory
-pnpm dev
+bun run dev
 ```
 
 The application will open at `http://localhost:3000`.
@@ -213,10 +213,10 @@ examples/react-chat/
 
 ```bash
 # From examples/react-chat directory
-pnpm build
+bun run build
 
 # Preview the production build
-pnpm preview
+bun run preview
 ```
 
 The optimized build will be in the `dist/` directory.
@@ -255,11 +255,11 @@ To develop the library and example simultaneously:
 
 ```bash
 # Terminal 1: Watch library changes (from repo root)
-pnpm dev
+bun run dev
 
 # Terminal 2: Run example with hot reload
 cd examples/react-chat
-pnpm dev
+bun run dev
 ```
 
 Changes to the library packages will automatically rebuild and hot-reload in the example.
@@ -269,7 +269,7 @@ Changes to the library packages will automatically rebuild and hot-reload in the
 shadcn components are configured in `components.json`. To add more:
 
 ```bash
-pnpm dlx shadcn@latest add [component-name]
+bunx shadcn@latest add [component-name]
 ```
 
 ## License

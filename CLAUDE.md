@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Repository Overview
 
-This is a **pnpm monorepo** containing independent open-source client libraries for Agno agents. The project provides a framework-agnostic core library with a React adapter, following a layered architecture pattern.
+This is a **Bun monorepo** containing independent open-source client libraries for Agno agents. The project provides a framework-agnostic core library with a React adapter, following a layered architecture pattern.
 
 ### Package Structure
 
@@ -22,38 +22,38 @@ Dependency flow: `types` ← `core` ← `react`
 
 ```bash
 # Install all dependencies (REQUIRED first step)
-pnpm install
+bun install
 
-# Build all packages (builds in dependency order)
-pnpm build
+# Build all packages (builds in dependency order: types → core → react)
+bun run build
 
 # Watch mode for development (runs in parallel)
-pnpm dev
+bun run dev
 
 # Type checking across all packages
-pnpm typecheck
+bun run typecheck
 
 # Clean all build artifacts and node_modules
-pnpm clean
+bun run clean
 ```
 
 ### Per-Package Development
 
 ```bash
 # Build a specific package
-pnpm --filter @rodrigocoliveira/agno-types build
-pnpm --filter @rodrigocoliveira/agno-client build
-pnpm --filter @rodrigocoliveira/agno-react build
+bun run --cwd packages/types build
+bun run --cwd packages/core build
+bun run --cwd packages/react build
 
 # Watch mode for specific package
-cd packages/core && pnpm dev
+cd packages/core && bun run dev
 ```
 
 ### Important Notes
 
-- **Always build in order**: types → core → react (or use `pnpm build` which handles this)
+- **Always build in order**: types → core → react (or use `bun run build` which handles this)
 - **Workspace dependencies**: Packages use `workspace:*` protocol to reference each other
-- **Build tool**: All packages use `tsup` for bundling (outputs CJS + ESM + types)
+- **Build tool**: All packages use Bun's built-in bundler (outputs CJS + ESM) with `tsc` for .d.ts generation
 
 ## Architecture Overview
 
@@ -477,12 +477,12 @@ Packages are published independently to npm under the `@rodrigocoliveira` scope:
 
 ```bash
 # Build all packages first
-pnpm build
+bun run build
 
 # Publish in dependency order
-cd packages/types && pnpm publish
-cd ../core && pnpm publish
-cd ../react && pnpm publish
+cd packages/types && npm publish
+cd ../core && npm publish
+cd ../react && npm publish
 ```
 
 Version updates should be coordinated across packages when breaking changes occur.

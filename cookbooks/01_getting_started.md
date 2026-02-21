@@ -13,8 +13,8 @@ This cookbook shows you how to install the Agno client libraries and send your f
 # Using npm
 npm install @rodrigocoliveira/agno-client @rodrigocoliveira/agno-react
 
-# Using pnpm
-pnpm add @rodrigocoliveira/agno-client @rodrigocoliveira/agno-react
+# Using bun
+bun add @rodrigocoliveira/agno-client @rodrigocoliveira/agno-react
 
 # Using yarn
 yarn add @rodrigocoliveira/agno-client @rodrigocoliveira/agno-react
