@@ -171,7 +171,7 @@ Backend tool call → RunPaused event → AgnoClient state update
 - `packages/react/src/hooks/useAgnoToolExecution.ts` - React hook for tool execution
 - `packages/core/src/client.ts` - Core `continueRun()` method
 - `packages/types/src/events.ts` - `RunPaused` and `RunContinued` events
-- `FRONTEND_TOOL_EXECUTION.md` - Complete usage guide
+- `docs/frontend-tools.md` - Complete usage guide
 
 **Auto-execution vs manual confirmation:**
 - By default, `useAgnoToolExecution(handlers)` auto-executes tools immediately
@@ -529,7 +529,7 @@ When implementing or debugging frontend tool execution:
 6. **Error handling**: Wrap execution in try/catch and return error objects
 7. **Debugging**: Check browser console for `[useAgnoToolExecution]` logs
 
-For complete implementation examples, see `FRONTEND_TOOL_EXECUTION.md`.
+For complete implementation examples, see `docs/frontend-tools.md`.
 
 # Branch Naming Convention Prompt
 

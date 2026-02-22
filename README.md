@@ -1,78 +1,26 @@
 # Agno Client Libraries
 
-Independent open-source client libraries for [Agno](https://www.agno.com) agents with streaming support.
+JavaScript/TypeScript client libraries for [Agno AgentOS](https://docs.agno.com/agentOS).
 
 ![Agno Client API Demo](./assets/demo.png)
 
-## 📦 Packages
+## What is Agno AgentOS?
 
-This monorepo contains three packages:
+[Agno](https://www.agno.com) is a framework for building multi-agent AI systems. [AgentOS](https://docs.agno.com/agentOS) is the production runtime that serves your agents over HTTP with built-in session management, memory, and tool execution.
 
-- **[@rodrigocoliveira/agno-client](./packages/core)** - Core stateful client library
-- **[@rodrigocoliveira/agno-react](./packages/react)** - React hooks adapter
-- **[@rodrigocoliveira/agno-types](./packages/types)** - Shared TypeScript types
+This project provides the official JavaScript/TypeScript client for connecting to AgentOS. It handles streaming responses, session history, memory management, and frontend tool execution so you can focus on building your UI.
 
-## 🔒 Security & Best Practices
+## Packages
 
-Built with production-ready security features:
+| Package | Description | Install |
+|---------|-------------|---------|
+| [`@rodrigocoliveira/agno-react`](./packages/react) | React hooks adapter (includes core + types) | `npm install @rodrigocoliveira/agno-react` |
+| [`@rodrigocoliveira/agno-client`](./packages/core) | Core stateful client for any JS environment | `npm install @rodrigocoliveira/agno-client` |
+| [`@rodrigocoliveira/agno-types`](./packages/types) | Shared TypeScript types | `npm install @rodrigocoliveira/agno-types` |
 
-- **Request Cancellation** - Single `cancelRun()` method that aborts client stream AND notifies backend to stop processing
-- **Secure Logging** - Production-safe logger that automatically sanitizes auth tokens and sensitive data
-- **URL Encoding** - Automatic encoding of entity IDs to prevent path traversal and injection attacks
-- **Timestamp Validation** - Safe date handling with bounds checking to prevent invalid timestamps
-- **Error Handling** - Graceful handling of malformed responses and content-type validation
-- **Immutable State** - Consistent immutable updates throughout the codebase
-- **Type Safety** - Full TypeScript support with comprehensive type definitions
-- **Auto Token Refresh** - `onTokenExpired` callback for automatic 401 handling and retry
+> **Note:** `@rodrigocoliveira/agno-react` includes the core client and types as dependencies. For React apps, you only need to install the React package.
 
-### Securing Auth Tokens
-
-When using the client in a browser, auth tokens are visible in the Network tab. For production apps, we recommend:
-
-1. **Use short-lived tokens** (15 minutes or less)
-2. **Configure automatic refresh** via `onTokenExpired`
-
-```typescript
-<AgnoProvider
-  config={{
-    endpoint: 'http://localhost:7777',
-    authToken: initialToken,
-    agentId: 'your-agent-id',
-
-    // Called when a request gets 401 Unauthorized
-    onTokenExpired: async () => {
-      const response = await fetch('/api/refresh-token');
-      const { token } = await response.json();
-      return token;  // Library will retry the failed request
-    },
-  }}
->
-```
-
-See [Secure Authentication Cookbook](./cookbooks/17_secure_auth.md) for complete examples with Laravel, Express, and more.
-
-## 🚀 Quick Start
-
-### Installation
-
-```bash
-# For React applications
-npm install @rodrigocoliveira/agno-react
-# or
-bun add @rodrigocoliveira/agno-react
-
-# For other JavaScript/TypeScript projects
-npm install @rodrigocoliveira/agno-client
-# or
-bun add @rodrigocoliveira/agno-client
-
-# For types only (if using the core library)
-npm install @rodrigocoliveira/agno-types
-# or
-bun add @rodrigocoliveira/agno-types
-```
-
-### React Example
+## Quick Start (React)
 
 ```tsx
 import { AgnoProvider, useAgnoChat, useAgnoActions } from '@rodrigocoliveira/agno-react';
@@ -84,33 +32,25 @@ function App() {
         endpoint: 'http://localhost:7777',
         mode: 'agent',
         agentId: 'your-agent-id',
-        userId: 'user-123', // Optional: Link sessions to a user
       }}
     >
-      <ChatComponent />
+      <Chat />
     </AgnoProvider>
   );
 }
 
-function ChatComponent() {
+function Chat() {
   const { messages, sendMessage, isStreaming } = useAgnoChat();
   const { initialize } = useAgnoActions();
 
-  useEffect(() => {
-    initialize();
-  }, [initialize]);
+  useEffect(() => { initialize(); }, [initialize]);
 
   return (
     <div>
       {messages.map((msg, i) => (
-        <div key={i}>
-          <strong>{msg.role}:</strong> {msg.content}
-        </div>
+        <div key={i}><strong>{msg.role}:</strong> {msg.content}</div>
       ))}
-      <button
-        onClick={() => sendMessage('Hello!')}
-        disabled={isStreaming}
-      >
+      <button onClick={() => sendMessage('Hello!')} disabled={isStreaming}>
         Send
       </button>
     </div>
@@ -118,7 +58,9 @@ function ChatComponent() {
 }
 ```
 
-### Core Client Example
+See the [full guides](./docs/guides/README.md) for a complete walkthrough.
+
+## Quick Start (Core)
 
 ```typescript
 import { AgnoClient } from '@rodrigocoliveira/agno-client';
@@ -127,19 +69,39 @@ const client = new AgnoClient({
   endpoint: 'http://localhost:7777',
   mode: 'agent',
   agentId: 'your-agent-id',
-  userId: 'user-123', // Optional: Link sessions to a user
 });
 
-// Listen to events
-client.on('message:update', (messages) => {
-  console.log('Messages updated:', messages);
-});
-
-// Send a message
+client.on('message:update', (messages) => console.log(messages));
 await client.sendMessage('Hello!');
 ```
 
-## 🏗️ Development
+## Features
+
+- **Real-time streaming** -- incremental JSON parsing for token-by-token responses
+- **Session management** -- load, list, and delete conversation history ([guide](./docs/guides/05_session_management.md))
+- **Memory API** -- create, read, update, and delete user memories across sessions
+- **Frontend tool execution (HITL)** -- delegate tools to the browser with auto or manual approval ([docs](./docs/frontend-tools.md))
+- **Generative UI** -- render charts, cards, and tables driven by agent responses ([guide](./docs/guides/10_generative_ui_charts.md))
+- **Request cancellation** -- abort client stream and notify backend in one call
+- **Auth token refresh** -- automatic retry on 401 with `onTokenExpired` callback ([guide](./docs/guides/17_secure_auth.md))
+- **Custom query parameters** -- append params globally or per-request ([guide](./docs/guides/13_custom_params_headers.md))
+- **User ID tracking** -- link sessions and memories to specific users
+- **TypeScript-first** -- full type coverage matching the Agno API spec
+
+## Documentation
+
+| Resource | Description |
+|----------|-------------|
+| [Documentation Hub](./docs/README.md) | Index of all docs and guides |
+| [Getting Started](./docs/guides/01_getting_started.md) | First message in under 5 minutes |
+| [Step-by-Step Guides](./docs/guides/README.md) | 17 progressive guides from basics to production |
+| [Architecture](./docs/architecture.md) | Package structure, event flow, internals |
+| [Frontend Tool Execution](./docs/frontend-tools.md) | HITL and Generative UI reference |
+| [Core Client API](./packages/core/README.md) | `@rodrigocoliveira/agno-client` API |
+| [React Hooks API](./packages/react/README.md) | `@rodrigocoliveira/agno-react` API |
+| [Type Definitions](./packages/types/README.md) | `@rodrigocoliveira/agno-types` API |
+
+## Development
 
 ### Prerequisites
 
@@ -149,17 +111,10 @@ await client.sendMessage('Hello!');
 ### Setup
 
 ```bash
-# Install dependencies
-bun install
-
-# Build all packages
-bun run build
-
-# Watch mode for development
-bun run dev
-
-# Type checking
-bun run typecheck
+bun install        # Install dependencies
+bun run build      # Build all packages (types -> core -> react)
+bun run dev        # Watch mode
+bun run typecheck  # Type checking
 ```
 
 ### Project Structure
@@ -170,71 +125,13 @@ agno-client/
 │   ├── core/          # @rodrigocoliveira/agno-client
 │   ├── react/         # @rodrigocoliveira/agno-react
 │   └── types/         # @rodrigocoliveira/agno-types
+├── docs/              # Guides and architecture docs
 ├── examples/
 │   └── react-chat/    # Example React app
 └── package.json       # Monorepo root
 ```
 
-## ✨ Features
-
-### Frontend Tool Execution (HITL)
-
-The library includes built-in support for Human-in-the-Loop (HITL) frontend tool execution, allowing your Agno agents to delegate tools to the browser:
-
-- **UI Automation**: Navigate pages, fill forms, click buttons
-- **Browser APIs**: Access geolocation, notifications, local storage
-- **User Confirmation**: Get user approval for sensitive operations
-- **External Integrations**: Call APIs not accessible from the backend
-
-### Generative UI
-
-Create rich, interactive UI components directly from agent responses:
-
-- **Agent-Driven Visualizations**: Let agents decide what charts and components to render
-- **Interactive Charts**: Bar, line, area, and pie charts with export functionality (CSV/PNG)
-- **Card Grids & Tables**: Display structured data with sortable, filterable tables
-- **Custom Components**: Extend with your own component renderers
-- **Persistent UI**: Components survive page refreshes (serializable specs)
-
-See [Frontend Tool Execution & Generative UI Guide](./FRONTEND_TOOL_EXECUTION.md) for detailed usage instructions.
-
-### Quick Example: Frontend Tools
-
-```tsx
-import { useAgnoToolExecution } from '@rodrigocoliveira/agno-react';
-
-function ChatComponent() {
-  const toolHandlers = {
-    navigate_to_page: async (args: { url: string }) => {
-      window.location.href = args.url;
-      return { success: true };
-    },
-    get_location: async () => {
-      const position = await new Promise((resolve) =>
-        navigator.geolocation.getCurrentPosition(resolve)
-      );
-      return {
-        latitude: position.coords.latitude,
-        longitude: position.coords.longitude,
-      };
-    },
-  };
-
-  const { isPaused, isExecuting, pendingTools } =
-    useAgnoToolExecution(toolHandlers);
-
-  // Tools execute automatically when agent requests them
-}
-```
-
-## 📚 Documentation
-
-- [Core Client API](./packages/core/README.md)
-- [React Hooks API](./packages/react/README.md)
-- [Type Definitions](./packages/types/README.md)
-- [Frontend Tool Execution & Generative UI](./FRONTEND_TOOL_EXECUTION.md)
-
-## 🤝 Contributing
+## Contributing
 
 Contributions are welcome! This is an independent open-source project.
 
@@ -244,10 +141,10 @@ Contributions are welcome! This is an independent open-source project.
 4. Push to the branch (`git push origin feature/amazing-feature`)
 5. Open a Pull Request
 
-## 📄 License
+## License
 
 MIT
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
-This library is built to work with [Agno](https://www.agno.dev) agents. It is an independent open-source project and is not officially affiliated with or endorsed by Agno.
+This library is built to work with [Agno](https://www.agno.com) agents and [AgentOS](https://docs.agno.com/agentOS). It is an independent open-source project and is not officially affiliated with or endorsed by Agno.
