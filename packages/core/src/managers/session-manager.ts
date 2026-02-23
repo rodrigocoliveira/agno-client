@@ -532,10 +532,17 @@ export class SessionManager {
             } as any)
           : undefined;
 
+      // Detect error runs - backend stores error text as run.content
+      // but the LLM never actually produced this output
+      const hasRunError = run.events?.some(
+        (e) => e.event === 'RunError' || e.event === 'TeamRunError'
+      );
+
       // Add agent response message
       messages.push({
         role: 'agent',
-        content: contentStr,
+        content: hasRunError ? '' : contentStr,
+        streamingError: hasRunError || undefined,
         tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
         extra_data: extraData,
         images: run.images as any,
