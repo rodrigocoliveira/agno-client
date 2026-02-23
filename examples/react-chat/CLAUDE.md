@@ -32,8 +32,9 @@ bun run typecheck # TypeScript only
 ```
 src/
   pages/
-    ChatRootPage.tsx      # Hooks-based chat (build from scratch with useAgnoChat)
-    ChatComposedPage.tsx   # Compound component chat (AgnoChat from /ui)
+    ChatHubPage.tsx        # /chat — Selection page with cards for each chat approach
+    ChatHooksPage.tsx      # /chat/hooks — Hooks-based chat (useAgnoChat, custom components)
+    ChatComponentsPage.tsx # /chat/components — Compound component chat (AgnoChat from /ui)
   components/
     ui/             # shadcn components (57+) - do NOT hand-edit
     ai-elements/    # Chat-specific UI (message, response, tool, code-block)
@@ -55,12 +56,15 @@ src/
 - Dark mode is handled via `.dark` class and CSS variable overrides.
 - Always use `cn()` when conditionally merging classNames.
 
-## Two Chat Approaches
+## Chat Routes
 
-The example app demonstrates two ways to build a chat UI:
+The sidebar has a single **Chat** entry (`/chat`) that leads to a hub page with two cards:
 
-1. **Chat (Root)** (`/chat-root`) — Uses hooks (`useAgnoChat`, `useAgnoSession`, etc.) with custom components. Full control over layout and behavior.
-2. **Chat (Composed)** (`/chat-composed`) — Uses the `AgnoChat` compound component from `@rodrigocoliveira/agno-react/ui`. Pre-built UI with customization via props and slots.
+| Route | Page | Description |
+|---|---|---|
+| `/chat` | `ChatHubPage` | Selection page with cards for each approach |
+| `/chat/hooks` | `ChatHooksPage` | Hooks-based chat — uses `useAgnoChat`, `useAgnoSession`, etc. with custom components. Full control over layout and behavior. |
+| `/chat/components` | `ChatComponentsPage` | Compound component chat — uses `AgnoChat` from `@rodrigocoliveira/agno-react/ui`. Pre-built UI with customization via props and slots. |
 
 ## Key Conventions
 

@@ -4,9 +4,9 @@ A comprehensive chat application demonstrating the `@rodrigocoliveira/agno-react
 
 ## Two Chat Approaches
 
-This example showcases two ways to build a chat interface:
+The sidebar has a single **Chat** entry (`/chat`) that leads to a hub page where you pick between two approaches:
 
-### Chat (Root) — `/chat-root`
+### Hooks API — `/chat/hooks`
 
 Build from scratch using React hooks. You have full control over every piece of the UI: message rendering, input handling, layout, and styling.
 
@@ -14,7 +14,7 @@ Build from scratch using React hooks. You have full control over every piece of 
 - Custom `ChatInterface`, `MessageItem`, `PromptInput` components
 - Best for highly custom UIs or when you need fine-grained control
 
-### Chat (Composed) — `/chat-composed`
+### Compound Components — `/chat/components`
 
 Use the `AgnoChat` compound component from `@rodrigocoliveira/agno-react/ui`. Pre-built UI with customization via props and slots — get a full-featured chat interface with minimal code.
 
@@ -148,8 +148,8 @@ If you want to change the auto-selected agent/team:
 
 ### 3. Start Chatting
 
-1. Navigate to **Chat (Root)** or **Chat (Composed)** in the sidebar
-2. Type your message in the input box at the bottom
+1. Navigate to **Chat** in the sidebar
+2. Choose the chat tech example you would like to see, and type your message in the input box at the bottom
 3. Press **Enter** or click the **Send** button
 4. Watch as the agent responds in real-time with streaming updates
 
@@ -174,8 +174,9 @@ If you want to change the auto-selected agent/team:
 examples/react-chat/
 ├── src/
 │   ├── pages/
-│   │   ├── ChatRootPage.tsx         # Hooks-based chat (build from scratch)
-│   │   ├── ChatComposedPage.tsx     # Compound component chat (AgnoChat)
+│   │   ├── ChatHubPage.tsx          # /chat — Selection page for chat approaches
+│   │   ├── ChatHooksPage.tsx        # /chat/hooks — Hooks-based chat (build from scratch)
+│   │   ├── ChatComponentsPage.tsx   # /chat/components — Compound component chat (AgnoChat)
 │   │   ├── HomePage.tsx             # Landing page
 │   │   ├── SessionsPage.tsx         # Session management
 │   │   ├── MemoryPage.tsx           # Memory management
