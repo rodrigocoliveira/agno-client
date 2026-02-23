@@ -10,7 +10,6 @@ export function useAgnoChat() {
   const client = useAgnoClient();
   const [messages, setMessages] = useState<ChatMessage[]>(client.getMessages());
   const [state, setState] = useState<ClientState>(client.getState());
-  const [error, setError] = useState<string | undefined>();
 
   // Listen to client events and update React state
   useEffect(() => {
@@ -24,10 +23,6 @@ export function useAgnoChat() {
 
     const handleMessageRefreshed = (updatedMessages: ChatMessage[]) => {
       setMessages(updatedMessages);
-    };
-
-    const handleMessageError = (errorMessage: string) => {
-      setError(errorMessage);
     };
 
     const handleStateChange = (newState: ClientState) => {
@@ -52,18 +47,12 @@ export function useAgnoChat() {
       // This handler can be used for additional cancellation logic if needed
     };
 
-    const handleSessionLoaded = () => {
-      setError(undefined);
-    };
-
     client.on('message:update', handleMessageUpdate);
     client.on('message:complete', handleMessageComplete);
     client.on('message:refreshed', handleMessageRefreshed);
-    client.on('message:error', handleMessageError);
     client.on('state:change', handleStateChange);
     client.on('ui:render', handleUIRender);
     client.on('run:cancelled', handleRunCancelled);
-    client.on('session:loaded', handleSessionLoaded);
 
     // Initialize state
     setMessages(client.getMessages());
@@ -73,11 +62,9 @@ export function useAgnoChat() {
       client.off('message:update', handleMessageUpdate);
       client.off('message:complete', handleMessageComplete);
       client.off('message:refreshed', handleMessageRefreshed);
-      client.off('message:error', handleMessageError);
       client.off('state:change', handleStateChange);
       client.off('ui:render', handleUIRender);
       client.off('run:cancelled', handleRunCancelled);
-      client.off('session:loaded', handleSessionLoaded);
     };
   }, [client]);
 
@@ -86,12 +73,9 @@ export function useAgnoChat() {
    */
   const sendMessage = useCallback(
     async (message: string | FormData, options?: { headers?: Record<string, string>; params?: Record<string, string> }) => {
-      setError(undefined);
       try {
         await client.sendMessage(message, options);
       } catch (err) {
-        const errorMessage = err instanceof Error ? err.message : String(err);
-        setError(errorMessage);
         throw err;
       }
     },
@@ -104,20 +88,13 @@ export function useAgnoChat() {
   const clearMessages = useCallback(() => {
     client.clearMessages();
     setMessages([]);
-    setError(undefined);
   }, [client]);
 
   /**
    * Cancel the current run
    */
   const cancelRun = useCallback(async () => {
-    try {
-      await client.cancelRun();
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : String(err);
-      setError(errorMessage);
-      throw err;
-    }
+    await client.cancelRun();
   }, [client]);
 
   return {
@@ -130,7 +107,7 @@ export function useAgnoChat() {
     isPaused: state.isPaused,
     isCancelling: state.isCancelling,
     currentRunId: state.currentRunId,
-    error,
+    error: state.errorMessage,
     state,
   };
 }

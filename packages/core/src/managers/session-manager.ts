@@ -533,24 +533,27 @@ export class SessionManager {
           : undefined;
 
       // Detect error runs - backend stores error text as run.content
-      // but the LLM never actually produced this output
+      // but the LLM never actually produced this output.
+      // Skip adding the agent message entirely for error runs —
+      // errors are shown via the error bar, not as chat bubbles.
       const hasRunError = run.events?.some(
         (e) => e.event === 'RunError' || e.event === 'TeamRunError'
       );
 
-      // Add agent response message
-      messages.push({
-        role: 'agent',
-        content: hasRunError ? '' : contentStr,
-        streamingError: hasRunError || undefined,
-        tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
-        extra_data: extraData,
-        images: run.images as any,
-        videos: run.videos as any,
-        audio: run.audio as any,
-        response_audio: run.response_audio as any,
-        created_at: timestamp + 1, // Agent response is slightly after user message
-      });
+      if (!hasRunError) {
+        // Add agent response message
+        messages.push({
+          role: 'agent',
+          content: contentStr,
+          tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
+          extra_data: extraData,
+          images: run.images as any,
+          videos: run.videos as any,
+          audio: run.audio as any,
+          response_audio: run.response_audio as any,
+          created_at: timestamp + 1, // Agent response is slightly after user message
+        });
+      }
     }
 
     return messages;
