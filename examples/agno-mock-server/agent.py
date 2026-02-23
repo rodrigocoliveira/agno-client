@@ -384,6 +384,6 @@ def create_agent(db, knowledge=None):
         ],
         add_history_to_context=True,
         markdown=True,
-        debug_mode=True,
-        debug_level=2,
+        # debug_mode=True,
+        # debug_level=2,
     )
