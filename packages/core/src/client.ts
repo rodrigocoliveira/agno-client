@@ -468,10 +468,11 @@ export class AgnoClient extends EventEmitter {
         (chunk.content as string) || 'Error during run';
 
       this.state.errorMessage = errorContent;
-      this.messageStore.updateLastMessage((msg) => ({
-        ...msg,
-        streamingError: true,
-      }));
+      const lastMessage = this.messageStore.getLastMessage();
+      if (lastMessage?.role === 'agent') {
+        this.messageStore.removeLastMessages(1);
+      }
+      this.emit('message:update', this.messageStore.getMessages());
 
       // Remove the session if it was just created
       if (chunk.session_id) {
@@ -513,10 +514,11 @@ export class AgnoClient extends EventEmitter {
     this.state.isStreaming = false;
     this.state.errorMessage = error.message;
 
-    this.messageStore.updateLastMessage((msg) => ({
-      ...msg,
-      streamingError: true,
-    }));
+    const lastMessage = this.messageStore.getLastMessage();
+    if (lastMessage?.role === 'agent') {
+      this.messageStore.removeLastMessages(1);
+    }
+    this.emit('message:update', this.messageStore.getMessages());
 
     if (sessionId) {
       this.state.sessions = this.state.sessions.filter(
