@@ -14,16 +14,17 @@ import { AgnoChatSuggestedPrompts } from './suggested-prompts';
 import { useAgnoChatContext } from './context';
 import { cn } from '../../lib/cn';
 import { Bot } from 'lucide-react';
-import type { AgnoMessageItemClassNames, SuggestedPrompt } from '../../types';
+import type { AgnoMessageClassNames, AgnoMessageAvatars, AgnoMessageActions, SuggestedPrompt } from '../../types';
 
 export interface AgnoChatMessagesProps {
   className?: string;
   renderMessage?: (message: ChatMessage, index: number) => ReactNode;
 
-  /** Custom user avatar */
-  userAvatar?: ReactNode;
-  /** Custom assistant avatar */
-  assistantAvatar?: ReactNode;
+  /** Grouped avatar configuration */
+  avatars?: AgnoMessageAvatars;
+
+  /** Grouped action buttons configuration with visibility control */
+  actions?: AgnoMessageActions;
 
   // ── Message display options ────────────────────────────────────────
   /** Show reasoning steps (default: true) */
@@ -42,8 +43,6 @@ export interface AgnoChatMessagesProps {
   showImageLightbox?: boolean;
   /** Custom render for individual tool calls */
   renderToolCall?: (tool: ToolCall, index: number) => ReactNode;
-  /** Render action buttons below assistant messages (e.g., copy, like) */
-  renderActions?: (message: ChatMessage) => ReactNode;
   /** Custom render for the entire message content area */
   renderContent?: (message: ChatMessage) => ReactNode;
   /** Custom render for media sections */
@@ -51,7 +50,7 @@ export interface AgnoChatMessagesProps {
   /** Custom timestamp formatter */
   formatTimestamp?: (date: Date) => string;
   /** ClassNames override map for message item sections */
-  messageClassNames?: AgnoMessageItemClassNames;
+  messageClassNames?: AgnoMessageClassNames;
 
   // ── Empty state ──────────────────────────────────────────────────
   emptyState?: ReactNode;
@@ -89,8 +88,8 @@ const DEFAULT_PROMPTS: SuggestedPrompt[] = [
 export function AgnoChatMessages({
   className,
   renderMessage,
-  userAvatar,
-  assistantAvatar,
+  avatars,
+  actions,
   // Message display options
   showReasoning,
   showReferences,
@@ -100,7 +99,6 @@ export function AgnoChatMessages({
   showFilePreview,
   showImageLightbox,
   renderToolCall,
-  renderActions,
   renderContent,
   renderMedia,
   formatTimestamp,
@@ -117,6 +115,15 @@ export function AgnoChatMessages({
   const lastMessage = messages[messages.length - 1];
   const isThinking = showThinkingIndicator && isStreaming && (!lastMessage || lastMessage.role !== 'user') && !lastMessage?.content;
 
+  // Find the index of the last assistant message (for visibility logic)
+  let lastAssistantIndex = -1;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (messages[i].role !== 'user') {
+      lastAssistantIndex = i;
+      break;
+    }
+  }
+
   // Build message item props from direct props
   const messageItemProps: Partial<Omit<AgnoMessageItemProps, 'message'>> = {
     ...(showReasoning !== undefined && { showReasoning }),
@@ -127,7 +134,6 @@ export function AgnoChatMessages({
     ...(showFilePreview !== undefined && { showFilePreview }),
     ...(showImageLightbox !== undefined && { showImageLightbox }),
     ...(renderToolCall !== undefined && { renderToolCall }),
-    ...(renderActions !== undefined && { renderActions }),
     ...(renderContent !== undefined && { renderContent }),
     ...(renderMedia !== undefined && { renderMedia }),
     ...(formatTimestamp !== undefined && { formatTimestamp }),
@@ -171,8 +177,9 @@ export function AgnoChatMessages({
               <AgnoMessageItem
                 key={`msg-${index}-${message.created_at}`}
                 message={message}
-                userAvatar={userAvatar}
-                assistantAvatar={assistantAvatar}
+                avatars={avatars}
+                actions={actions}
+                isLastAssistantMessage={index === lastAssistantIndex}
                 {...messageItemProps}
               />
             );
@@ -181,7 +188,7 @@ export function AgnoChatMessages({
 
         {isThinking && (
           <div className="py-2">
-            {renderThinkingIndicator ?? <StreamingIndicator avatar={assistantAvatar} />}
+            {renderThinkingIndicator ?? <StreamingIndicator avatar={avatars?.assistant} />}
           </div>
         )}
       </ConversationContent>

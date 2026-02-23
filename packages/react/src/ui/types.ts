@@ -74,13 +74,38 @@ export type AudioConfig = {
   labels?: Record<string, string>;
 };
 
-export type AgnoMessageItemClassNames = {
+export type AgnoMessageAvatars = {
+  user?: ReactNode;
+  assistant?: ReactNode;
+};
+
+/** Controls when action buttons are visible */
+export type AgnoActionsVisibility =
+  | 'visible'              // Always visible on all messages
+  | 'hover'                // Show only on hover for all messages
+  | 'last-assistant'       // Only visible on the last assistant message (always shown)
+  | 'hover-last-visible';  // Hover on all messages + always visible on last assistant (Claude-like)
+
+export type AgnoMessageActions = {
+  /** Render action buttons for user messages */
+  user?: (message: import('@rodrigocoliveira/agno-types').ChatMessage) => ReactNode;
+  /** Render action buttons for assistant messages */
+  assistant?: (message: import('@rodrigocoliveira/agno-types').ChatMessage) => ReactNode;
+  /** When to show the action buttons (default: 'visible') */
+  visibility?: AgnoActionsVisibility;
+};
+
+export type AgnoMessageClassNames = {
   root?: string;
-  userBubble?: string;
-  assistantContainer?: string;
-  toolCalls?: string;
-  reasoning?: string;
-  references?: string;
-  media?: string;
-  actions?: string;
+  user?: {
+    bubble?: string;
+  };
+  assistant?: {
+    container?: string;
+    toolCalls?: string;
+    reasoning?: string;
+    references?: string;
+    media?: string;
+    actions?: string;
+  };
 };

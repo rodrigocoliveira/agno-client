@@ -17,7 +17,10 @@ export type {
   SuggestedPrompt,
   FileUploadConfig,
   AudioConfig,
-  AgnoMessageItemClassNames,
+  AgnoMessageClassNames,
+  AgnoMessageAvatars,
+  AgnoMessageActions,
+  AgnoActionsVisibility,
 } from './types';
 
 // ── Primitives ──────────────────────────────────────────────────────────────
