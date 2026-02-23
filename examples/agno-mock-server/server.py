@@ -47,8 +47,11 @@ agent_os = AgentOS(
     description="Demo server with agent and team examples",
     agents=[agent],
     teams=[team],
+    db=db,
     knowledge=[knowledge],  # Attach knowledge to AgentOS for the knowledge API
     tracing=True,  # Enable detailed tracing (uses setup_tracing db)
+    scheduler=True,
+    scheduler_poll_interval=15,  # seconds between poll cycles (default: 15)
 )
 
 app = agent_os.get_app()
