@@ -52,6 +52,10 @@ export function useAgnoChat() {
       // This handler can be used for additional cancellation logic if needed
     };
 
+    const handleSessionLoaded = () => {
+      setError(undefined);
+    };
+
     client.on('message:update', handleMessageUpdate);
     client.on('message:complete', handleMessageComplete);
     client.on('message:refreshed', handleMessageRefreshed);
@@ -59,6 +63,7 @@ export function useAgnoChat() {
     client.on('state:change', handleStateChange);
     client.on('ui:render', handleUIRender);
     client.on('run:cancelled', handleRunCancelled);
+    client.on('session:loaded', handleSessionLoaded);
 
     // Initialize state
     setMessages(client.getMessages());
@@ -72,6 +77,7 @@ export function useAgnoChat() {
       client.off('state:change', handleStateChange);
       client.off('ui:render', handleUIRender);
       client.off('run:cancelled', handleRunCancelled);
+      client.off('session:loaded', handleSessionLoaded);
     };
   }, [client]);
 

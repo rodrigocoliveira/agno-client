@@ -165,6 +165,7 @@ export class AgnoClient extends EventEmitter {
     this.messageStore.clear();
     this.configManager.setSessionId(undefined);
     this.pendingUISpecs.clear(); // Clear any pending UI specs to prevent memory leaks
+    this.state.errorMessage = undefined;
     this.emit('message:update', this.messageStore.getMessages());
     this.emit('state:change', this.getState());
   }
@@ -968,6 +969,7 @@ export class AgnoClient extends EventEmitter {
     Logger.debug('[AgnoClient] Setting messages to store:', `${messages.length} messages`);
     this.messageStore.setMessages(messages);
     this.configManager.setSessionId(sessionId);
+    this.state.errorMessage = undefined;
 
     Logger.debug('[AgnoClient] Emitting events...');
     this.emit('session:loaded', sessionId);
