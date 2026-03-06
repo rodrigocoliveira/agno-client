@@ -199,4 +199,19 @@ export interface ClientState {
    * Trace session statistics (from last fetchTraceSessionStats call)
    */
   traceSessionStats: import('./api').TraceSessionStats[];
+
+  /**
+   * Cached schedules
+   */
+  schedules: import('./api').ScheduleResponse[];
+
+  /**
+   * Cached approvals
+   */
+  approvals: import('./api').ApprovalResponse[];
+
+  /**
+   * Cached components
+   */
+  components: import('./api').ComponentResponse[];
 }
