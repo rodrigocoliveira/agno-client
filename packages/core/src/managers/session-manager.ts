@@ -532,15 +532,30 @@ export class SessionManager {
             } as any)
           : undefined;
 
-      // Detect error runs - backend stores error text as run.content
+      // Detect error runs — backend stores exception text as run.content
       // but the LLM never actually produced this output.
-      // Skip adding the agent message entirely for error runs —
+      // Skip adding the agent message entirely for error runs;
       // errors are shown via the error bar, not as chat bubbles.
-      const hasRunError = run.events?.some(
+      //
+      // Three layers of detection (any one triggers skip):
+      //  1. run.status === 'error'  – explicit status from backend (strongest signal)
+      //  2. RunError/TeamRunError in events – standard error event
+      //  3. events array missing/empty AND content exists – exception fired
+      //     before any events were emitted (e.g. pre-hook or early init failure)
+      const hasErrorStatus =
+        typeof run.status === 'string' &&
+        run.status.toLowerCase() === 'error';
+
+      const hasRunErrorEvent = run.events?.some(
         (e) => e.event === 'RunError' || e.event === 'TeamRunError'
       );
 
-      if (!hasRunError) {
+      const hasNoEvents = !run.events || run.events.length === 0;
+      const suspectedEarlyError = hasNoEvents && !!contentStr;
+
+      const isErrorRun = hasErrorStatus || hasRunErrorEvent || suspectedEarlyError;
+
+      if (!isErrorRun) {
         // Add agent response message
         messages.push({
           role: 'agent',
