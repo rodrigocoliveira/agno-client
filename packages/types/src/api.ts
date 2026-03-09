@@ -122,6 +122,8 @@ export interface RunSchema {
   messages?: Array<Record<string, unknown>> | null;
   tools?: Array<Record<string, unknown>> | null;
   events?: Array<Record<string, unknown>> | null;
+  /** Run status set by backend (e.g. "completed", "error", "paused", "cancelled") */
+  status?: string | null;
   created_at?: string | null;
   references?: Array<Record<string, unknown>> | null;
   reasoning_messages?: Array<Record<string, unknown>> | null;
@@ -149,6 +151,8 @@ export interface TeamRunSchema {
   tools?: Array<Record<string, unknown>> | null;
   messages?: Array<Record<string, unknown>> | null;
   events?: Array<Record<string, unknown>> | null;
+  /** Run status set by backend (e.g. "completed", "error", "paused", "cancelled") */
+  status?: string | null;
   created_at?: string | null;
   references?: Array<Record<string, unknown>> | null;
   reasoning_messages?: Array<Record<string, unknown>> | null;
