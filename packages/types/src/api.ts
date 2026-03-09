@@ -1288,3 +1288,337 @@ export interface DeleteEvalRunsRequest {
   /** List of evaluation run IDs to delete (min 1 item) */
   eval_run_ids: string[];
 }
+
+// ============================================================================
+// Schedules API Types
+// ============================================================================
+
+/**
+ * Parameters for listing schedules
+ */
+export interface ListSchedulesParams {
+  enabled?: boolean;
+  limit?: number;
+  page?: number;
+}
+
+/**
+ * Parameters for listing schedule runs
+ */
+export interface ListScheduleRunsParams {
+  limit?: number;
+  page?: number;
+}
+
+/**
+ * Request body for creating a schedule
+ */
+export interface ScheduleCreate {
+  name: string;
+  cron_expr: string;
+  endpoint: string;
+  description?: string | null;
+  payload?: Record<string, unknown> | null;
+  method?: string;
+  timezone?: string;
+  timeout_seconds?: number;
+  max_retries?: number;
+  retry_delay_seconds?: number;
+}
+
+/**
+ * Request body for updating a schedule
+ */
+export interface ScheduleUpdate {
+  name?: string;
+  cron_expr?: string;
+  endpoint?: string;
+  description?: string | null;
+  payload?: Record<string, unknown> | null;
+  method?: string;
+  timezone?: string;
+  timeout_seconds?: number;
+  max_retries?: number;
+  retry_delay_seconds?: number;
+}
+
+/**
+ * Schedule response from the API
+ * Timestamps are Unix epoch integers (seconds)
+ */
+export interface ScheduleResponse {
+  id: string;
+  name: string;
+  cron_expr: string;
+  endpoint: string;
+  description?: string | null;
+  method: string;
+  payload?: Record<string, unknown> | null;
+  timezone: string;
+  timeout_seconds: number;
+  max_retries: number;
+  retry_delay_seconds: number;
+  enabled: boolean;
+  next_run_at?: number | null;
+  created_at?: number | null;
+  updated_at?: number | null;
+}
+
+/**
+ * Schedule state response (enable/disable)
+ * Timestamps are Unix epoch integers (seconds)
+ */
+export interface ScheduleStateResponse {
+  id: string;
+  name: string;
+  enabled: boolean;
+  next_run_at?: number | null;
+  updated_at?: number | null;
+}
+
+/**
+ * Schedule run status
+ * Matches backend: running, success, failed, paused, timeout
+ */
+export type ScheduleRunStatus = 'running' | 'success' | 'failed' | 'paused' | 'timeout';
+
+/**
+ * Schedule run response
+ * Timestamps are Unix epoch integers (seconds)
+ */
+export interface ScheduleRunResponse {
+  id: string;
+  schedule_id: string;
+  attempt: number;
+  triggered_at?: number | null;
+  completed_at?: number | null;
+  status: string;
+  status_code?: number | null;
+  run_id?: string | null;
+  session_id?: string | null;
+  error?: string | null;
+  input?: Record<string, unknown> | null;
+  output?: Record<string, unknown> | null;
+  requirements?: Record<string, unknown>[] | null;
+  created_at?: number | null;
+}
+
+/**
+ * Paginated list of schedules
+ */
+export interface SchedulesListResponse {
+  data: ScheduleResponse[];
+  meta: PaginationInfo;
+}
+
+/**
+ * Paginated list of schedule runs
+ */
+export interface ScheduleRunsListResponse {
+  data: ScheduleRunResponse[];
+  meta: PaginationInfo;
+}
+
+// ============================================================================
+// Approvals API Types
+// ============================================================================
+
+export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'expired' | 'cancelled';
+export type ApprovalSourceType = 'agent' | 'team' | 'workflow';
+export type ApprovalPauseType = 'confirmation' | 'user_input' | 'external_execution';
+export type ApprovalRunStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'PAUSED' | 'CANCELLED' | 'ERROR';
+
+/**
+ * Parameters for listing approvals
+ */
+export interface ListApprovalsParams {
+  status?: ApprovalStatus;
+  source_type?: ApprovalSourceType;
+  approval_type?: string;
+  pause_type?: ApprovalPauseType;
+  agent_id?: string;
+  team_id?: string;
+  workflow_id?: string;
+  user_id?: string;
+  schedule_id?: string;
+  run_id?: string;
+  limit?: number;
+  page?: number;
+}
+
+/**
+ * Approval response from the API
+ * Timestamps are Unix epoch integers (seconds)
+ */
+export interface ApprovalResponse {
+  id: string;
+  run_id: string;
+  session_id: string;
+  status: string;
+  source_type: string;
+  approval_type?: string | null;
+  pause_type?: string | null;
+  tool_name?: string | null;
+  tool_args?: Record<string, unknown> | null;
+  expires_at?: number | null;
+  agent_id?: string | null;
+  team_id?: string | null;
+  workflow_id?: string | null;
+  user_id?: string | null;
+  schedule_id?: string | null;
+  schedule_run_id?: string | null;
+  source_name?: string | null;
+  requirements?: Record<string, unknown>[] | null;
+  context?: Record<string, unknown> | null;
+  resolution_data?: Record<string, unknown> | null;
+  resolved_by?: string | null;
+  resolved_at?: number | null;
+  created_at?: number | null;
+  updated_at?: number | null;
+  run_status?: ApprovalRunStatus | null;
+}
+
+/**
+ * Request body for resolving an approval
+ */
+export interface ApprovalResolve {
+  status: 'approved' | 'rejected';
+  resolved_by?: string | null;
+  resolution_data?: Record<string, unknown> | null;
+}
+
+/**
+ * Approval count response
+ */
+export interface ApprovalCountResponse {
+  count: number;
+}
+
+/**
+ * Approval status response
+ * Timestamps are Unix epoch integers (seconds)
+ */
+export interface ApprovalStatusResponse {
+  approval_id: string;
+  status: string;
+  run_id: string;
+  resolved_at?: number | null;
+  resolved_by?: string | null;
+}
+
+/**
+ * Paginated list of approvals
+ * Note: Backend uses its own pagination shape (not PaginatedResponse)
+ */
+export interface ApprovalsListResponse {
+  approvals: ApprovalResponse[];
+  total: number;
+  limit: number;
+  page: number;
+}
+
+// ============================================================================
+// Components API Types
+// ============================================================================
+
+export type ComponentType = 'agent' | 'team' | 'workflow';
+
+/**
+ * Parameters for listing components
+ */
+export interface ListComponentsParams {
+  component_type?: ComponentType;
+  limit?: number;
+  page?: number;
+}
+
+/**
+ * Request body for creating a component
+ * Default: stage="draft", set_current=true
+ */
+export interface ComponentCreate {
+  name: string;
+  component_id?: string;
+  component_type: ComponentType;
+  description?: string | null;
+  metadata?: Record<string, unknown> | null;
+  config?: Record<string, unknown> | null;
+  label?: string | null;
+  stage?: string;
+  notes?: string | null;
+  set_current?: boolean;
+}
+
+/**
+ * Request body for updating a component
+ */
+export interface ComponentUpdate {
+  name?: string;
+  description?: string | null;
+  component_type?: ComponentType;
+  metadata?: Record<string, unknown> | null;
+  current_version?: number;
+}
+
+/**
+ * Component response from the API
+ * Timestamps are Unix epoch integers (seconds)
+ */
+export interface ComponentResponse {
+  component_id: string;
+  component_type: ComponentType;
+  name?: string | null;
+  description?: string | null;
+  current_version?: number | null;
+  metadata?: Record<string, unknown> | null;
+  created_at: number;
+  updated_at?: number | null;
+}
+
+/**
+ * Request body for creating a config version
+ * Default: stage="draft", set_current=true
+ */
+export interface ConfigCreate {
+  config: Record<string, unknown>;
+  version?: number;
+  label?: string | null;
+  stage?: string;
+  notes?: string | null;
+  links?: Record<string, unknown>[] | null;
+  set_current?: boolean;
+}
+
+/**
+ * Request body for updating a config version
+ */
+export interface ConfigUpdate {
+  config?: Record<string, unknown> | null;
+  label?: string | null;
+  stage?: string | null;
+  notes?: string | null;
+  links?: Record<string, unknown>[] | null;
+}
+
+/**
+ * Component config version response
+ * Timestamps are Unix epoch integers (seconds)
+ */
+export interface ComponentConfigResponse {
+  component_id: string;
+  version: number;
+  label?: string | null;
+  stage: string;
+  config: Record<string, unknown>;
+  notes?: string | null;
+  created_at: number;
+  updated_at?: number | null;
+}
+
+/**
+ * Paginated list of components
+ */
+export interface ComponentsListResponse {
+  data: ComponentResponse[];
+  meta: PaginationInfo;
+}
