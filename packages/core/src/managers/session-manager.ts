@@ -32,7 +32,9 @@ export class SessionManager {
     const url = new URL(`${endpoint}/sessions`);
     url.searchParams.set('type', entityType);
     url.searchParams.set('component_id', entityId);
-    url.searchParams.set('db_id', dbId);
+    if (dbId) {
+      url.searchParams.set('db_id', dbId);
+    }
 
     // Merge additional params if provided
     if (params) {
