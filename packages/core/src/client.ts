@@ -2714,7 +2714,7 @@ export class AgnoClient extends EventEmitter {
       return this.approvalManager.fetchApprovals(config.endpoint, headers, queryParams, params);
     });
 
-    this.state.approvals = response.approvals;
+    this.state.approvals = response.data;
     this.emit('state:change', this.getState());
 
     return response;

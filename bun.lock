@@ -10,6 +10,14 @@
         "typescript": "^5.3.3",
       },
     },
+    "examples/agno-mock-server": {
+      "name": "@rodrigocoliveira/agno-mock-server-examples",
+      "version": "0.0.0",
+      "dependencies": {
+        "@rodrigocoliveira/agno-client": "workspace:*",
+        "@rodrigocoliveira/agno-types": "workspace:*",
+      },
+    },
     "examples/react-chat": {
       "name": "@rodrigocoliveira/agno-react-example",
       "version": "0.1.0",
@@ -91,7 +99,7 @@
     },
     "packages/core": {
       "name": "@rodrigocoliveira/agno-client",
-      "version": "1.0.3",
+      "version": "1.1.0",
       "dependencies": {
         "@rodrigocoliveira/agno-types": "workspace:*",
         "eventemitter3": "^5.0.1",
@@ -102,7 +110,7 @@
     },
     "packages/react": {
       "name": "@rodrigocoliveira/agno-react",
-      "version": "1.0.3",
+      "version": "1.1.0",
       "dependencies": {
         "@rodrigocoliveira/agno-client": "workspace:*",
         "@rodrigocoliveira/agno-types": "workspace:*",
@@ -173,7 +181,7 @@
     },
     "packages/types": {
       "name": "@rodrigocoliveira/agno-types",
-      "version": "1.0.3",
+      "version": "1.1.0",
       "devDependencies": {
         "typescript": "^5.3.3",
       },
@@ -491,6 +499,8 @@
     "@radix-ui/rect": ["@radix-ui/rect@1.1.1", "", {}, "sha512-HPwpGIzkl28mWyZqG52jiqDJ12waP11Pa1lGoiyUkIEuMLBP0oeK/C89esbXrxsky5we7dfd8U58nm0SgAWpVw=="],
 
     "@rodrigocoliveira/agno-client": ["@rodrigocoliveira/agno-client@workspace:packages/core"],
+
+    "@rodrigocoliveira/agno-mock-server-examples": ["@rodrigocoliveira/agno-mock-server-examples@workspace:examples/agno-mock-server"],
 
     "@rodrigocoliveira/agno-react": ["@rodrigocoliveira/agno-react@workspace:packages/react"],
 
