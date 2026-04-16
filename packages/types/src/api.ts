@@ -1512,13 +1512,10 @@ export interface ApprovalStatusResponse {
 
 /**
  * Paginated list of approvals
- * Note: Backend uses its own pagination shape (not PaginatedResponse)
  */
 export interface ApprovalsListResponse {
-  approvals: ApprovalResponse[];
-  total: number;
-  limit: number;
-  page: number;
+  data: ApprovalResponse[];
+  meta: PaginationInfo;
 }
 
 // ============================================================================

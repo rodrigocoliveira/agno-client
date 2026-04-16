@@ -47,7 +47,10 @@ export class ApprovalManager {
 
     if (!response.ok) {
       if (response.status === 404) {
-        return { approvals: [], total: 0, limit: 100, page: 1 };
+        return {
+          data: [],
+          meta: { page: 1, limit: 100, total_pages: 0, total_count: 0, search_time_ms: 0 },
+        };
       }
       throw new Error(`Failed to fetch approvals: ${response.statusText}`);
     }
