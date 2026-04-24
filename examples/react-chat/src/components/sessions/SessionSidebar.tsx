@@ -12,25 +12,21 @@ export function SessionSidebar() {
   const handleFetchSessions = async () => {
     try {
       await fetchSessions()
-      toast.success('Sessions refreshed')
     } catch (err) {
-      toast.error('Failed to fetch sessions')
+      console.error(err)
     }
   }
 
   const handleLoadSession = async (sessionId: string) => {
     try {
       await loadSession(sessionId)
-      toast.success('Session loaded')
     } catch (err) {
       console.error(err)
-      toast.error('Failed to load session')
     }
   }
 
   const handleNewChat = () => {
     clearMessages()
-    toast.success('Started new chat')
   }
 
   const formatDate = (dateStr: string) => {
