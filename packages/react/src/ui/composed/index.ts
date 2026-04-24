@@ -12,7 +12,6 @@ export {
   AgnoChatMessages,
   AgnoChatEmptyState,
   AgnoChatSuggestedPrompts,
-  AgnoChatToolStatus,
   AgnoChatErrorBar,
   AgnoChatInputArea,
 } from './agno-chat';
@@ -23,7 +22,6 @@ export type {
   AgnoChatMessagesProps,
   AgnoChatEmptyStateProps,
   AgnoChatSuggestedPromptsProps,
-  AgnoChatToolStatusProps,
   AgnoChatErrorBarProps,
   AgnoChatInputAreaProps,
   AgnoChatInputRenderProps,
