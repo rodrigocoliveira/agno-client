@@ -6,7 +6,7 @@ import { AgnoChatToolStatus } from './tool-status';
 import { AgnoChatErrorBar } from './error-bar';
 import { AgnoChatInputArea } from './input';
 
-// Re-export context hook and type
+// Re-export context hook and types
 export { useAgnoChatContext } from './context';
 export type { AgnoChatContextValue } from './context';
 

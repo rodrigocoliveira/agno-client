@@ -16,8 +16,11 @@ export type {
   ChatStatus,
   SuggestedPrompt,
   FileUploadConfig,
-  AgnoChatInterfaceClassNames,
-  AgnoMessageItemClassNames,
+  AudioConfig,
+  AgnoMessageClassNames,
+  AgnoMessageAvatars,
+  AgnoMessageActions,
+  AgnoActionsVisibility,
 } from './types';
 
 // ── Primitives ──────────────────────────────────────────────────────────────
@@ -286,9 +289,6 @@ export type {
 } from './components/prompt-input';
 
 // ── Composed Components ─────────────────────────────────────────────────────
-
-export { AgnoChatInterface } from './composed/AgnoChatInterface';
-export type { AgnoChatInterfaceProps } from './composed/AgnoChatInterface';
 
 export { AgnoMessageItem } from './composed/AgnoMessageItem';
 export type { AgnoMessageItemProps } from './composed/AgnoMessageItem';

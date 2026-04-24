@@ -862,13 +862,13 @@ class ShopAgent(Agent):
 ### 1. Build Test
 
 ```bash
-pnpm build  # All packages compile
+bun run build  # All packages compile
 ```
 
 ### 2. Type Check
 
 ```bash
-pnpm typecheck  # No type errors
+bun run typecheck  # No type errors
 ```
 
 ### 3. Integration Test

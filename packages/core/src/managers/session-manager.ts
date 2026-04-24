@@ -32,7 +32,9 @@ export class SessionManager {
     const url = new URL(`${endpoint}/sessions`);
     url.searchParams.set('type', entityType);
     url.searchParams.set('component_id', entityId);
-    url.searchParams.set('db_id', dbId);
+    if (dbId) {
+      url.searchParams.set('db_id', dbId);
+    }
 
     // Merge additional params if provided
     if (params) {
@@ -482,6 +484,7 @@ export class SessionManager {
           const toolCall = {
             role: 'tool' as const,
             content: (toolObj.content as string) ?? '',
+            result: (toolObj.result as string) ?? undefined,
             tool_call_id: (toolObj.tool_call_id as string) ?? '',
             tool_name: (toolObj.tool_name as string) ?? '',
             tool_args: (toolObj.tool_args as Record<string, string>) ?? {},
@@ -532,18 +535,43 @@ export class SessionManager {
             } as any)
           : undefined;
 
-      // Add agent response message
-      messages.push({
-        role: 'agent',
-        content: contentStr,
-        tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
-        extra_data: extraData,
-        images: run.images as any,
-        videos: run.videos as any,
-        audio: run.audio as any,
-        response_audio: run.response_audio as any,
-        created_at: timestamp + 1, // Agent response is slightly after user message
-      });
+      // Detect error runs — backend stores exception text as run.content
+      // but the LLM never actually produced this output.
+      // Skip adding the agent message entirely for error runs;
+      // errors are shown via the error bar, not as chat bubbles.
+      //
+      // Three layers of detection (any one triggers skip):
+      //  1. run.status === 'error'  – explicit status from backend (strongest signal)
+      //  2. RunError/TeamRunError in events – standard error event
+      //  3. events array missing/empty AND content exists – exception fired
+      //     before any events were emitted (e.g. pre-hook or early init failure)
+      const hasErrorStatus =
+        typeof run.status === 'string' &&
+        run.status.toLowerCase() === 'error';
+
+      const hasRunErrorEvent = run.events?.some(
+        (e) => e.event === 'RunError' || e.event === 'TeamRunError'
+      );
+
+      const hasNoEvents = !run.events || run.events.length === 0;
+      const suspectedEarlyError = hasNoEvents && !!contentStr;
+
+      const isErrorRun = hasErrorStatus || hasRunErrorEvent || suspectedEarlyError;
+
+      if (!isErrorRun) {
+        // Add agent response message
+        messages.push({
+          role: 'agent',
+          content: contentStr,
+          tool_calls: toolCalls.length > 0 ? toolCalls : undefined,
+          extra_data: extraData,
+          images: run.images as any,
+          videos: run.videos as any,
+          audio: run.audio as any,
+          response_audio: run.response_audio as any,
+          created_at: timestamp + 1, // Agent response is slightly after user message
+        });
+      }
     }
 
     return messages;

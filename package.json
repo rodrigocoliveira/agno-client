@@ -10,15 +10,14 @@
     "examples/*"
   ],
   "scripts": {
-    "build": "pnpm -r --filter './packages/*' build",
-    "dev": "pnpm -r --parallel --filter './packages/*' dev",
-    "clean": "pnpm -r exec rm -rf dist node_modules",
-    "typecheck": "pnpm -r --filter './packages/*' typecheck"
+    "build": "bun run --cwd packages/types build && bun run --cwd packages/core build && bun run --cwd packages/react build",
+    "dev": "bun run --filter './packages/*' dev",
+    "clean": "rm -rf packages/*/dist packages/*/node_modules node_modules bun.lock",
+    "typecheck": "bun run --filter './packages/*' typecheck"
   },
   "devDependencies": {
     "@types/node": "^20.10.0",
     "shadcn": "^3.5.0",
     "typescript": "^5.3.3"
-  },
-  "packageManager": "pnpm@9.15.0"
+  }
 }

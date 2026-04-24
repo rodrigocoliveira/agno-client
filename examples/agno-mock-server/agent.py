@@ -13,6 +13,7 @@ This example demonstrates all the generative UI capabilities:
 from agno.agent import Agent
 from agno.tools import tool
 from agno.models.openai import OpenAIChat
+from agno.models.anthropic import Claude
 from agno.knowledge.knowledge import Knowledge
 from agno.knowledge.embedder.openai import OpenAIEmbedder
 from agno.vectordb.lancedb import LanceDb, SearchType
@@ -302,6 +303,17 @@ def show_alert(content: str):
     """
     pass
 
+@tool(external_execution=True)
+def ask_user_question(question: str):
+    """
+    Ask the user a question and wait for their answer on the frontend.
+    Use this whenever you need information from the user before proceeding.
+
+    Args:
+        question: The question to ask the user
+    """
+    pass
+
 # ============================================================================
 # KNOWLEDGE BASE CONFIGURATION
 # ============================================================================
@@ -354,12 +366,10 @@ def create_agent(db, knowledge=None):
             render_dashboard,
             render_visualization,
             show_alert,
-            # ReasoningTools(add_instructions=True)
+            ask_user_question,
+            ReasoningTools(add_instructions=True)
         ],
-        reasoning=True,
-        
-        
-        model=OpenAIChat(id="gpt-4o-mini"),
+        model=Claude(id="claude-sonnet-4-20250514"),
         description="AI assistant that demonstrates generative UI capabilities with interactive charts, cards, tables, and visualizations.",
         instructions=[
             "You are a helpful AI assistant that creates beautiful, interactive visualizations.",
@@ -378,12 +388,15 @@ def create_agent(db, knowledge=None):
             "The render_* tools execute on the FRONTEND and create interactive UI components.",
             "Always explain what you're showing and offer to adjust the visualization.",
             "",
+            "You also have ask_user_question available. Use it whenever you need a specific piece",
+            "of information from the user before you can proceed (e.g. their name, a preference,",
+            "a date range). Ask one focused question at a time.",
+            "",
             "You also have access to a knowledge base. When users ask about uploaded documents,",
             "search the knowledge base to find relevant information.",
-            # "IMPORTANT: ALWAYS USE YOUR REASONING TOOLS BEFORE ANSWERING",
         ],
         add_history_to_context=True,
         markdown=True,
-        debug_mode=True,
-        debug_level=2,
+        # debug_mode=True,
+        # debug_level=2,
     )

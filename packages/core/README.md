@@ -411,10 +411,10 @@ To publish this package to npm:
 npm login
 
 # Build the package
-pnpm build
+bun run build
 
 # Publish (use --access public for scoped packages)
-pnpm publish --access public
+npm publish --access public
 ```
 
 **Publish order:** This package depends on `@rodrigocoliveira/agno-types`, so publish types first:

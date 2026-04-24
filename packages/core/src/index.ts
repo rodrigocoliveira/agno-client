@@ -86,6 +86,38 @@ export type {
   GetTraceOptions,
   GetTraceSessionStatsOptions,
   PaginationInfo,
+  // Schedules types
+  ListSchedulesParams,
+  ListScheduleRunsParams,
+  ScheduleCreate,
+  ScheduleUpdate,
+  ScheduleResponse,
+  ScheduleStateResponse,
+  ScheduleRunStatus,
+  ScheduleRunResponse,
+  SchedulesListResponse,
+  ScheduleRunsListResponse,
+  // Approvals types
+  ApprovalStatus,
+  ApprovalSourceType,
+  ApprovalPauseType,
+  ApprovalRunStatus,
+  ListApprovalsParams,
+  ApprovalResponse,
+  ApprovalResolve,
+  ApprovalCountResponse,
+  ApprovalStatusResponse,
+  ApprovalsListResponse,
+  // Components types
+  ComponentType,
+  ListComponentsParams,
+  ComponentCreate,
+  ComponentUpdate,
+  ComponentResponse,
+  ConfigCreate,
+  ConfigUpdate,
+  ComponentConfigResponse,
+  ComponentsListResponse,
 } from '@rodrigocoliveira/agno-types';
 
 export { RunEvent } from '@rodrigocoliveira/agno-types';

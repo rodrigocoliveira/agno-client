@@ -94,6 +94,38 @@ export interface AgnoClientConfig {
    * Default: false
    */
   streamMemberEvents?: boolean;
+
+  /**
+   * How to react to custom events that may carry session_state updates from the backend.
+   *
+   * Yield a `CustomEvent` dataclass with a `session_state` field from a tool and the client
+   * will pick it up automatically — no REST round-trip, live mid-run updates.
+   *
+   * - `true` (default): any `CustomEvent` chunk with a `session_state` field updates the cache.
+   * - `false`: disables auto-extraction. `custom:event` still fires for `useAgnoCustomEvents`.
+   * - `(event) => Record<string, unknown> | null`: custom extractor for non-standard conventions.
+   *
+   * Recommended backend convention:
+   * ```python
+   * from dataclasses import dataclass
+   * from agno.run.agent import CustomEvent
+   *
+   * @dataclass
+   * class SessionStateUpdatedEvent(CustomEvent):
+   *     session_state: Optional[Dict[str, Any]] = None
+   * ```
+   */
+  extractSessionStateFromCustomEvent?:
+    | boolean
+    | ((event: import('./api').CustomEventData) => Record<string, unknown> | null | undefined);
+
+  /**
+   * Whether the client should refresh `sessionState` from `GET /sessions/{id}` when
+   * a team stream ends. Required because `TeamRunCompleted` does not carry `session_state`
+   * over the wire (verified against Agno 2.5.17 and 2.6.0). Has no effect on agent runs.
+   * Default: true
+   */
+  refreshTeamSessionStateOnStreamEnd?: boolean;
 }
 
 /**
@@ -199,4 +231,33 @@ export interface ClientState {
    * Trace session statistics (from last fetchTraceSessionStats call)
    */
   traceSessionStats: import('./api').TraceSessionStats[];
+
+  /**
+   * Cached schedules
+   */
+  schedules: import('./api').ScheduleResponse[];
+
+  /**
+   * Cached approvals
+   */
+  approvals: import('./api').ApprovalResponse[];
+
+  /**
+   * Cached components
+   */
+  components: import('./api').ComponentResponse[];
+
+  /**
+   * Current session state (backend-managed per-session dict the agent/team reads and writes).
+   * Populated by: (a) parallel `getSessionById()` when a session is loaded,
+   * (b) `session_state` field on `RunCompleted` chunks for agent runs,
+   * (c) `session_state` field on custom events when extraction is enabled,
+   * (d) a post-stream `refreshSessionState()` call for team runs.
+   */
+  sessionState?: Record<string, unknown> | null;
+
+  /**
+   * Whether a session_state refresh is currently in flight (e.g., post-team-run sync).
+   */
+  isSessionStateRefreshing?: boolean;
 }

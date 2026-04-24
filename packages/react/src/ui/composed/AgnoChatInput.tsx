@@ -24,11 +24,18 @@ import type { AudioRecorderLabels } from '../components/audio-recorder';
 import { Button } from '../primitives/button';
 import { CircleStop } from 'lucide-react';
 import { cn } from '../lib/cn';
-import type { ChatStatus, FileUploadConfig } from '../types';
+import type { AudioConfig, ChatStatus, FileUploadConfig } from '../types';
 import type { ReactNode, RefObject } from 'react';
 
 const DEFAULT_ACCEPTED_FILE_TYPES =
   'image/*,audio/*,.pdf,.doc,.docx,.txt,.csv,.xlsx,.xls,.ppt,.pptx,.md,.json,.xml';
+
+/** Normalize `audio` prop: `true` → default config, `false`/`undefined` → undefined */
+function normalizeAudio(audio: AudioConfig | boolean | undefined): AudioConfig | undefined {
+  if (audio === true) return { enabled: true };
+  if (!audio) return undefined;
+  return audio;
+}
 
 export interface AgnoChatInputProps {
   onSend: (message: string | FormData) => void;
@@ -37,8 +44,15 @@ export interface AgnoChatInputProps {
   className?: string;
   /** File upload configuration */
   fileUpload?: FileUploadConfig;
-  /** Show audio recorder button (default: false) */
-  showAudioRecorder?: boolean;
+  /**
+   * Audio recording/transcription configuration.
+   * Pass `true` for send-mode defaults, or an `AudioConfig` object.
+   *
+   * @example
+   * audio={true}
+   * audio={{ enabled: true, mode: 'transcribe', endpoint: 'http://...' }}
+   */
+  audio?: AudioConfig | boolean;
   /** Show attachments button (default: true) */
   showAttachments?: boolean;
   /** Override chat status for submit button icon */
@@ -51,18 +65,6 @@ export interface AgnoChatInputProps {
   allowCancelRun?: boolean;
   /** Extra tools to add to the toolbar */
   extraTools?: ReactNode;
-  /** Audio mode: 'send' sends blob immediately, 'transcribe' transcribes and adds text to input */
-  audioMode?: 'send' | 'transcribe';
-  /** Transcription endpoint URL (required when audioMode='transcribe') */
-  transcriptionEndpoint?: string;
-  /** Extra headers for transcription request */
-  transcriptionHeaders?: Record<string, string>;
-  /** Custom parser for the transcription response — receives the parsed JSON and returns the text */
-  parseTranscriptionResponse?: (data: unknown) => string;
-  /** Async callback to request microphone permission before recording (e.g., for WebView bridges) */
-  onRequestPermission?: () => Promise<boolean>;
-  /** Custom labels for the audio recorder button (useful for i18n) */
-  audioRecorderLabels?: AudioRecorderLabels;
   /** Ref to a container element for rendering the drop zone overlay via portal */
   dropZoneContainerRef?: RefObject<HTMLElement | null>;
   /** Props forwarded to PromptInputDropZone (className, label) */
@@ -157,22 +159,20 @@ export function AgnoChatInput({
   placeholder,
   className,
   fileUpload,
-  showAudioRecorder = false,
+  audio,
   showAttachments = true,
   status,
   isStreaming,
   onCancel,
   allowCancelRun = false,
   extraTools,
-  audioMode = 'send',
-  transcriptionEndpoint,
-  transcriptionHeaders,
-  parseTranscriptionResponse,
-  onRequestPermission,
-  audioRecorderLabels,
   dropZoneContainerRef,
   dropZoneProps,
 }: AgnoChatInputProps) {
+  const resolvedAudio = normalizeAudio(audio);
+  const audioEnabled = resolvedAudio?.enabled ?? false;
+  const audioMode = resolvedAudio?.mode ?? 'send';
+
   const handleSubmit = (message: PromptInputMessage) => {
     const text = message.text?.trim() || '';
     const files = message.files || [];
@@ -237,18 +237,23 @@ export function AgnoChatInput({
                 </PromptInputActionMenuContent>
               </PromptInputActionMenu>
             )}
-            {showAudioRecorder &&
-              (audioMode === 'transcribe' && transcriptionEndpoint ? (
+            {audioEnabled &&
+              (audioMode === 'transcribe' && resolvedAudio?.endpoint ? (
                 <TranscribeAudioRecorder
-                  endpoint={transcriptionEndpoint}
-                  headers={transcriptionHeaders}
+                  endpoint={resolvedAudio.endpoint}
+                  headers={resolvedAudio.headers}
                   disabled={disabled}
-                  parseResponse={parseTranscriptionResponse}
-                  onRequestPermission={onRequestPermission}
-                  labels={audioRecorderLabels}
+                  parseResponse={resolvedAudio.parseResponse}
+                  onRequestPermission={resolvedAudio.requestPermission}
+                  labels={resolvedAudio.labels as AudioRecorderLabels | undefined}
                 />
               ) : (
-                <AudioRecorder onRecordingComplete={handleAudioRecording} disabled={disabled} onRequestPermission={onRequestPermission} labels={audioRecorderLabels} />
+                <AudioRecorder
+                  onRecordingComplete={handleAudioRecording}
+                  disabled={disabled}
+                  onRequestPermission={resolvedAudio?.requestPermission}
+                  labels={resolvedAudio?.labels as AudioRecorderLabels | undefined}
+                />
               ))}
             {extraTools}
           </PromptInputTools>

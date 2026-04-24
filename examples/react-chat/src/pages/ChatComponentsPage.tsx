@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { AgnoChat } from '@rodrigocoliveira/agno-react/ui'
-import type { ToolHandler } from '@rodrigocoliveira/agno-react'
+import type { ToolHandler, ToolResultRenderer } from '@rodrigocoliveira/agno-react'
 import { SessionSidebar } from '@/components/sessions/SessionSidebar'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -8,6 +8,7 @@ import { PanelLeftClose, PanelLeftOpen, Zap, Brain, Code2, Sparkles, Rocket, Cat
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { EXAMPLE_GENERATIVE_TOOLS } from '@/tools/exampleGenerativeTools'
+import { AskUserQuestionModal, AnswerBubble } from '@/tools/askUserQuestion'
 
 const SUGGESTED_PROMPTS = [
   { icon: <Zap className="h-3.5 w-3.5" />, text: "What can you help me with?" },
@@ -16,20 +17,51 @@ const SUGGESTED_PROMPTS = [
   { icon: <Sparkles className="h-3.5 w-3.5" />, text: "Surprise me with something creative" },
 ]
 
-const toolHandlers: Record<string, ToolHandler> = {
-  show_alert: async (args: Record<string, any>) => {
-    const content = args.content as string
-    toast.info('Alert from Agent', { description: content })
-    return { success: true, message: 'Alert displayed successfully', content }
-  },
-  ...EXAMPLE_GENERATIVE_TOOLS,
-}
-
-export function ChatComposedPage() {
+export function ChatComponentsPage() {
   const [showSessionSidebar, setShowSessionSidebar] = useState(true)
+
+  // ask_user_question HITL state
+  const [pendingQuestion, setPendingQuestion] = useState<string | null>(null)
+  const resolveRef = useRef<((answer: string) => void) | null>(null)
+
+  const askUserQuestionHandler: ToolHandler = useCallback(async (args) => {
+    const question = (args.question ?? args.questions ?? '') as string
+    setPendingQuestion(question)
+    const answer = await new Promise<string>((resolve) => {
+      resolveRef.current = resolve
+    })
+    setPendingQuestion(null)
+    return answer
+  }, [])
+
+  const handleModalSubmit = useCallback((answer: string) => {
+    resolveRef.current?.(answer)
+    resolveRef.current = null
+  }, [])
+
+  const toolHandlers: Record<string, ToolHandler> = {
+    show_alert: async (args: Record<string, any>) => {
+      const content = args.content as string
+      toast.info('Alert from Agent', { description: content })
+      return { success: true, message: 'Alert displayed successfully', content }
+    },
+    ask_user_question: askUserQuestionHandler,
+    ...EXAMPLE_GENERATIVE_TOOLS,
+  }
+
+  const toolResultRenderers: Record<string, ToolResultRenderer> = {
+    ask_user_question: (args, content) => (
+      <AnswerBubble question={(args.question ?? '') as string} answer={content} />
+    ),
+  }
 
   return (
     <div className="flex h-full overflow-hidden">
+      {/* ask_user_question modal — rendered outside AgnoChat so it overlays everything */}
+      {pendingQuestion !== null && (
+        <AskUserQuestionModal question={pendingQuestion} onSubmit={handleModalSubmit} />
+      )}
+
       {/* Session Sidebar - Left (animated width) */}
       <div className={cn(
         "border-r border-border flex flex-col bg-muted/30 transition-all duration-300 ease-in-out overflow-hidden",
@@ -68,25 +100,26 @@ export function ChatComposedPage() {
 
         {/* Chat Interface — compound component pattern */}
         <div className="flex-1 overflow-hidden">
-          <AgnoChat toolHandlers={toolHandlers}>
+          <AgnoChat toolHandlers={toolHandlers} toolResultRenderers={toolResultRenderers}>
             <AgnoChat.Messages
-              userAvatar={
-                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-md">
-                  <Cat className="h-4 w-4 text-white" />
-                </div>
-              }
-              assistantAvatar={
-                <div className="h-8 w-8 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-md">
-                  <Rocket className="h-4 w-4 text-white" />
-                </div>
-              }
-              messageItemProps={{
-                classNames: {
-                  assistantContainer: 'pl-3',
-                },
-                showToolCalls: false,
-                showReasoning: false,
-                renderActions: (message) => (
+              avatars={{
+                user: (
+                  <div className="h-8 w-8 rounded-full bg-gradient-to-br from-violet-500 to-fuchsia-500 flex items-center justify-center shadow-md">
+                    <Cat className="h-4 w-4 text-white" />
+                  </div>
+                ),
+                assistant: (
+                  <div className="h-8 w-8 rounded-full bg-gradient-to-br from-cyan-500 to-blue-600 flex items-center justify-center shadow-md">
+                    <Rocket className="h-4 w-4 text-white" />
+                  </div>
+                ),
+              }}
+              showToolCalls={false}
+              showReasoning={false}
+              messageClassNames={{ assistant: { container: 'pl-3' } }}
+              actions={{
+                visibility: 'hover-last-visible',
+                assistant: (message) => (
                   <>
                     <button
                       onClick={() => {
@@ -106,7 +139,7 @@ export function ChatComposedPage() {
                       <ThumbsUp className="h-3.5 w-3.5" />
                     </button>
                     <button
-                      onClick={() => toast.info('Sorry to hear that. We\'ll improve!')}
+                      onClick={() => toast.info("Sorry to hear that. We'll improve!")}
                       className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                       aria-label="Dislike message"
                     >
@@ -127,7 +160,7 @@ export function ChatComposedPage() {
                 </div>
                 <div className="space-y-2 text-center">
                   <h3 className="text-2xl font-bold tracking-tight bg-gradient-to-r from-cyan-500 to-blue-600 bg-clip-text text-transparent">
-                    Chat (Composed)
+                    Compound Components Chat
                   </h3>
                   <p className="text-muted-foreground text-sm max-w-sm">
                     This page uses the <code className="text-xs bg-muted px-1.5 py-0.5 rounded font-mono">AgnoChat</code> compound component with custom avatars, colors, and suggested prompts that actually work in custom empty states.
@@ -137,14 +170,17 @@ export function ChatComposedPage() {
               </AgnoChat.EmptyState>
             </AgnoChat.Messages>
 
-            <AgnoChat.ToolStatus className="bg-violet-500/5 border-violet-500/20" />
             <AgnoChat.ErrorBar className="bg-red-500/5 border-t-2 border-red-500/30" />
+            <AgnoChat.ToolStatus className="bg-violet-500/5 border-violet-500/20" />
             <AgnoChat.Input
               className="bg-muted/30 border-t-2 border-primary/10"
               placeholder="Ask me anything..."
-              showAudioRecorder={true}
-              audioMode="transcribe"
-              transcriptionEndpoint="http://localhost:7777/transcribe"
+              allowCancelRun={true}
+              audio={{
+                enabled: true,
+                mode: 'transcribe',
+                endpoint: 'http://localhost:7777/transcribe',
+              }}
               dropZoneProps={{
                 className: "bg-gray-300/50 border-gray-200 !text-black/70",
                 label: "Arraste documentos aqui para anexar em sua mensagem",

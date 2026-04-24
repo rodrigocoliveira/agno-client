@@ -101,6 +101,38 @@ export type {
   ListTracesOptions,
   GetTraceOptions,
   GetTraceSessionStatsOptions,
+  // Schedules API types
+  ListSchedulesParams,
+  ListScheduleRunsParams,
+  ScheduleCreate,
+  ScheduleUpdate,
+  ScheduleResponse,
+  ScheduleStateResponse,
+  ScheduleRunStatus,
+  ScheduleRunResponse,
+  SchedulesListResponse,
+  ScheduleRunsListResponse,
+  // Approvals API types
+  ApprovalStatus,
+  ApprovalSourceType,
+  ApprovalPauseType,
+  ApprovalRunStatus,
+  ListApprovalsParams,
+  ApprovalResponse,
+  ApprovalResolve,
+  ApprovalCountResponse,
+  ApprovalStatusResponse,
+  ApprovalsListResponse,
+  // Components API types
+  ComponentType,
+  ListComponentsParams,
+  ComponentCreate,
+  ComponentUpdate,
+  ComponentResponse,
+  ConfigCreate,
+  ConfigUpdate,
+  ComponentConfigResponse,
+  ComponentsListResponse,
 } from './api';
 
 // Config

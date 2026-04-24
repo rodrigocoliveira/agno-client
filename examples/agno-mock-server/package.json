@@ -1,0 +1,10 @@
+{
+  "name": "@rodrigocoliveira/agno-mock-server-examples",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@rodrigocoliveira/agno-client": "workspace:*",
+    "@rodrigocoliveira/agno-types": "workspace:*"
+  }
+}

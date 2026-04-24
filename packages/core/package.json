@@ -1,6 +1,6 @@
 {
   "name": "@rodrigocoliveira/agno-client",
-  "version": "1.0.1",
+  "version": "1.1.5",
   "description": "Core client library for Agno agents with streaming support and HITL frontend tool execution",
   "author": "rodrigocoliveira",
   "license": "MIT",
@@ -33,16 +33,16 @@
     "README.md"
   ],
   "scripts": {
-    "build": "tsup src/index.ts --format cjs,esm --dts",
-    "dev": "tsup src/index.ts --format cjs,esm --dts --watch",
-    "typecheck": "tsc --noEmit"
+    "build": "rm -rf dist && bun build src/index.ts --outdir dist --format cjs --packages external --sourcemap=external && bun build src/index.ts --outdir dist --format esm --packages external --entry-naming '[name].mjs' --sourcemap=external && tsc -p tsconfig.build.json",
+    "dev": "bun build src/index.ts --outdir dist --format esm --packages external --entry-naming '[name].mjs' --watch",
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
   },
   "dependencies": {
     "@rodrigocoliveira/agno-types": "workspace:*",
     "eventemitter3": "^5.0.1"
   },
   "devDependencies": {
-    "tsup": "^8.0.1",
     "typescript": "^5.3.3"
   }
 }

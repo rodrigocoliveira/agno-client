@@ -21,7 +21,112 @@ interface ClientState {
   isPaused: boolean;             // True if run is paused (HITL)
   pausedRunId?: string;          // ID of the paused run
   toolsAwaitingExecution?: ToolCall[]; // Tools waiting for execution
+  sessionState?: Record<string, unknown> | null; // Backend-managed per-session dict
+  isSessionStateRefreshing?: boolean;            // True during a session_state REST refresh
 }
+```
+
+## Session State
+
+`session_state` is the per-session dict the Agno agent/team reads and writes on the backend. The client surfaces it reactively so your UI can follow the agent's internal state without hand-rolled polling.
+
+### Sources
+
+The cache is populated automatically in four situations:
+
+| When | How |
+|---|---|
+| `loadSession(sessionId)` | A parallel `GET /sessions/{id}` call hydrates `sessionState` alongside the chat history. |
+| Agent `RunCompleted` chunk | The chunk carries `session_state`; the client extracts it at no extra cost. |
+| Any `CustomEvent` with a `session_state` field | Opt-out via `extractSessionStateFromCustomEvent: false`. Use this for live mid-run updates. |
+| Team runs, on `stream:end` | `TeamRunCompleted` does not carry `session_state` over the wire through Agno 2.6.0, so the client fires a one-time `GET /sessions/{id}` after the stream ends. Disable via `refreshTeamSessionStateOnStreamEnd: false`. |
+
+Manual control is always available via `client.refreshSessionState()` and `client.setSessionState(state)`.
+
+### Live mid-run updates (the custom-event pattern)
+
+To push `session_state` to the client in the middle of a run (rather than waiting for completion), yield a `CustomEvent` subclass from a Python tool:
+
+```python
+from dataclasses import dataclass
+from typing import Any, Dict, Optional
+
+from agno.run.agent import CustomEvent
+from agno.tools import tool
+
+@dataclass
+class SessionStateUpdatedEvent(CustomEvent):
+    session_state: Optional[Dict[str, Any]] = None
+
+@tool()
+async def update_profile(run_context, field: str, value: str):
+    run_context.session_state[field] = value
+    yield SessionStateUpdatedEvent(session_state=dict(run_context.session_state))
+    yield f"set {field}"
+```
+
+The client picks up the new state as the event arrives — no REST round-trip, no polling. The `extractSessionStateFromCustomEvent` config controls this behavior (default: `true`).
+
+### React hook
+
+```tsx
+import { useAgnoSessionState } from '@rodrigocoliveira/agno-react';
+
+type MyState = { counter: number; lastAction?: string };
+
+function Panel() {
+  const {
+    sessionState,
+    isRefreshing,
+    setSessionState,
+    mergeSessionState,
+    refreshSessionState,
+  } = useAgnoSessionState<MyState>();
+
+  if (isRefreshing) return <Spinner />;
+  return (
+    <div>
+      <p>counter: {sessionState?.counter ?? 0}</p>
+      <button onClick={() => mergeSessionState({ counter: (sessionState?.counter ?? 0) + 1 })}>
+        bump
+      </button>
+    </div>
+  );
+}
+```
+
+### Core client API
+
+```typescript
+// Read
+client.getSessionState<MyState>(); // MyState | null
+
+// Write (PATCH /sessions/{id} + update cache)
+await client.setSessionState({ counter: 42 });
+
+// Manual refetch from GET /sessions/{id}
+await client.refreshSessionState();
+```
+
+### Scope
+
+Session state works identically for **agents** and **teams**. **Workflows are not supported** — the Agno workflow completion event does not carry `session_state`, and this client does not currently expose a `mode: 'workflow'`.
+
+### Configuration
+
+```typescript
+new AgnoClient({
+  endpoint: 'http://localhost:7777',
+  mode: 'agent',
+  agentId: 'my-agent',
+
+  // Default: auto-extract from any CustomEvent with session_state in the payload.
+  // Pass a function for a custom convention, or false to disable.
+  extractSessionStateFromCustomEvent: true,
+
+  // Default: true. Controls the post-stream REST refresh for team runs.
+  refreshTeamSessionStateOnStreamEnd: true,
+});
 ```
 
 ## Core Client
@@ -154,6 +259,22 @@ client.on('run:continued', (event: { runId?: string }) => {
 client.on('config:change', (config: AgnoClientConfig) => {
   console.log('Config updated:', config);
 });
+```
+
+### Session State Events
+
+```typescript
+// Emitted whenever the cached session_state changes (from any source:
+// loadSession hydration, agent RunCompleted, custom event, manual setSessionState,
+// or post-team-run refresh).
+client.on('session-state:change', (state: Record<string, unknown> | null) => {
+  console.log('session_state:', state);
+});
+
+// Fired around a REST refresh (e.g., post-team-run sync) so the UI can show
+// a subtle indicator.
+client.on('session-state:refresh:start', () => { /* ... */ });
+client.on('session-state:refresh:end',   () => { /* ... */ });
 ```
 
 ### UI Events (Generative UI)

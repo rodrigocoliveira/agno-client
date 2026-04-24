@@ -4,9 +4,9 @@ A comprehensive chat application demonstrating the `@rodrigocoliveira/agno-react
 
 ## Two Chat Approaches
 
-This example showcases two ways to build a chat interface:
+The sidebar has a single **Chat** entry (`/chat`) that leads to a hub page where you pick between two approaches:
 
-### Chat (Root) — `/chat-root`
+### Hooks API — `/chat/hooks`
 
 Build from scratch using React hooks. You have full control over every piece of the UI: message rendering, input handling, layout, and styling.
 
@@ -14,11 +14,11 @@ Build from scratch using React hooks. You have full control over every piece of 
 - Custom `ChatInterface`, `MessageItem`, `PromptInput` components
 - Best for highly custom UIs or when you need fine-grained control
 
-### Chat (Composed) — `/chat-composed`
+### Compound Components — `/chat/components`
 
 Use the `AgnoChat` compound component from `@rodrigocoliveira/agno-react/ui`. Pre-built UI with customization via props and slots — get a full-featured chat interface with minimal code.
 
-- Uses `AgnoChat` with sub-components: `Messages`, `EmptyState`, `SuggestedPrompts`, `ToolStatus`, `ErrorBar`, `Input`
+- Uses `AgnoChat` with sub-components: `Messages`, `EmptyState`, `SuggestedPrompts`, `ErrorBar`, `Input`
 - Customizable via props (avatars, classNames, action buttons, audio mode)
 - Best for rapid development or when the default UI fits your needs
 
@@ -51,7 +51,7 @@ Use the `AgnoChat` compound component from `@rodrigocoliveira/agno-react/ui`. Pr
 - **MessageItem** — Individual message with tool calls, reasoning, media
 
 **Library components (Composed approach):**
-- **AgnoChat** — Compound component with Messages, EmptyState, SuggestedPrompts, ToolStatus, ErrorBar, Input
+- **AgnoChat** — Compound component with Messages, EmptyState, SuggestedPrompts, ErrorBar, Input
 - **AgnoMessageItem** — Pre-built message rendering with markdown, tool calls, reasoning
 - **AgnoChatInput** — Input with file uploads, audio recording, and transcription
 
@@ -66,7 +66,7 @@ Use the `AgnoChat` compound component from `@rodrigocoliveira/agno-react/ui`. Pr
 ### Prerequisites
 
 - Node.js 18+
-- pnpm 8+
+- [Bun](https://bun.sh) 1.0+
 - An Agno instance running (default: `http://localhost:7777`)
 
 ### Installation
@@ -75,16 +75,16 @@ From the repository root:
 
 ```bash
 # Install all dependencies
-pnpm install
+bun install
 
 # Build the library packages (required before running the example)
-pnpm build
+bun run build
 
 # Navigate to the example directory
 cd examples/react-chat
 
 # Install example dependencies (if not already installed)
-pnpm install
+bun install
 ```
 
 ### Configuration
@@ -123,7 +123,7 @@ VITE_AGNO_DB_ID=
 
 ```bash
 # From examples/react-chat directory
-pnpm dev
+bun run dev
 ```
 
 The application will open at `http://localhost:3000`.
@@ -148,8 +148,8 @@ If you want to change the auto-selected agent/team:
 
 ### 3. Start Chatting
 
-1. Navigate to **Chat (Root)** or **Chat (Composed)** in the sidebar
-2. Type your message in the input box at the bottom
+1. Navigate to **Chat** in the sidebar
+2. Choose the chat tech example you would like to see, and type your message in the input box at the bottom
 3. Press **Enter** or click the **Send** button
 4. Watch as the agent responds in real-time with streaming updates
 
@@ -168,14 +168,51 @@ If you want to change the auto-selected agent/team:
 - **Audio Recording**: Record and send audio messages or transcribe speech to text
 - **Debug Panel**: Monitor state changes and events in real-time
 
+### 6. Try the Session State demo (`/session-state`)
+
+A self-contained playground for the `useAgnoSessionState` hook backed by the
+`state-counter-agent` and `state-counter-team` in `agno-mock-server`. Use it
+to see all four sync paths the lib supports — without writing a single line of code.
+
+What to do once the page is open:
+
+1. **Live mid-run sync (agent path).** Mode is `agent` by default. Press *Send*
+   with the preset "Increment by 5". Watch the **counter** number tick up
+   while the run is still streaming, and the **Change history** column tag
+   each update with the green `in-stream` badge. That's the
+   `SessionStateUpdatedEvent` custom-event path.
+
+2. **Post-stream REST refresh (team path).** Switch *Mode* to `team` and
+   *Send* "Increment by 2". After `stream:end`, you'll see a yellow
+   `refresh:start` / `refresh:end` pair in the **Stream timeline**, then the
+   counter jumps by 2 with a `post-stream` badge in history. That's the
+   workaround for `TeamRunCompleted` not carrying `session_state` in
+   Agno 2.6.0 (see `docs/todos/remove-team-session-state-workaround.md`).
+
+3. **Opt out of live updates.** Toggle *Auto-extract from custom events* off
+   and *Send* "Increment by 1". The counter no longer moves mid-run; it
+   only updates once at `stream:end` from the `RunCompleted` chunk.
+   `useAgnoCustomEvents` consumers still see the event.
+
+4. **Manual writes.** *Set session_state…* opens a JSON editor (round-trips
+   via `PATCH /sessions/{id}`). *Merge `{ marker: ... }`* shallow-merges a
+   field. *Refresh from backend* re-fetches `GET /sessions/{id}`.
+
+5. **Race safety.** Start a long run on session A, switch to a different
+   session via the **Sessions** sidebar before it finishes — the in-flight
+   refresh is invalidated; the new session's state is not overwritten.
+
+For the contract behind the demo, read [`docs/guides/12_state_and_events.md`](../../docs/guides/12_state_and_events.md).
+
 ## Project Structure
 
 ```
 examples/react-chat/
 ├── src/
 │   ├── pages/
-│   │   ├── ChatRootPage.tsx         # Hooks-based chat (build from scratch)
-│   │   ├── ChatComposedPage.tsx     # Compound component chat (AgnoChat)
+│   │   ├── ChatHubPage.tsx          # /chat — Selection page for chat approaches
+│   │   ├── ChatHooksPage.tsx        # /chat/hooks — Hooks-based chat (build from scratch)
+│   │   ├── ChatComponentsPage.tsx   # /chat/components — Compound component chat (AgnoChat)
 │   │   ├── HomePage.tsx             # Landing page
 │   │   ├── SessionsPage.tsx         # Session management
 │   │   ├── MemoryPage.tsx           # Memory management
@@ -213,10 +250,10 @@ examples/react-chat/
 
 ```bash
 # From examples/react-chat directory
-pnpm build
+bun run build
 
 # Preview the production build
-pnpm preview
+bun run preview
 ```
 
 The optimized build will be in the `dist/` directory.
@@ -255,11 +292,11 @@ To develop the library and example simultaneously:
 
 ```bash
 # Terminal 1: Watch library changes (from repo root)
-pnpm dev
+bun run dev
 
 # Terminal 2: Run example with hot reload
 cd examples/react-chat
-pnpm dev
+bun run dev
 ```
 
 Changes to the library packages will automatically rebuild and hot-reload in the example.
@@ -269,7 +306,7 @@ Changes to the library packages will automatically rebuild and hot-reload in the
 shadcn components are configured in `components.json`. To add more:
 
 ```bash
-pnpm dlx shadcn@latest add [component-name]
+bunx shadcn@latest add [component-name]
 ```
 
 ## License

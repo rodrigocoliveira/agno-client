@@ -1,6 +1,3 @@
-export { AgnoChatInterface } from './AgnoChatInterface';
-export type { AgnoChatInterfaceProps } from './AgnoChatInterface';
-
 export { AgnoMessageItem } from './AgnoMessageItem';
 export type { AgnoMessageItemProps } from './AgnoMessageItem';
 

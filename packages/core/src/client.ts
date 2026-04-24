@@ -48,6 +48,29 @@ import type {
   ListTracesOptions,
   GetTraceOptions,
   GetTraceSessionStatsOptions,
+  ScheduleResponse,
+  ScheduleCreate,
+  ScheduleUpdate,
+  ScheduleStateResponse,
+  ScheduleRunResponse,
+  SchedulesListResponse,
+  ScheduleRunsListResponse,
+  ListSchedulesParams,
+  ListScheduleRunsParams,
+  ApprovalResponse,
+  ApprovalResolve,
+  ApprovalCountResponse,
+  ApprovalStatusResponse,
+  ApprovalsListResponse,
+  ListApprovalsParams,
+  ComponentResponse,
+  ComponentCreate,
+  ComponentUpdate,
+  ComponentConfigResponse,
+  ConfigCreate,
+  ConfigUpdate,
+  ComponentsListResponse,
+  ListComponentsParams,
 } from '@rodrigocoliveira/agno-types';
 import { RunEvent } from '@rodrigocoliveira/agno-types';
 import { MessageStore } from './stores/message-store';
@@ -57,6 +80,10 @@ import { MemoryManager } from './managers/memory-manager';
 import { KnowledgeManager } from './managers/knowledge-manager';
 import { EvalManager } from './managers/eval-manager';
 import { TracesManager, PaginatedTracesResult, PaginatedTraceSessionStatsResult } from './managers/traces-manager';
+import { ScheduleManager } from './managers/schedule-manager';
+import { ApprovalManager } from './managers/approval-manager';
+import { ComponentManager } from './managers/component-manager';
+import { SessionStateManager } from './managers/session-state-manager';
 import { EventProcessor } from './processors/event-processor';
 import { streamResponse } from './parsers/stream-parser';
 import { Logger } from './utils/logger';
@@ -92,6 +119,10 @@ export class AgnoClient extends EventEmitter {
   private knowledgeManager: KnowledgeManager;
   private evalManager: EvalManager;
   private tracesManager: TracesManager;
+  private scheduleManager: ScheduleManager;
+  private approvalManager: ApprovalManager;
+  private componentManager: ComponentManager;
+  private sessionStateManager: SessionStateManager;
   private eventProcessor: EventProcessor;
   private state: ClientState;
   private pendingUISpecs: Map<string, any>; // toolCallId -> UIComponentSpec
@@ -108,6 +139,10 @@ export class AgnoClient extends EventEmitter {
     this.knowledgeManager = new KnowledgeManager();
     this.evalManager = new EvalManager();
     this.tracesManager = new TracesManager();
+    this.scheduleManager = new ScheduleManager();
+    this.approvalManager = new ApprovalManager();
+    this.componentManager = new ComponentManager();
+    this.sessionStateManager = new SessionStateManager();
     this.eventProcessor = new EventProcessor();
     this.pendingUISpecs = new Map();
     this.state = {
@@ -126,6 +161,11 @@ export class AgnoClient extends EventEmitter {
       memoryTopics: [],
       traces: [],
       traceSessionStats: [],
+      schedules: [],
+      approvals: [],
+      components: [],
+      sessionState: null,
+      isSessionStateRefreshing: false,
     };
   }
 
@@ -165,7 +205,92 @@ export class AgnoClient extends EventEmitter {
     this.messageStore.clear();
     this.configManager.setSessionId(undefined);
     this.pendingUISpecs.clear(); // Clear any pending UI specs to prevent memory leaks
+    this.state.errorMessage = undefined;
+    this.sessionStateManager.invalidate();
+    if (this.sessionStateManager.clear()) {
+      this.state.sessionState = null;
+      this.emit('session-state:change', null);
+    }
     this.emit('message:update', this.messageStore.getMessages());
+    this.emit('state:change', this.getState());
+  }
+
+  /**
+   * Get the current cached session_state (backend-managed per-session dict).
+   * Populated from `loadSession`, `RunCompleted` chunks, custom events, or
+   * `refreshSessionState()`. Returns null when unknown.
+   */
+  getSessionState<T extends Record<string, unknown> = Record<string, unknown>>():
+    | T
+    | null {
+    return this.sessionStateManager.get() as T | null;
+  }
+
+  /**
+   * Replace session_state in the cache and persist via PATCH /sessions/{id}.
+   * Emits `session-state:change` and `state:change` on success.
+   */
+  async setSessionState(
+    state: Record<string, unknown>,
+    options?: { params?: Record<string, string> }
+  ): Promise<void> {
+    const sessionId = this.configManager.getSessionId();
+    if (!sessionId) {
+      throw new Error('setSessionState requires an active session — call sendMessage or loadSession first.');
+    }
+    await this.updateSession(sessionId, { session_state: state }, options);
+    this.applySessionState(state, { source: 'manual-set' });
+  }
+
+  /**
+   * Re-fetch the active session's session_state from the backend. Used as the
+   * escape hatch when streamed sources are unreliable (e.g., team runs where
+   * TeamRunCompleted does not carry session_state).
+   */
+  async refreshSessionState(
+    options?: { params?: Record<string, string>; silent?: boolean }
+  ): Promise<Record<string, unknown> | null> {
+    const sessionId = this.configManager.getSessionId();
+    if (!sessionId) return null;
+
+    const epoch = this.sessionStateManager.currentEpoch();
+    if (!options?.silent) {
+      this.state.isSessionStateRefreshing = true;
+      this.emit('session-state:refresh:start');
+      this.emit('state:change', this.getState());
+    }
+
+    try {
+      const detail = await this.getSessionById(sessionId, { params: options?.params });
+      if (!this.sessionStateManager.isEpochCurrent(epoch)) {
+        // The user switched sessions mid-refresh — discard this response.
+        return null;
+      }
+      const next = (detail.session_state ?? null) as Record<string, unknown> | null;
+      this.applySessionState(next, { source: 'refresh' });
+      return next;
+    } finally {
+      if (!options?.silent && this.sessionStateManager.isEpochCurrent(epoch)) {
+        this.state.isSessionStateRefreshing = false;
+        this.emit('session-state:refresh:end');
+        this.emit('state:change', this.getState());
+      }
+    }
+  }
+
+  /**
+   * Internal: push a new session_state into the cache and notify listeners.
+   * Guards against no-op writes and exposes the origin for debugging.
+   */
+  private applySessionState(
+    next: Record<string, unknown> | null | undefined,
+    meta: { source: 'custom-event' | 'run-completed' | 'refresh' | 'load-session' | 'manual-set' }
+  ): void {
+    const changed = this.sessionStateManager.set(next ?? null);
+    if (!changed) return;
+    this.state.sessionState = this.sessionStateManager.get();
+    Logger.debug(`[AgnoClient] session_state updated via ${meta.source}`);
+    this.emit('session-state:change', this.state.sessionState);
     this.emit('state:change', this.getState());
   }
 
@@ -321,6 +446,22 @@ export class AgnoClient extends EventEmitter {
         // Trigger refresh if run completed successfully
         if (this.runCompletedSuccessfully) {
           this.runCompletedSuccessfully = false;
+
+          // Team runs need an out-of-band session_state fetch because
+          // TeamRunCompleted does not carry the field on the wire.
+          // See scripts/verify-session-state/FINDINGS.md.
+          const cfg = this.configManager.getConfig();
+          const shouldRefreshTeamState =
+            this.configManager.getMode() === 'team' &&
+            (cfg.refreshTeamSessionStateOnStreamEnd ?? true);
+          if (shouldRefreshTeamState) {
+            try {
+              await this.refreshSessionState({ silent: false });
+            } catch (err) {
+              Logger.debug('[AgnoClient] Post-team-run session_state refresh failed:', err);
+            }
+          }
+
           await this.refreshSessionMessages();
         }
       },
@@ -467,10 +608,11 @@ export class AgnoClient extends EventEmitter {
         (chunk.content as string) || 'Error during run';
 
       this.state.errorMessage = errorContent;
-      this.messageStore.updateLastMessage((msg) => ({
-        ...msg,
-        streamingError: true,
-      }));
+      const lastMessage = this.messageStore.getLastMessage();
+      if (lastMessage?.role === 'agent') {
+        this.messageStore.removeLastMessages(1);
+      }
+      this.emit('message:update', this.messageStore.getMessages());
 
       // Remove the session if it was just created
       if (chunk.session_id) {
@@ -485,7 +627,15 @@ export class AgnoClient extends EventEmitter {
 
     // Emit semantic custom:event for CustomEvent types
     if (event === RunEvent.CustomEvent) {
-      this.emit('custom:event', chunk as unknown as CustomEventData);
+      const customEvent = chunk as unknown as CustomEventData;
+      this.emit('custom:event', customEvent);
+
+      // Live-sync session_state if the payload carries it (opt-out via config).
+      const extractor = this.configManager.getConfig().extractSessionStateFromCustomEvent;
+      const extracted = this.sessionStateManager.extractFromCustomEvent(customEvent, extractor);
+      if (extracted) {
+        this.applySessionState(extracted, { source: 'custom-event' });
+      }
     }
 
     // Process the chunk and update message
@@ -500,6 +650,13 @@ export class AgnoClient extends EventEmitter {
     // Track if run completed successfully for post-stream refresh
     if (event === RunEvent.RunCompleted || event === RunEvent.TeamRunCompleted) {
       this.runCompletedSuccessfully = true;
+
+      // Agent runs carry session_state on the RunCompleted chunk. Teams emit
+      // TeamRunCompleted WITHOUT session_state through Agno 2.6.0 — those are
+      // handled by the post-stream refresh in onComplete below.
+      if (event === RunEvent.RunCompleted && chunk.session_state !== undefined) {
+        this.applySessionState(chunk.session_state, { source: 'run-completed' });
+      }
     }
 
     this.emit('message:update', this.messageStore.getMessages());
@@ -512,10 +669,11 @@ export class AgnoClient extends EventEmitter {
     this.state.isStreaming = false;
     this.state.errorMessage = error.message;
 
-    this.messageStore.updateLastMessage((msg) => ({
-      ...msg,
-      streamingError: true,
-    }));
+    const lastMessage = this.messageStore.getLastMessage();
+    if (lastMessage?.role === 'agent') {
+      this.messageStore.removeLastMessages(1);
+    }
+    this.emit('message:update', this.messageStore.getMessages());
 
     if (sessionId) {
       this.state.sessions = this.state.sessions.filter(
@@ -951,6 +1109,24 @@ export class AgnoClient extends EventEmitter {
 
     const params = this.configManager.buildQueryString(options?.params);
 
+    // Switching sessions invalidates any in-flight session_state refresh so
+    // a stale response can't overwrite the new session's state.
+    this.sessionStateManager.invalidate();
+
+    // Fetch runs (messages) and session detail (session_state) in parallel.
+    // /runs does not include session_state; /sessions/{id} does — verified in
+    // scripts/verify-session-state/FINDINGS.md.
+    const hydrateStatePromise: Promise<void> = this.getSessionById(sessionId, {
+      params: options?.params,
+    })
+      .then((detail) => {
+        this.applySessionState(detail.session_state ?? null, { source: 'load-session' });
+      })
+      .catch((err) => {
+        // A session_state hydration failure should not break message loading.
+        Logger.debug('[AgnoClient] loadSession: session_state hydration failed:', err);
+      });
+
     const response = await this.withTokenRefresh(() => {
       const headers = this.configManager.buildRequestHeaders();
       return this.sessionManager.fetchSession(
@@ -964,15 +1140,48 @@ export class AgnoClient extends EventEmitter {
       );
     });
 
+    // Don't block on hydration, but do not leave the promise dangling either.
+    await hydrateStatePromise;
+
     const messages = this.sessionManager.convertSessionToMessages(response);
     Logger.debug('[AgnoClient] Setting messages to store:', `${messages.length} messages`);
     this.messageStore.setMessages(messages);
     this.configManager.setSessionId(sessionId);
+    this.state.errorMessage = undefined;
+
+    // Detect runs that are still paused (user reloaded before answering a HITL tool).
+    // Only agents support HITL — teams have no /continue endpoint.
+    if (this.configManager.getMode() === 'agent') {
+      const pausedRun = response.find(
+        (run: any) => typeof run.status === 'string' && run.status.toLowerCase() === 'paused'
+      );
+      if (pausedRun) {
+        const pendingTools = ((pausedRun as any).tools ?? []).filter(
+          (t: any) => t.external_execution_required === true && t.result === null
+        );
+        if (pendingTools.length > 0) {
+          this.state.isPaused = true;
+          this.state.pausedRunId = (pausedRun as any).run_id;
+          this.state.toolsAwaitingExecution = pendingTools;
+        }
+      }
+    }
 
     Logger.debug('[AgnoClient] Emitting events...');
     this.emit('session:loaded', sessionId);
     this.emit('message:update', this.messageStore.getMessages());
     this.emit('state:change', this.getState());
+
+    // Emit run:paused AFTER session:loaded so handleSessionLoaded completes first.
+    // This re-establishes the HITL flow: autoExecute will trigger the handler (e.g. modal).
+    if (this.state.isPaused && this.state.pausedRunId) {
+      this.emit('run:paused', {
+        runId: this.state.pausedRunId,
+        sessionId,
+        tools: this.state.toolsAwaitingExecution ?? [],
+      });
+    }
+
     Logger.debug('[AgnoClient] Events emitted, returning messages');
 
     return messages;
@@ -2444,5 +2653,573 @@ export class AgnoClient extends EventEmitter {
     this.emit('state:change', this.getState());
 
     return result;
+  }
+
+  // ==========================================================================
+  // Schedules API
+  // ==========================================================================
+
+  /**
+   * Fetch schedules with filtering and pagination
+   */
+  async fetchSchedules(
+    queryParams?: ListSchedulesParams,
+    options?: { params?: Record<string, string> }
+  ): Promise<SchedulesListResponse> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    const response = await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.scheduleManager.fetchSchedules(config.endpoint, headers, queryParams, params);
+    });
+
+    this.state.schedules = response.data;
+    this.emit('state:change', this.getState());
+
+    return response;
+  }
+
+  /**
+   * Get a specific schedule by ID
+   */
+  async getScheduleById(
+    scheduleId: string,
+    options?: { params?: Record<string, string> }
+  ): Promise<ScheduleResponse> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    return await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.scheduleManager.getScheduleById(config.endpoint, scheduleId, headers, params);
+    });
+  }
+
+  /**
+   * Create a new schedule
+   */
+  async createSchedule(
+    request: ScheduleCreate,
+    options?: { params?: Record<string, string> }
+  ): Promise<ScheduleResponse> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    const schedule = await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.scheduleManager.createSchedule(config.endpoint, request, headers, params);
+    });
+
+    this.state.schedules = [schedule, ...this.state.schedules];
+    this.emit('schedule:created', schedule);
+    this.emit('state:change', this.getState());
+
+    return schedule;
+  }
+
+  /**
+   * Update an existing schedule
+   */
+  async updateSchedule(
+    scheduleId: string,
+    request: ScheduleUpdate,
+    options?: { params?: Record<string, string> }
+  ): Promise<ScheduleResponse> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    const schedule = await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.scheduleManager.updateSchedule(config.endpoint, scheduleId, request, headers, params);
+    });
+
+    this.state.schedules = this.state.schedules.map((s) =>
+      s.id === scheduleId ? schedule : s
+    );
+    this.emit('schedule:updated', schedule);
+    this.emit('state:change', this.getState());
+
+    return schedule;
+  }
+
+  /**
+   * Delete a schedule
+   */
+  async deleteSchedule(
+    scheduleId: string,
+    options?: { params?: Record<string, string> }
+  ): Promise<void> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.scheduleManager.deleteSchedule(config.endpoint, scheduleId, headers, params);
+    });
+
+    this.state.schedules = this.state.schedules.filter((s) => s.id !== scheduleId);
+    this.emit('schedule:deleted', { scheduleId });
+    this.emit('state:change', this.getState());
+  }
+
+  /**
+   * Enable a schedule
+   */
+  async enableSchedule(
+    scheduleId: string,
+    options?: { params?: Record<string, string> }
+  ): Promise<ScheduleStateResponse> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    const result = await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.scheduleManager.enableSchedule(config.endpoint, scheduleId, headers, params);
+    });
+
+    this.state.schedules = this.state.schedules.map((s) =>
+      s.id === scheduleId ? { ...s, enabled: true, next_run_at: result.next_run_at, updated_at: result.updated_at } : s
+    );
+    this.emit('schedule:enabled', result);
+    this.emit('state:change', this.getState());
+
+    return result;
+  }
+
+  /**
+   * Disable a schedule
+   */
+  async disableSchedule(
+    scheduleId: string,
+    options?: { params?: Record<string, string> }
+  ): Promise<ScheduleStateResponse> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    const result = await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.scheduleManager.disableSchedule(config.endpoint, scheduleId, headers, params);
+    });
+
+    this.state.schedules = this.state.schedules.map((s) =>
+      s.id === scheduleId ? { ...s, enabled: false, next_run_at: result.next_run_at, updated_at: result.updated_at } : s
+    );
+    this.emit('schedule:disabled', result);
+    this.emit('state:change', this.getState());
+
+    return result;
+  }
+
+  /**
+   * Trigger a schedule to run immediately
+   */
+  async triggerSchedule(
+    scheduleId: string,
+    options?: { params?: Record<string, string> }
+  ): Promise<ScheduleRunResponse> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    const run = await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.scheduleManager.triggerSchedule(config.endpoint, scheduleId, headers, params);
+    });
+
+    this.emit('schedule:triggered', run);
+
+    return run;
+  }
+
+  /**
+   * Fetch runs for a specific schedule
+   */
+  async fetchScheduleRuns(
+    scheduleId: string,
+    queryParams?: ListScheduleRunsParams,
+    options?: { params?: Record<string, string> }
+  ): Promise<ScheduleRunsListResponse> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    return await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.scheduleManager.fetchScheduleRuns(config.endpoint, scheduleId, headers, queryParams, params);
+    });
+  }
+
+  /**
+   * Get a specific schedule run by ID
+   */
+  async getScheduleRunById(
+    scheduleId: string,
+    runId: string,
+    options?: { params?: Record<string, string> }
+  ): Promise<ScheduleRunResponse> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    return await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.scheduleManager.getScheduleRunById(config.endpoint, scheduleId, runId, headers, params);
+    });
+  }
+
+  // ==========================================================================
+  // Approvals API
+  // ==========================================================================
+
+  /**
+   * Fetch approvals with filtering and pagination
+   */
+  async fetchApprovals(
+    queryParams?: ListApprovalsParams,
+    options?: { params?: Record<string, string> }
+  ): Promise<ApprovalsListResponse> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    const response = await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.approvalManager.fetchApprovals(config.endpoint, headers, queryParams, params);
+    });
+
+    this.state.approvals = response.data;
+    this.emit('state:change', this.getState());
+
+    return response;
+  }
+
+  /**
+   * Get approval count
+   */
+  async getApprovalCount(
+    options?: { params?: Record<string, string>; userId?: string }
+  ): Promise<ApprovalCountResponse> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+    const userId = options?.userId ?? this.configManager.getUserId();
+
+    return await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.approvalManager.getApprovalCount(config.endpoint, headers, userId, params);
+    });
+  }
+
+  /**
+   * Get approval status
+   */
+  async getApprovalStatus(
+    approvalId: string,
+    options?: { params?: Record<string, string> }
+  ): Promise<ApprovalStatusResponse> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    return await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.approvalManager.getApprovalStatus(config.endpoint, approvalId, headers, params);
+    });
+  }
+
+  /**
+   * Get a specific approval by ID
+   */
+  async getApprovalById(
+    approvalId: string,
+    options?: { params?: Record<string, string> }
+  ): Promise<ApprovalResponse> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    return await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.approvalManager.getApprovalById(config.endpoint, approvalId, headers, params);
+    });
+  }
+
+  /**
+   * Resolve an approval (approve or reject)
+   */
+  async resolveApproval(
+    approvalId: string,
+    request: ApprovalResolve,
+    options?: { params?: Record<string, string> }
+  ): Promise<ApprovalResponse> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    const approval = await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.approvalManager.resolveApproval(config.endpoint, approvalId, request, headers, params);
+    });
+
+    this.state.approvals = this.state.approvals.map((a) =>
+      a.id === approvalId ? approval : a
+    );
+    this.emit('approval:resolved', approval);
+    this.emit('state:change', this.getState());
+
+    return approval;
+  }
+
+  /**
+   * Delete an approval
+   */
+  async deleteApproval(
+    approvalId: string,
+    options?: { params?: Record<string, string> }
+  ): Promise<void> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.approvalManager.deleteApproval(config.endpoint, approvalId, headers, params);
+    });
+
+    this.state.approvals = this.state.approvals.filter((a) => a.id !== approvalId);
+    this.emit('approval:deleted', { approvalId });
+    this.emit('state:change', this.getState());
+  }
+
+  // ==========================================================================
+  // Components API
+  // ==========================================================================
+
+  /**
+   * Fetch components with filtering and pagination
+   */
+  async fetchComponents(
+    queryParams?: ListComponentsParams,
+    options?: { params?: Record<string, string> }
+  ): Promise<ComponentsListResponse> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    const response = await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.componentManager.fetchComponents(config.endpoint, headers, queryParams, params);
+    });
+
+    this.state.components = response.data;
+    this.emit('state:change', this.getState());
+
+    return response;
+  }
+
+  /**
+   * Create a new component
+   */
+  async createComponent(
+    request: ComponentCreate,
+    options?: { params?: Record<string, string> }
+  ): Promise<ComponentResponse> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    const component = await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.componentManager.createComponent(config.endpoint, request, headers, params);
+    });
+
+    this.state.components = [component, ...this.state.components];
+    this.emit('component:created', component);
+    this.emit('state:change', this.getState());
+
+    return component;
+  }
+
+  /**
+   * Get a specific component by ID
+   */
+  async getComponentById(
+    componentId: string,
+    options?: { params?: Record<string, string> }
+  ): Promise<ComponentResponse> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    return await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.componentManager.getComponentById(config.endpoint, componentId, headers, params);
+    });
+  }
+
+  /**
+   * Update an existing component
+   */
+  async updateComponent(
+    componentId: string,
+    request: ComponentUpdate,
+    options?: { params?: Record<string, string> }
+  ): Promise<ComponentResponse> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    const component = await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.componentManager.updateComponent(config.endpoint, componentId, request, headers, params);
+    });
+
+    this.state.components = this.state.components.map((c) =>
+      c.component_id === componentId ? component : c
+    );
+    this.emit('component:updated', component);
+    this.emit('state:change', this.getState());
+
+    return component;
+  }
+
+  /**
+   * Delete a component
+   */
+  async deleteComponent(
+    componentId: string,
+    options?: { params?: Record<string, string> }
+  ): Promise<void> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.componentManager.deleteComponent(config.endpoint, componentId, headers, params);
+    });
+
+    this.state.components = this.state.components.filter((c) => c.component_id !== componentId);
+    this.emit('component:deleted', { componentId });
+    this.emit('state:change', this.getState());
+  }
+
+  /**
+   * Fetch all config versions for a component
+   */
+  async fetchComponentConfigs(
+    componentId: string,
+    options?: { params?: Record<string, string> }
+  ): Promise<ComponentConfigResponse[]> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    return await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.componentManager.fetchComponentConfigs(config.endpoint, componentId, headers, params);
+    });
+  }
+
+  /**
+   * Create a new config version for a component
+   */
+  async createComponentConfig(
+    componentId: string,
+    request: ConfigCreate,
+    options?: { params?: Record<string, string> }
+  ): Promise<ComponentConfigResponse> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    const configResponse = await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.componentManager.createComponentConfig(config.endpoint, componentId, request, headers, params);
+    });
+
+    this.emit('component:config:created', configResponse);
+
+    return configResponse;
+  }
+
+  /**
+   * Get the current active config for a component
+   */
+  async getCurrentComponentConfig(
+    componentId: string,
+    options?: { params?: Record<string, string> }
+  ): Promise<ComponentConfigResponse> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    return await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.componentManager.getCurrentConfig(config.endpoint, componentId, headers, params);
+    });
+  }
+
+  /**
+   * Get a specific config version for a component
+   */
+  async getComponentConfigByVersion(
+    componentId: string,
+    version: number,
+    options?: { params?: Record<string, string> }
+  ): Promise<ComponentConfigResponse> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    return await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.componentManager.getConfigByVersion(config.endpoint, componentId, version, headers, params);
+    });
+  }
+
+  /**
+   * Update a draft config version for a component
+   */
+  async updateComponentConfig(
+    componentId: string,
+    version: number,
+    request: ConfigUpdate,
+    options?: { params?: Record<string, string> }
+  ): Promise<ComponentConfigResponse> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    const configResponse = await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.componentManager.updateConfig(config.endpoint, componentId, version, request, headers, params);
+    });
+
+    this.emit('component:config:updated', configResponse);
+
+    return configResponse;
+  }
+
+  /**
+   * Delete a draft config version for a component
+   */
+  async deleteComponentConfig(
+    componentId: string,
+    version: number,
+    options?: { params?: Record<string, string> }
+  ): Promise<void> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.componentManager.deleteConfig(config.endpoint, componentId, version, headers, params);
+    });
+
+    this.emit('component:config:deleted', { componentId, version });
+  }
+
+  /**
+   * Set a config version as the current active config for a component
+   */
+  async setCurrentComponentConfig(
+    componentId: string,
+    version: number,
+    options?: { params?: Record<string, string> }
+  ): Promise<ComponentConfigResponse> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    const configResponse = await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.componentManager.setCurrentConfig(config.endpoint, componentId, version, headers, params);
+    });
+
+    this.emit('component:config:set-current', configResponse);
+
+    return configResponse;
   }
 }

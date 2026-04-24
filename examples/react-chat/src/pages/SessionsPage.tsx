@@ -80,7 +80,6 @@ export function SessionsPage() {
 
   const handleRefresh = useCallback(() => {
     fetchSessions()
-    toast.success('Sessions refreshed')
   }, [fetchSessions])
 
   const handleOpenInChat = useCallback((session: SessionEntry) => {

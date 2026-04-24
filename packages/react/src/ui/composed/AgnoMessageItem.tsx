@@ -14,8 +14,9 @@ import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '..
 import { cn } from '../lib/cn';
 import { formatSmartTimestamp } from '../lib/format-timestamp';
 import type { ToolState } from '../types';
-import type { AgnoMessageItemClassNames } from '../types';
+import type { AgnoMessageClassNames, AgnoMessageAvatars, AgnoMessageActions } from '../types';
 import type { ReactNode } from 'react';
+import type { ToolResultRenderer } from './agno-chat/context';
 import {
   AlertCircle,
   FileIcon,
@@ -30,19 +31,19 @@ import {
 export interface AgnoMessageItemProps {
   message: ChatMessage;
   className?: string;
-  classNames?: AgnoMessageItemClassNames;
+  classNames?: AgnoMessageClassNames;
   /** Custom render for the entire message content area */
   renderContent?: (message: ChatMessage) => ReactNode;
   /** Custom render for individual tool calls */
   renderToolCall?: (tool: NonNullable<ChatMessage['tool_calls']>[0], index: number) => ReactNode;
   /** Custom render for media sections */
   renderMedia?: (message: ChatMessage) => ReactNode;
-  /** Render action buttons below assistant messages (e.g., copy, like, dislike) */
-  renderActions?: (message: ChatMessage) => ReactNode;
-  /** Custom user avatar */
-  userAvatar?: ReactNode;
-  /** Custom assistant avatar */
-  assistantAvatar?: ReactNode;
+  /** Grouped avatar configuration */
+  avatars?: AgnoMessageAvatars;
+  /** Grouped action buttons configuration with visibility control */
+  actions?: AgnoMessageActions;
+  /** Whether this is the last assistant message in the conversation (used for visibility logic) */
+  isLastAssistantMessage?: boolean;
   /** Show reasoning steps (default: true) */
   showReasoning?: boolean;
   /** Show references (default: true) */
@@ -59,6 +60,8 @@ export interface AgnoMessageItemProps {
   showImageLightbox?: boolean;
   /** Custom timestamp formatter */
   formatTimestamp?: (date: Date) => string;
+  /** Per-tool renderers shown inline in chat after a HITL tool completes, and on session reload */
+  toolResultRenderers?: Record<string, ToolResultRenderer>;
 }
 
 const defaultFormatTimestamp = formatSmartTimestamp;
@@ -79,9 +82,9 @@ export function AgnoMessageItem({
   renderContent,
   renderToolCall,
   renderMedia,
-  renderActions,
-  userAvatar,
-  assistantAvatar,
+  avatars,
+  actions,
+  isLastAssistantMessage = false,
   showReasoning = true,
   showReferences = true,
   showTimestamp = true,
@@ -90,6 +93,7 @@ export function AgnoMessageItem({
   showFilePreview = true,
   showImageLightbox = true,
   formatTimestamp,
+  toolResultRenderers,
 }: AgnoMessageItemProps) {
   const isUser = message.role === 'user';
   const hasError = message.streamingError;
@@ -117,7 +121,7 @@ export function AgnoMessageItem({
       {isUser ? (
         /* User message */
         <div className="flex items-start gap-2.5 max-w-[80%] flex-row-reverse">
-          {userAvatar}
+          {avatars?.user}
           <div className="space-y-1.5 flex flex-col items-end min-w-0">
             {/* Attachments row — images + files side-by-side as uniform cards */}
             {((message.images && message.images.length > 0) ||
@@ -177,15 +181,20 @@ export function AgnoMessageItem({
               <div
                 className={cn(
                   'rounded-2xl rounded-br-md px-4 py-2.5',
-                  classNames?.userBubble ?? 'bg-primary text-primary-foreground',
+                  classNames?.user?.bubble ?? 'bg-primary text-primary-foreground',
                   hasError && 'opacity-70',
                 )}
               >
                 <p className="text-sm whitespace-pre-wrap">{message.content}</p>
               </div>
             )}
-            {showTimestamp && (
+            {(showTimestamp || actions?.user) && (
               <div className="flex items-center justify-end gap-1.5 px-1">
+                {actions?.user && (
+                  <div className="flex items-center gap-1">
+                    {actions.user(message)}
+                  </div>
+                )}
                 <SmartTimestamp
                   date={new Date(message.created_at * 1000)}
                   formatShort={isCustomTimestamp ? resolvedFormatTimestamp : undefined}
@@ -198,9 +207,9 @@ export function AgnoMessageItem({
         </div>
       ) : (
         /* Assistant message */
-        <div className="flex items-start gap-3">
-          {assistantAvatar}
-          <div className={cn('flex-1 min-w-0 space-y-3', classNames?.assistantContainer)}>
+        <div className="flex items-start gap-3 group/message">
+          {avatars?.assistant}
+          <div className={cn('flex-1 min-w-0 space-y-3', classNames?.assistant?.container)}>
             {/* Custom content render */}
             {renderContent ? (
               renderContent(message)
@@ -210,7 +219,7 @@ export function AgnoMessageItem({
                 {showReasoning &&
                   message.extra_data?.reasoning_steps &&
                   message.extra_data.reasoning_steps.length > 0 && (
-                    <div className={cn('space-y-2 pt-1', classNames?.reasoning)}>
+                    <div className={cn('space-y-2 pt-1', classNames?.assistant?.reasoning)}>
                       <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                         <Lightbulb className="h-3.5 w-3.5" />
                         Reasoning ({message.extra_data.reasoning_steps.length} steps)
@@ -277,11 +286,23 @@ export function AgnoMessageItem({
                   </div>
                 )}
 
+                {/* Tool result renderers — shown after HITL execution and on session reload */}
+                {toolResultRenderers && message.tool_calls?.map((tool) => {
+                  const renderer = toolResultRenderers[tool.tool_name];
+                  const content = (tool.result ?? tool.content) as string | undefined;
+                  if (!renderer || !content) return null;
+                  return (
+                    <div key={`result-${tool.tool_call_id}`}>
+                      {renderer(tool.tool_args, content)}
+                    </div>
+                  );
+                })}
+
                 {/* Media - custom or default */}
                 {renderMedia
                   ? renderMedia(message)
                   : (() => {
-                      const mediaClassName = classNames?.media;
+                      const mediaClassName = classNames?.assistant?.media;
                       return (
                         <>
                           {/* Images */}
@@ -458,7 +479,7 @@ export function AgnoMessageItem({
 
                 {/* Tool Calls */}
                 {showToolCalls && message.tool_calls && message.tool_calls.length > 0 && (
-                  <div className={cn('space-y-2 pt-1', classNames?.toolCalls)}>
+                  <div className={cn('space-y-2 pt-1', classNames?.assistant?.toolCalls)}>
                     {message.tool_calls.map((tool, idx) =>
                       renderToolCall ? (
                         renderToolCall(tool, idx)
@@ -484,7 +505,7 @@ export function AgnoMessageItem({
                 {showReferences &&
                   message.extra_data?.references &&
                   message.extra_data.references.length > 0 && (
-                    <div className={cn('space-y-2 pt-1', classNames?.references)}>
+                    <div className={cn('space-y-2 pt-1', classNames?.assistant?.references)}>
                       <div className="flex items-center gap-2 text-xs font-medium text-muted-foreground">
                         <FileText className="h-3.5 w-3.5" />
                         References ({message.extra_data.references.length})
@@ -512,13 +533,29 @@ export function AgnoMessageItem({
             )}
 
             {/* Footer: actions + timestamp, left-aligned */}
-            {(renderActions || showTimestamp || hasError) && (
+            {(actions?.assistant || showTimestamp || hasError) && (
               <div className="flex items-center gap-2 pt-1">
-                {renderActions && (
-                  <div className={cn('flex items-center gap-1', classNames?.actions)}>
-                    {renderActions(message)}
-                  </div>
-                )}
+                {actions?.assistant && (() => {
+                  const visibility = actions.visibility ?? 'visible';
+                  // For 'last-assistant' mode, only render on the last assistant message
+                  if (visibility === 'last-assistant' && !isLastAssistantMessage) return null;
+
+                  const useHover =
+                    visibility === 'hover' ||
+                    (visibility === 'hover-last-visible' && !isLastAssistantMessage);
+
+                  return (
+                    <div
+                      className={cn(
+                        'flex items-center gap-1 transition-opacity',
+                        useHover && 'opacity-0 group-hover/message:opacity-100',
+                        classNames?.assistant?.actions,
+                      )}
+                    >
+                      {actions.assistant(message)}
+                    </div>
+                  );
+                })()}
                 {hasError && (
                   <span className="flex items-center gap-1 text-[11px] text-destructive">
                     <AlertCircle className="h-3 w-3" />
