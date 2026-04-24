@@ -20,6 +20,7 @@ import {
   PanelRightClose,
   PanelRightOpen,
   Home,
+  Sparkles,
 } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { Separator } from '@/components/ui/separator'
@@ -153,6 +154,7 @@ const navItems = [
   { path: '/', label: 'Home', icon: Home },
   { path: '/chat', label: 'Chat', icon: MessageSquare },
   { path: '/sessions', label: 'Sessions', icon: History },
+  { path: '/session-state', label: 'Session State', icon: Sparkles },
   { path: '/memory', label: 'Memory', icon: Brain },
   { path: '/knowledge', label: 'Knowledge', icon: Database },
   { path: '/metrics', label: 'Metrics', icon: BarChart3 },
