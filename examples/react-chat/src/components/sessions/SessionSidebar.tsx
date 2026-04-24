@@ -2,7 +2,6 @@ import { useAgnoSession, useAgnoChat } from '@rodrigocoliveira/agno-react'
 import { Button } from '@/components/ui/button'
 import { ScrollArea } from '@/components/ui/scroll-area'
 import { RefreshCw, MessageSquarePlus, Loader2, MessageCircle, Clock } from 'lucide-react'
-import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
 export function SessionSidebar() {
