@@ -12,6 +12,7 @@ import { AgnoMessageItem } from '../AgnoMessageItem';
 import type { AgnoMessageItemProps } from '../AgnoMessageItem';
 import { AgnoChatSuggestedPrompts } from './suggested-prompts';
 import { useAgnoChatContext } from './context';
+import type { ToolResultRenderer } from './context';
 import { cn } from '../../lib/cn';
 import { Bot } from 'lucide-react';
 import type { AgnoMessageClassNames, AgnoMessageAvatars, AgnoMessageActions, SuggestedPrompt } from '../../types';
@@ -51,6 +52,8 @@ export interface AgnoChatMessagesProps {
   formatTimestamp?: (date: Date) => string;
   /** ClassNames override map for message item sections */
   messageClassNames?: AgnoMessageClassNames;
+  /** Per-tool renderers for displaying results inline in chat (live and on session reload) */
+  toolResultRenderers?: Record<string, ToolResultRenderer>;
 
   // ── Empty state ──────────────────────────────────────────────────
   emptyState?: ReactNode;
@@ -110,8 +113,10 @@ export function AgnoChatMessages({
   // Thinking indicator
   showThinkingIndicator = true,
   renderThinkingIndicator,
+  toolResultRenderers: propToolResultRenderers,
 }: AgnoChatMessagesProps) {
-  const { messages, isStreaming } = useAgnoChatContext();
+  const { messages, isStreaming, toolResultRenderers: contextToolResultRenderers } = useAgnoChatContext();
+  const toolResultRenderers = propToolResultRenderers ?? contextToolResultRenderers;
   const lastMessage = messages[messages.length - 1];
   const isThinking = showThinkingIndicator && isStreaming && (!lastMessage || lastMessage.role !== 'user') && !lastMessage?.content;
 
@@ -138,6 +143,7 @@ export function AgnoChatMessages({
     ...(renderMedia !== undefined && { renderMedia }),
     ...(formatTimestamp !== undefined && { formatTimestamp }),
     ...(messageClassNames !== undefined && { classNames: messageClassNames }),
+    ...(toolResultRenderers !== undefined && { toolResultRenderers }),
   };
 
   const resolvedEmptyState = children ??

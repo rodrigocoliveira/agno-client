@@ -303,6 +303,17 @@ def show_alert(content: str):
     """
     pass
 
+@tool(external_execution=True)
+def ask_user_question(question: str):
+    """
+    Ask the user a question and wait for their answer on the frontend.
+    Use this whenever you need information from the user before proceeding.
+
+    Args:
+        question: The question to ask the user
+    """
+    pass
+
 # ============================================================================
 # KNOWLEDGE BASE CONFIGURATION
 # ============================================================================
@@ -355,6 +366,7 @@ def create_agent(db, knowledge=None):
             render_dashboard,
             render_visualization,
             show_alert,
+            ask_user_question,
             ReasoningTools(add_instructions=True)
         ],
         model=Claude(id="claude-sonnet-4-20250514"),
@@ -375,6 +387,10 @@ def create_agent(db, knowledge=None):
             "",
             "The render_* tools execute on the FRONTEND and create interactive UI components.",
             "Always explain what you're showing and offer to adjust the visualization.",
+            "",
+            "You also have ask_user_question available. Use it whenever you need a specific piece",
+            "of information from the user before you can proceed (e.g. their name, a preference,",
+            "a date range). Ask one focused question at a time.",
             "",
             "You also have access to a knowledge base. When users ask about uploaded documents,",
             "search the knowledge base to find relevant information.",

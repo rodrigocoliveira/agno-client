@@ -16,6 +16,7 @@ import { formatSmartTimestamp } from '../lib/format-timestamp';
 import type { ToolState } from '../types';
 import type { AgnoMessageClassNames, AgnoMessageAvatars, AgnoMessageActions } from '../types';
 import type { ReactNode } from 'react';
+import type { ToolResultRenderer } from './agno-chat/context';
 import {
   AlertCircle,
   FileIcon,
@@ -59,6 +60,8 @@ export interface AgnoMessageItemProps {
   showImageLightbox?: boolean;
   /** Custom timestamp formatter */
   formatTimestamp?: (date: Date) => string;
+  /** Per-tool renderers shown inline in chat after a HITL tool completes, and on session reload */
+  toolResultRenderers?: Record<string, ToolResultRenderer>;
 }
 
 const defaultFormatTimestamp = formatSmartTimestamp;
@@ -90,6 +93,7 @@ export function AgnoMessageItem({
   showFilePreview = true,
   showImageLightbox = true,
   formatTimestamp,
+  toolResultRenderers,
 }: AgnoMessageItemProps) {
   const isUser = message.role === 'user';
   const hasError = message.streamingError;
@@ -281,6 +285,18 @@ export function AgnoMessageItem({
                     })}
                   </div>
                 )}
+
+                {/* Tool result renderers — shown after HITL execution and on session reload */}
+                {toolResultRenderers && message.tool_calls?.map((tool) => {
+                  const renderer = toolResultRenderers[tool.tool_name];
+                  const content = (tool.result ?? tool.content) as string | undefined;
+                  if (!renderer || !content) return null;
+                  return (
+                    <div key={`result-${tool.tool_call_id}`}>
+                      {renderer(tool.tool_args, content)}
+                    </div>
+                  );
+                })}
 
                 {/* Media - custom or default */}
                 {renderMedia

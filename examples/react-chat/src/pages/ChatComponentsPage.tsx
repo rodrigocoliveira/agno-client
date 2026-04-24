@@ -1,6 +1,6 @@
-import { useState } from 'react'
+import { useState, useRef, useCallback } from 'react'
 import { AgnoChat } from '@rodrigocoliveira/agno-react/ui'
-import type { ToolHandler } from '@rodrigocoliveira/agno-react'
+import type { ToolHandler, ToolResultRenderer } from '@rodrigocoliveira/agno-react'
 import { SessionSidebar } from '@/components/sessions/SessionSidebar'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -8,6 +8,7 @@ import { PanelLeftClose, PanelLeftOpen, Zap, Brain, Code2, Sparkles, Rocket, Cat
 import { cn } from '@/lib/utils'
 import { toast } from 'sonner'
 import { EXAMPLE_GENERATIVE_TOOLS } from '@/tools/exampleGenerativeTools'
+import { AskUserQuestionModal, AnswerBubble } from '@/tools/askUserQuestion'
 
 const SUGGESTED_PROMPTS = [
   { icon: <Zap className="h-3.5 w-3.5" />, text: "What can you help me with?" },
@@ -16,20 +17,51 @@ const SUGGESTED_PROMPTS = [
   { icon: <Sparkles className="h-3.5 w-3.5" />, text: "Surprise me with something creative" },
 ]
 
-const toolHandlers: Record<string, ToolHandler> = {
-  show_alert: async (args: Record<string, any>) => {
-    const content = args.content as string
-    toast.info('Alert from Agent', { description: content })
-    return { success: true, message: 'Alert displayed successfully', content }
-  },
-  ...EXAMPLE_GENERATIVE_TOOLS,
-}
-
 export function ChatComponentsPage() {
   const [showSessionSidebar, setShowSessionSidebar] = useState(true)
 
+  // ask_user_question HITL state
+  const [pendingQuestion, setPendingQuestion] = useState<string | null>(null)
+  const resolveRef = useRef<((answer: string) => void) | null>(null)
+
+  const askUserQuestionHandler: ToolHandler = useCallback(async (args) => {
+    const question = (args.question ?? args.questions ?? '') as string
+    setPendingQuestion(question)
+    const answer = await new Promise<string>((resolve) => {
+      resolveRef.current = resolve
+    })
+    setPendingQuestion(null)
+    return answer
+  }, [])
+
+  const handleModalSubmit = useCallback((answer: string) => {
+    resolveRef.current?.(answer)
+    resolveRef.current = null
+  }, [])
+
+  const toolHandlers: Record<string, ToolHandler> = {
+    show_alert: async (args: Record<string, any>) => {
+      const content = args.content as string
+      toast.info('Alert from Agent', { description: content })
+      return { success: true, message: 'Alert displayed successfully', content }
+    },
+    ask_user_question: askUserQuestionHandler,
+    ...EXAMPLE_GENERATIVE_TOOLS,
+  }
+
+  const toolResultRenderers: Record<string, ToolResultRenderer> = {
+    ask_user_question: (args, content) => (
+      <AnswerBubble question={(args.question ?? '') as string} answer={content} />
+    ),
+  }
+
   return (
     <div className="flex h-full overflow-hidden">
+      {/* ask_user_question modal — rendered outside AgnoChat so it overlays everything */}
+      {pendingQuestion !== null && (
+        <AskUserQuestionModal question={pendingQuestion} onSubmit={handleModalSubmit} />
+      )}
+
       {/* Session Sidebar - Left (animated width) */}
       <div className={cn(
         "border-r border-border flex flex-col bg-muted/30 transition-all duration-300 ease-in-out overflow-hidden",
@@ -68,7 +100,7 @@ export function ChatComponentsPage() {
 
         {/* Chat Interface — compound component pattern */}
         <div className="flex-1 overflow-hidden">
-          <AgnoChat toolHandlers={toolHandlers}>
+          <AgnoChat toolHandlers={toolHandlers} toolResultRenderers={toolResultRenderers}>
             <AgnoChat.Messages
               avatars={{
                 user: (
@@ -107,7 +139,7 @@ export function ChatComponentsPage() {
                       <ThumbsUp className="h-3.5 w-3.5" />
                     </button>
                     <button
-                      onClick={() => toast.info('Sorry to hear that. We\'ll improve!')}
+                      onClick={() => toast.info("Sorry to hear that. We'll improve!")}
                       className="p-1 rounded hover:bg-muted text-muted-foreground hover:text-foreground transition-colors"
                       aria-label="Dislike message"
                     >
@@ -117,7 +149,6 @@ export function ChatComponentsPage() {
                 ),
               }}
             >
-              
               <AgnoChat.EmptyState>
                 <div className="relative">
                   <div className="h-20 w-20 rounded-2xl bg-gradient-to-br from-cyan-500/20 to-blue-600/20 flex items-center justify-center border border-cyan-500/20">
@@ -144,6 +175,7 @@ export function ChatComponentsPage() {
             <AgnoChat.Input
               className="bg-muted/30 border-t-2 border-primary/10"
               placeholder="Ask me anything..."
+              allowCancelRun={true}
               audio={{
                 enabled: true,
                 mode: 'transcribe',

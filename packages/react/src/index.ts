@@ -51,6 +51,7 @@ export { useAgnoSession } from './hooks/useAgnoSession';
 export { useAgnoActions } from './hooks/useAgnoActions';
 export { useAgnoToolExecution, getCustomRender } from './hooks/useAgnoToolExecution';
 export type { ToolHandler, ToolExecutionEvent } from './hooks/useAgnoToolExecution';
+export type { ToolResultRenderer } from './ui/composed/agno-chat/context';
 export { useAgnoCustomEvents } from './hooks/useAgnoCustomEvents';
 export { useAgnoMemory } from './hooks/useAgnoMemory';
 export { useAgnoKnowledge } from './hooks/useAgnoKnowledge';
