@@ -171,7 +171,6 @@ export function ChatComponentsPage() {
             </AgnoChat.Messages>
 
             <AgnoChat.ErrorBar className="bg-red-500/5 border-t-2 border-red-500/30" />
-            <AgnoChat.ToolStatus className="bg-violet-500/5 border-violet-500/20" />
             <AgnoChat.Input
               className="bg-muted/30 border-t-2 border-primary/10"
               placeholder="Ask me anything..."

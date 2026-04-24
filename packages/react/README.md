@@ -101,7 +101,6 @@ function ChatPage() {
           />
         </AgnoChat.EmptyState>
       </AgnoChat.Messages>
-      <AgnoChat.ToolStatus />
       <AgnoChat.ErrorBar />
       <AgnoChat.Input placeholder="Ask me anything..." />
     </AgnoChat>
@@ -337,7 +336,6 @@ function ChatPage() {
         </AgnoChat.EmptyState>
       </AgnoChat.Messages>
 
-      <AgnoChat.ToolStatus className="bg-violet-500/5 border-violet-500/20" />
       <AgnoChat.ErrorBar className="bg-red-500/5" />
       <AgnoChat.Input
         placeholder="Ask me anything..."
@@ -358,7 +356,6 @@ function ChatPage() {
 | `AgnoChat.Messages` | Message list with auto-scroll. Accepts `userAvatar`, `assistantAvatar`, `messageItemProps`. |
 | `AgnoChat.EmptyState` | Shown when there are no messages. Place inside `Messages`. |
 | `AgnoChat.SuggestedPrompts` | Clickable prompt suggestions. Place inside `EmptyState`. |
-| `AgnoChat.ToolStatus` | Status bar shown when tools are executing. |
 | `AgnoChat.ErrorBar` | Error display bar. |
 | `AgnoChat.Input` | Chat input with file uploads and optional audio recorder. |
 
