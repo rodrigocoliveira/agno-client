@@ -83,6 +83,7 @@ import { TracesManager, PaginatedTracesResult, PaginatedTraceSessionStatsResult 
 import { ScheduleManager } from './managers/schedule-manager';
 import { ApprovalManager } from './managers/approval-manager';
 import { ComponentManager } from './managers/component-manager';
+import { SessionStateManager } from './managers/session-state-manager';
 import { EventProcessor } from './processors/event-processor';
 import { streamResponse } from './parsers/stream-parser';
 import { Logger } from './utils/logger';
@@ -121,6 +122,7 @@ export class AgnoClient extends EventEmitter {
   private scheduleManager: ScheduleManager;
   private approvalManager: ApprovalManager;
   private componentManager: ComponentManager;
+  private sessionStateManager: SessionStateManager;
   private eventProcessor: EventProcessor;
   private state: ClientState;
   private pendingUISpecs: Map<string, any>; // toolCallId -> UIComponentSpec
@@ -140,6 +142,7 @@ export class AgnoClient extends EventEmitter {
     this.scheduleManager = new ScheduleManager();
     this.approvalManager = new ApprovalManager();
     this.componentManager = new ComponentManager();
+    this.sessionStateManager = new SessionStateManager();
     this.eventProcessor = new EventProcessor();
     this.pendingUISpecs = new Map();
     this.state = {
@@ -161,6 +164,8 @@ export class AgnoClient extends EventEmitter {
       schedules: [],
       approvals: [],
       components: [],
+      sessionState: null,
+      isSessionStateRefreshing: false,
     };
   }
 
@@ -201,7 +206,91 @@ export class AgnoClient extends EventEmitter {
     this.configManager.setSessionId(undefined);
     this.pendingUISpecs.clear(); // Clear any pending UI specs to prevent memory leaks
     this.state.errorMessage = undefined;
+    this.sessionStateManager.invalidate();
+    if (this.sessionStateManager.clear()) {
+      this.state.sessionState = null;
+      this.emit('session-state:change', null);
+    }
     this.emit('message:update', this.messageStore.getMessages());
+    this.emit('state:change', this.getState());
+  }
+
+  /**
+   * Get the current cached session_state (backend-managed per-session dict).
+   * Populated from `loadSession`, `RunCompleted` chunks, custom events, or
+   * `refreshSessionState()`. Returns null when unknown.
+   */
+  getSessionState<T extends Record<string, unknown> = Record<string, unknown>>():
+    | T
+    | null {
+    return this.sessionStateManager.get() as T | null;
+  }
+
+  /**
+   * Replace session_state in the cache and persist via PATCH /sessions/{id}.
+   * Emits `session-state:change` and `state:change` on success.
+   */
+  async setSessionState(
+    state: Record<string, unknown>,
+    options?: { params?: Record<string, string> }
+  ): Promise<void> {
+    const sessionId = this.configManager.getSessionId();
+    if (!sessionId) {
+      throw new Error('setSessionState requires an active session — call sendMessage or loadSession first.');
+    }
+    await this.updateSession(sessionId, { session_state: state }, options);
+    this.applySessionState(state, { source: 'manual-set' });
+  }
+
+  /**
+   * Re-fetch the active session's session_state from the backend. Used as the
+   * escape hatch when streamed sources are unreliable (e.g., team runs where
+   * TeamRunCompleted does not carry session_state).
+   */
+  async refreshSessionState(
+    options?: { params?: Record<string, string>; silent?: boolean }
+  ): Promise<Record<string, unknown> | null> {
+    const sessionId = this.configManager.getSessionId();
+    if (!sessionId) return null;
+
+    const epoch = this.sessionStateManager.currentEpoch();
+    if (!options?.silent) {
+      this.state.isSessionStateRefreshing = true;
+      this.emit('session-state:refresh:start');
+      this.emit('state:change', this.getState());
+    }
+
+    try {
+      const detail = await this.getSessionById(sessionId, { params: options?.params });
+      if (!this.sessionStateManager.isEpochCurrent(epoch)) {
+        // The user switched sessions mid-refresh — discard this response.
+        return null;
+      }
+      const next = (detail.session_state ?? null) as Record<string, unknown> | null;
+      this.applySessionState(next, { source: 'refresh' });
+      return next;
+    } finally {
+      if (!options?.silent && this.sessionStateManager.isEpochCurrent(epoch)) {
+        this.state.isSessionStateRefreshing = false;
+        this.emit('session-state:refresh:end');
+        this.emit('state:change', this.getState());
+      }
+    }
+  }
+
+  /**
+   * Internal: push a new session_state into the cache and notify listeners.
+   * Guards against no-op writes and exposes the origin for debugging.
+   */
+  private applySessionState(
+    next: Record<string, unknown> | null | undefined,
+    meta: { source: 'custom-event' | 'run-completed' | 'refresh' | 'load-session' | 'manual-set' }
+  ): void {
+    const changed = this.sessionStateManager.set(next ?? null);
+    if (!changed) return;
+    this.state.sessionState = this.sessionStateManager.get();
+    Logger.debug(`[AgnoClient] session_state updated via ${meta.source}`);
+    this.emit('session-state:change', this.state.sessionState);
     this.emit('state:change', this.getState());
   }
 
@@ -357,6 +446,22 @@ export class AgnoClient extends EventEmitter {
         // Trigger refresh if run completed successfully
         if (this.runCompletedSuccessfully) {
           this.runCompletedSuccessfully = false;
+
+          // Team runs need an out-of-band session_state fetch because
+          // TeamRunCompleted does not carry the field on the wire.
+          // See scripts/verify-session-state/FINDINGS.md.
+          const cfg = this.configManager.getConfig();
+          const shouldRefreshTeamState =
+            this.configManager.getMode() === 'team' &&
+            (cfg.refreshTeamSessionStateOnStreamEnd ?? true);
+          if (shouldRefreshTeamState) {
+            try {
+              await this.refreshSessionState({ silent: false });
+            } catch (err) {
+              Logger.debug('[AgnoClient] Post-team-run session_state refresh failed:', err);
+            }
+          }
+
           await this.refreshSessionMessages();
         }
       },
@@ -522,7 +627,15 @@ export class AgnoClient extends EventEmitter {
 
     // Emit semantic custom:event for CustomEvent types
     if (event === RunEvent.CustomEvent) {
-      this.emit('custom:event', chunk as unknown as CustomEventData);
+      const customEvent = chunk as unknown as CustomEventData;
+      this.emit('custom:event', customEvent);
+
+      // Live-sync session_state if the payload carries it (opt-out via config).
+      const extractor = this.configManager.getConfig().extractSessionStateFromCustomEvent;
+      const extracted = this.sessionStateManager.extractFromCustomEvent(customEvent, extractor);
+      if (extracted) {
+        this.applySessionState(extracted, { source: 'custom-event' });
+      }
     }
 
     // Process the chunk and update message
@@ -537,6 +650,13 @@ export class AgnoClient extends EventEmitter {
     // Track if run completed successfully for post-stream refresh
     if (event === RunEvent.RunCompleted || event === RunEvent.TeamRunCompleted) {
       this.runCompletedSuccessfully = true;
+
+      // Agent runs carry session_state on the RunCompleted chunk. Teams emit
+      // TeamRunCompleted WITHOUT session_state through Agno 2.6.0 — those are
+      // handled by the post-stream refresh in onComplete below.
+      if (event === RunEvent.RunCompleted && chunk.session_state !== undefined) {
+        this.applySessionState(chunk.session_state, { source: 'run-completed' });
+      }
     }
 
     this.emit('message:update', this.messageStore.getMessages());
@@ -989,6 +1109,24 @@ export class AgnoClient extends EventEmitter {
 
     const params = this.configManager.buildQueryString(options?.params);
 
+    // Switching sessions invalidates any in-flight session_state refresh so
+    // a stale response can't overwrite the new session's state.
+    this.sessionStateManager.invalidate();
+
+    // Fetch runs (messages) and session detail (session_state) in parallel.
+    // /runs does not include session_state; /sessions/{id} does — verified in
+    // scripts/verify-session-state/FINDINGS.md.
+    const hydrateStatePromise: Promise<void> = this.getSessionById(sessionId, {
+      params: options?.params,
+    })
+      .then((detail) => {
+        this.applySessionState(detail.session_state ?? null, { source: 'load-session' });
+      })
+      .catch((err) => {
+        // A session_state hydration failure should not break message loading.
+        Logger.debug('[AgnoClient] loadSession: session_state hydration failed:', err);
+      });
+
     const response = await this.withTokenRefresh(() => {
       const headers = this.configManager.buildRequestHeaders();
       return this.sessionManager.fetchSession(
@@ -1001,6 +1139,9 @@ export class AgnoClient extends EventEmitter {
         params
       );
     });
+
+    // Don't block on hydration, but do not leave the promise dangling either.
+    await hydrateStatePromise;
 
     const messages = this.sessionManager.convertSessionToMessages(response);
     Logger.debug('[AgnoClient] Setting messages to store:', `${messages.length} messages`);

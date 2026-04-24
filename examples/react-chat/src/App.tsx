@@ -5,6 +5,7 @@ import { ChatHubPage } from '@/pages/ChatHubPage'
 import { ChatHooksPage } from '@/pages/ChatHooksPage'
 import { ChatComponentsPage } from '@/pages/ChatComponentsPage'
 import { SessionsPage } from '@/pages/SessionsPage'
+import { SessionStatePage } from '@/pages/SessionStatePage'
 import { MemoryPage } from '@/pages/MemoryPage'
 import { KnowledgePage } from '@/pages/KnowledgePage'
 import { MetricsPage } from '@/pages/MetricsPage'
@@ -21,6 +22,7 @@ function App() {
           <Route path="/chat/hooks" element={<ChatHooksPage />} />
           <Route path="/chat/components" element={<ChatComponentsPage />} />
           <Route path="/sessions" element={<SessionsPage />} />
+          <Route path="/session-state" element={<SessionStatePage />} />
           <Route path="/memory" element={<MemoryPage />} />
           <Route path="/knowledge" element={<KnowledgePage />} />
           <Route path="/metrics" element={<MetricsPage />} />

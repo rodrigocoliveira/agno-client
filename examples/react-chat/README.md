@@ -18,7 +18,7 @@ Build from scratch using React hooks. You have full control over every piece of 
 
 Use the `AgnoChat` compound component from `@rodrigocoliveira/agno-react/ui`. Pre-built UI with customization via props and slots — get a full-featured chat interface with minimal code.
 
-- Uses `AgnoChat` with sub-components: `Messages`, `EmptyState`, `SuggestedPrompts`, `ToolStatus`, `ErrorBar`, `Input`
+- Uses `AgnoChat` with sub-components: `Messages`, `EmptyState`, `SuggestedPrompts`, `ErrorBar`, `Input`
 - Customizable via props (avatars, classNames, action buttons, audio mode)
 - Best for rapid development or when the default UI fits your needs
 
@@ -51,7 +51,7 @@ Use the `AgnoChat` compound component from `@rodrigocoliveira/agno-react/ui`. Pr
 - **MessageItem** — Individual message with tool calls, reasoning, media
 
 **Library components (Composed approach):**
-- **AgnoChat** — Compound component with Messages, EmptyState, SuggestedPrompts, ToolStatus, ErrorBar, Input
+- **AgnoChat** — Compound component with Messages, EmptyState, SuggestedPrompts, ErrorBar, Input
 - **AgnoMessageItem** — Pre-built message rendering with markdown, tool calls, reasoning
 - **AgnoChatInput** — Input with file uploads, audio recording, and transcription
 
@@ -167,6 +167,42 @@ If you want to change the auto-selected agent/team:
 - **Media**: Images, videos, and audio are displayed inline
 - **Audio Recording**: Record and send audio messages or transcribe speech to text
 - **Debug Panel**: Monitor state changes and events in real-time
+
+### 6. Try the Session State demo (`/session-state`)
+
+A self-contained playground for the `useAgnoSessionState` hook backed by the
+`state-counter-agent` and `state-counter-team` in `agno-mock-server`. Use it
+to see all four sync paths the lib supports — without writing a single line of code.
+
+What to do once the page is open:
+
+1. **Live mid-run sync (agent path).** Mode is `agent` by default. Press *Send*
+   with the preset "Increment by 5". Watch the **counter** number tick up
+   while the run is still streaming, and the **Change history** column tag
+   each update with the green `in-stream` badge. That's the
+   `SessionStateUpdatedEvent` custom-event path.
+
+2. **Post-stream REST refresh (team path).** Switch *Mode* to `team` and
+   *Send* "Increment by 2". After `stream:end`, you'll see a yellow
+   `refresh:start` / `refresh:end` pair in the **Stream timeline**, then the
+   counter jumps by 2 with a `post-stream` badge in history. That's the
+   workaround for `TeamRunCompleted` not carrying `session_state` in
+   Agno 2.6.0 (see `docs/todos/remove-team-session-state-workaround.md`).
+
+3. **Opt out of live updates.** Toggle *Auto-extract from custom events* off
+   and *Send* "Increment by 1". The counter no longer moves mid-run; it
+   only updates once at `stream:end` from the `RunCompleted` chunk.
+   `useAgnoCustomEvents` consumers still see the event.
+
+4. **Manual writes.** *Set session_state…* opens a JSON editor (round-trips
+   via `PATCH /sessions/{id}`). *Merge `{ marker: ... }`* shallow-merges a
+   field. *Refresh from backend* re-fetches `GET /sessions/{id}`.
+
+5. **Race safety.** Start a long run on session A, switch to a different
+   session via the **Sessions** sidebar before it finishes — the in-flight
+   refresh is invalidated; the new session's state is not overwritten.
+
+For the contract behind the demo, read [`docs/guides/12_state_and_events.md`](../../docs/guides/12_state_and_events.md).
 
 ## Project Structure
 

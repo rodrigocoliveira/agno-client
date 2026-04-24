@@ -15,6 +15,7 @@ from dotenv import load_dotenv
 
 from agent import create_agent, create_knowledge_base
 from team import create_team
+from state_counter import create_state_counter_agent, create_state_counter_team
 from agno.tracing import setup_tracing
 
 load_dotenv()
@@ -41,12 +42,17 @@ agent = create_agent(db, knowledge=knowledge)
 # Create the team
 team = create_team(db)
 
+# Create the session_state demo agent + team (used by the SessionStatePage in
+# examples/react-chat). Backed by the same db; isolated session_state per session.
+state_counter_agent = create_state_counter_agent(db)
+state_counter_team = create_state_counter_team(db)
+
 # Create AgentOS with agent, team, knowledge, and tracing
 agent_os = AgentOS(
     id="agno-demo",
     description="Demo server with agent and team examples",
-    agents=[agent],
-    teams=[team],
+    agents=[agent, state_counter_agent],
+    teams=[team, state_counter_team],
     db=db,
     knowledge=[knowledge],  # Attach knowledge to AgentOS for the knowledge API
     tracing=True,  # Enable detailed tracing (uses setup_tracing db)
@@ -84,6 +90,11 @@ if __name__ == "__main__":
     print("    - English agent")
     print("    - Chinese agent")
     print("    - Germanic team (German + Dutch agents)")
+    print("\n  AGENT: state-counter-agent  (session_state demo)")
+    print("    - increment_counter / reset_counter tools")
+    print("    - Yields SessionStateUpdatedEvent for live mid-run sync")
+    print("\n  TEAM:  state-counter-team   (session_state demo + team REST refresh path)")
+    print("    - Same tools delegated through a member agent")
     print("\nStarting server on http://localhost:7777")
     print("\nExample prompts:")
     print("  Agent: 'Show me monthly revenue'")

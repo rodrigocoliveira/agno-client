@@ -242,6 +242,9 @@ export interface RunResponse {
   tools_awaiting_external_execution?: ToolCall[];
   tools_requiring_confirmation?: ToolCall[];
   tools_requiring_user_input?: ToolCall[];
+  // Session state — present on agent `RunCompleted` chunks. Teams emit `TeamRunCompleted`
+  // WITHOUT this field through Agno 2.6.0, so team sync uses a post-stream REST refresh.
+  session_state?: Record<string, unknown> | null;
 }
 
 /**

@@ -10,6 +10,15 @@ A mock Agno agent server demonstrating generative UI capabilities with interacti
 - Dashboard metrics
 - Smart data visualization
 
+## Demo agents and teams exposed
+
+| Component | Type | Purpose |
+|---|---|---|
+| `generative-ui-demo` | agent | Generative-UI tools (charts, cards, tables) — see `agent.py` |
+| `language-team` | team | Multi-language coordination demo — see `team.py` |
+| `state-counter-agent` | agent | `session_state` demo — `increment_counter` / `reset_counter` tools yield `SessionStateUpdatedEvent` for live mid-run client sync. Backs the `/session-state` page in `examples/react-chat`. |
+| `state-counter-team` | team | Same as above, but exercises the team REST-refresh path the lib uses to work around `TeamRunCompleted` not carrying `session_state` (Agno 2.6.0). |
+
 ## Setup
 
 ### 1. Create a Python virtual environment
