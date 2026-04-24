@@ -2,7 +2,6 @@ import { AgnoChatRoot } from './agno-chat';
 import { AgnoChatMessages } from './messages';
 import { AgnoChatEmptyState } from './empty-state';
 import { AgnoChatSuggestedPrompts } from './suggested-prompts';
-import { AgnoChatToolStatus } from './tool-status';
 import { AgnoChatErrorBar } from './error-bar';
 import { AgnoChatInputArea } from './input';
 
@@ -19,8 +18,6 @@ export { AgnoChatEmptyState } from './empty-state';
 export type { AgnoChatEmptyStateProps } from './empty-state';
 export { AgnoChatSuggestedPrompts } from './suggested-prompts';
 export type { AgnoChatSuggestedPromptsProps } from './suggested-prompts';
-export { AgnoChatToolStatus } from './tool-status';
-export type { AgnoChatToolStatusProps } from './tool-status';
 export { AgnoChatErrorBar } from './error-bar';
 export type { AgnoChatErrorBarProps } from './error-bar';
 export { AgnoChatInputArea } from './input';
@@ -31,7 +28,6 @@ const AgnoChat = Object.assign(AgnoChatRoot, {
   Messages: AgnoChatMessages,
   EmptyState: AgnoChatEmptyState,
   SuggestedPrompts: AgnoChatSuggestedPrompts,
-  ToolStatus: AgnoChatToolStatus,
   ErrorBar: AgnoChatErrorBar,
   Input: AgnoChatInputArea,
 });
