@@ -35,7 +35,8 @@
   "scripts": {
     "build": "rm -rf dist && bun build src/index.ts --outdir dist --format cjs --packages external --sourcemap=external && bun build src/index.ts --outdir dist --format esm --packages external --entry-naming '[name].mjs' --sourcemap=external && tsc -p tsconfig.build.json",
     "dev": "bun build src/index.ts --outdir dist --format esm --packages external --entry-naming '[name].mjs' --watch",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "bun test"
   },
   "dependencies": {
     "@rodrigocoliveira/agno-types": "workspace:*",
