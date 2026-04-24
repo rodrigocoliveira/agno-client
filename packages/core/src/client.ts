@@ -1008,10 +1008,39 @@ export class AgnoClient extends EventEmitter {
     this.configManager.setSessionId(sessionId);
     this.state.errorMessage = undefined;
 
+    // Detect runs that are still paused (user reloaded before answering a HITL tool).
+    // Only agents support HITL — teams have no /continue endpoint.
+    if (this.configManager.getMode() === 'agent') {
+      const pausedRun = response.find(
+        (run: any) => typeof run.status === 'string' && run.status.toLowerCase() === 'paused'
+      );
+      if (pausedRun) {
+        const pendingTools = ((pausedRun as any).tools ?? []).filter(
+          (t: any) => t.external_execution_required === true && t.result === null
+        );
+        if (pendingTools.length > 0) {
+          this.state.isPaused = true;
+          this.state.pausedRunId = (pausedRun as any).run_id;
+          this.state.toolsAwaitingExecution = pendingTools;
+        }
+      }
+    }
+
     Logger.debug('[AgnoClient] Emitting events...');
     this.emit('session:loaded', sessionId);
     this.emit('message:update', this.messageStore.getMessages());
     this.emit('state:change', this.getState());
+
+    // Emit run:paused AFTER session:loaded so handleSessionLoaded completes first.
+    // This re-establishes the HITL flow: autoExecute will trigger the handler (e.g. modal).
+    if (this.state.isPaused && this.state.pausedRunId) {
+      this.emit('run:paused', {
+        runId: this.state.pausedRunId,
+        sessionId,
+        tools: this.state.toolsAwaitingExecution ?? [],
+      });
+    }
+
     Logger.debug('[AgnoClient] Events emitted, returning messages');
 
     return messages;
