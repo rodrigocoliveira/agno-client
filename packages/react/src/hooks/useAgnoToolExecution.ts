@@ -146,7 +146,8 @@ export interface ToolExecutionEvent {
  */
 export function useAgnoToolExecution(
   handlers: Record<string, ToolHandler> = {},
-  autoExecute: boolean = true
+  autoExecute: boolean = true,
+  options?: { skipHydration?: string[] }
 ) {
   const client = useAgnoClient();
   const toolHandlerContext = useToolHandlers();
@@ -291,6 +292,10 @@ export function useAgnoToolExecution(
         for (const tool of message.tool_calls) {
           // Skip if already has UI
           if ((tool as any).ui_component) continue;
+
+          // Skip HITL/interactive tools — re-invoking would trigger side effects (modals, panels).
+          // Tools with a toolResultRenderer are handled at display time via the preserved result.
+          if (options?.skipHydration?.includes(tool.tool_name)) continue;
 
           const handler = mergedHandlers[tool.tool_name];
           if (!handler) continue;

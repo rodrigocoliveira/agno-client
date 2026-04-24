@@ -484,6 +484,7 @@ export class SessionManager {
           const toolCall = {
             role: 'tool' as const,
             content: (toolObj.content as string) ?? '',
+            result: (toolObj.result as string) ?? undefined,
             tool_call_id: (toolObj.tool_call_id as string) ?? '',
             tool_name: (toolObj.tool_name as string) ?? '',
             tool_args: (toolObj.tool_args as Record<string, string>) ?? {},

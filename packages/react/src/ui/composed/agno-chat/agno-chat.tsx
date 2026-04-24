@@ -3,24 +3,28 @@ import type { HTMLAttributes, ReactNode } from 'react';
 import { useAgnoChat, useAgnoToolExecution } from '@rodrigocoliveira/agno-react';
 import type { ToolHandler } from '@rodrigocoliveira/agno-react';
 import { AgnoChatContext } from './context';
-import type { AgnoChatContextValue } from './context';
+import type { AgnoChatContextValue, ToolResultRenderer } from './context';
 import { cn } from '../../lib/cn';
 
 export interface AgnoChatRootProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
   toolHandlers?: Record<string, ToolHandler>;
   autoExecuteTools?: boolean;
+  toolResultRenderers?: Record<string, ToolResultRenderer>;
 }
 
 export function AgnoChatRoot({
   children,
   toolHandlers = {},
   autoExecuteTools = true,
+  toolResultRenderers,
   className,
   ...divProps
 }: AgnoChatRootProps) {
   const chat = useAgnoChat();
-  const toolExec = useAgnoToolExecution(toolHandlers, autoExecuteTools);
+  const toolExec = useAgnoToolExecution(toolHandlers, autoExecuteTools, {
+    skipHydration: toolResultRenderers ? Object.keys(toolResultRenderers) : undefined,
+  });
 
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -89,6 +93,9 @@ export function AgnoChatRoot({
 
       // drop zone
       dropZoneContainerRef: containerRef,
+
+      // tool result renderers
+      toolResultRenderers,
     }),
     [
       messages,
@@ -109,6 +116,7 @@ export function AgnoChatRoot({
       continueWithResults,
       executionError,
       handleSend,
+      toolResultRenderers,
     ],
   );
 
