@@ -461,6 +461,145 @@ Memories are cached in the client state (similar to sessions):
 - `packages/core/src/client.ts` - Memory methods on AgnoClient
 - `packages/react/src/hooks/useAgnoMemory.ts` - React hook
 
+## Components API (Studio DB-stored agents)
+
+The client libraries support the AgentOS **Studio Components** API for managing agents, teams, and workflows that are persisted in the AgentOS database (rather than defined in code). Once published, a component is runnable through the same `/agents/{id}/runs` or `/teams/{id}/runs` endpoints as code-defined entities — its `component_id` is used as the `agentId` / `teamId`.
+
+### Lifecycle
+
+A component is the long-lived entity (`component_id`, `name`, `component_type`, `metadata`). Its actual configuration lives in versioned `configs`:
+
+- Each config has a `version` (auto-incremented) and a `stage`: `draft` or `published`.
+- Drafts can be edited via `PATCH`; published configs are immutable (create a new version instead).
+- Exactly one config can be `current` — that's the version served by the runtime. `POST /components/{id}/configs/{version}/set-current` switches it (rollback or fast-forward).
+
+### Filtering by user (no native support)
+
+`GET /components` only filters by `component_type`, `page`, `limit`. The Agno backend does **not** scope components by `user_id`. The per-user isolation that exists for sessions, memory, knowledge, and traces does **not** apply here. Two patterns to scope per-user from the consumer side:
+
+1. **Metadata convention** — store `metadata: { user_id: '...' }` on `createComponent`, then filter the returned list client-side.
+2. **Custom backend params** — extend the router to accept `?user_id=...` and pass it via `params: { user_id }`. The lib forwards arbitrary params globally (`AgnoProvider config.params`) or per-request.
+
+### Available Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `GET /components` | GET | List components (filter by `component_type`, paginated) |
+| `POST /components` | POST | Create a component with optional initial config |
+| `GET /components/{id}` | GET | Get a component by ID |
+| `PATCH /components/{id}` | PATCH | Partially update a component (name, description, metadata, current_version) |
+| `DELETE /components/{id}` | DELETE | Delete a component |
+| `GET /components/{id}/configs` | GET | List all config versions for a component |
+| `POST /components/{id}/configs` | POST | Create a new config version (always new — never overwrites) |
+| `GET /components/{id}/configs/current` | GET | Get the currently active config |
+| `GET /components/{id}/configs/{version}` | GET | Get a specific config version |
+| `PATCH /components/{id}/configs/{version}` | PATCH | Update a draft config (cannot update published) |
+| `DELETE /components/{id}/configs/{version}` | DELETE | Delete a draft config (cannot delete published or current) |
+| `POST /components/{id}/configs/{version}/set-current` | POST | Set a published version as current |
+
+### Core Client Usage
+
+```typescript
+const client = new AgnoClient({
+  endpoint: 'http://localhost:7777',
+  mode: 'agent',
+  agentId: 'support-bot', // a published component_id is also valid here
+});
+
+// List agent components from the DB
+const { data: components } = await client.fetchComponents({
+  component_type: 'agent',
+  limit: 20,
+});
+
+// Create a new component (with initial draft config)
+const created = await client.createComponent({
+  name: 'Support Bot',
+  component_type: 'agent',
+  description: 'Tier-1 support agent',
+  metadata: { user_id: 'user-123', team: 'support' },
+  config: {
+    model: { id: 'gpt-4o', provider: 'openai' },
+    instructions: 'You are a helpful support agent.',
+  },
+  stage: 'draft',
+});
+
+// Publish a new version (POST always creates a new version)
+const published = await client.createComponentConfig(created.component_id, {
+  config: { model: { id: 'gpt-4o-mini', provider: 'openai' } },
+  stage: 'published',
+  label: 'v1.0',
+});
+
+// Roll back to a previous version
+await client.setCurrentComponentConfig(created.component_id, 1);
+
+// Use the component as a runnable agent
+client.updateConfig({ mode: 'agent', agentId: created.component_id });
+await client.sendMessage('Hello');
+```
+
+### React Hook Usage
+
+```typescript
+import { useAgnoComponents } from '@rodrigocoliveira/agno-react';
+
+function ComponentManager() {
+  const {
+    components,
+    isLoading,
+    error,
+    fetchComponents,
+    createComponent,
+    updateComponent,
+    deleteComponent,
+    fetchComponentConfigs,
+    createComponentConfig,
+    getCurrentComponentConfig,
+    getComponentConfigByVersion,
+    updateComponentConfig,
+    deleteComponentConfig,
+    setCurrentComponentConfig,
+  } = useAgnoComponents();
+
+  useEffect(() => {
+    fetchComponents({ component_type: 'agent' });
+  }, []);
+
+  const handleCreate = () =>
+    createComponent({
+      name: 'My Agent',
+      component_type: 'agent',
+      config: { instructions: 'Be helpful.' },
+    });
+
+  return (
+    <div>
+      {components.map((c) => (
+        <div key={c.component_id}>
+          <strong>{c.name}</strong> · v{c.current_version ?? '—'}
+        </div>
+      ))}
+    </div>
+  );
+}
+```
+
+### State Caching & Events
+
+- `state.components` is the cached list (populated by `fetchComponents` and CRUD ops).
+- Configs are **not** cached (returned directly from each call), since they're versioned and per-component.
+- Events: `component:created`, `component:updated`, `component:deleted`, `component:config:created`, `component:config:updated`, `component:config:deleted`, `component:config:set-current`, plus `state:change`.
+- `initialize()` does **not** auto-fetch components — call `fetchComponents()` explicitly when you need them.
+
+### Key Files
+
+- `packages/types/src/api.ts` - Component types (`ComponentResponse`, `ComponentCreate`, `ConfigCreate`, etc.)
+- `packages/core/src/managers/component-manager.ts` - ComponentManager class
+- `packages/core/src/client.ts` - Component methods on AgnoClient
+- `packages/react/src/hooks/useAgnoComponents.ts` - React hook
+
 ## Type Safety and Official Types
 
 All types in `@rodrigocoliveira/agno-types` are based on the **official Agno API specification** provided by the Agno team. When making changes:
@@ -514,6 +653,18 @@ The client expects these Agno API endpoints:
 - `PATCH /memories/{id}` - Update memory
 - `DELETE /memories/{id}` - Delete memory
 - `DELETE /memories` - Delete multiple memories (with request body)
+- `GET /components` - List components (Studio DB-stored agents/teams/workflows)
+- `POST /components` - Create component
+- `GET /components/{id}` - Get component by ID
+- `PATCH /components/{id}` - Update component
+- `DELETE /components/{id}` - Delete component
+- `GET /components/{id}/configs` - List config versions
+- `POST /components/{id}/configs` - Create new config version
+- `GET /components/{id}/configs/current` - Get current config
+- `GET /components/{id}/configs/{version}` - Get specific config version
+- `PATCH /components/{id}/configs/{version}` - Update draft config version
+- `DELETE /components/{id}/configs/{version}` - Delete draft config version
+- `POST /components/{id}/configs/{version}/set-current` - Set published version as current
 
 **Important:** Teams do not support the `/continue` endpoint. HITL (Human-in-the-Loop) frontend tool execution is only available for agents.
 

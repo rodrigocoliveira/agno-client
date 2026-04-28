@@ -59,6 +59,7 @@ export { useAgnoKnowledge } from './hooks/useAgnoKnowledge';
 export { useAgnoMetrics } from './hooks/useAgnoMetrics';
 export { useAgnoEvals } from './hooks/useAgnoEvals';
 export { useAgnoTraces } from './hooks/useAgnoTraces';
+export { useAgnoComponents } from './hooks/useAgnoComponents';
 export type {
   PaginatedTracesResult,
   PaginatedTraceSessionStatsResult,
@@ -143,4 +144,14 @@ export type {
   GetTraceOptions,
   GetTraceSessionStatsOptions,
   PaginationInfo,
+  // Components API types (Studio DB-stored agents/teams/workflows)
+  ComponentType,
+  ListComponentsParams,
+  ComponentCreate,
+  ComponentUpdate,
+  ComponentResponse,
+  ConfigCreate,
+  ConfigUpdate,
+  ComponentConfigResponse,
+  ComponentsListResponse,
 } from '@rodrigocoliveira/agno-types';
