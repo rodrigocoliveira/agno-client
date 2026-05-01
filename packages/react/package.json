@@ -1,6 +1,6 @@
 {
   "name": "@rodrigocoliveira/agno-react",
-  "version": "1.2.0",
+  "version": "1.3.0",
   "description": "React hooks and pre-built UI components for Agno client",
   "author": "rodrigocoliveira",
   "license": "MIT",
@@ -41,7 +41,7 @@
     "README.md"
   ],
   "scripts": {
-    "build": "bun run build.ts",
+    "build": "NODE_ENV=production bun run build.ts",
     "dev": "bun build src/index.ts src/ui.ts --outdir dist --format esm --packages external --entry-naming '[name].mjs' --watch",
     "typecheck": "tsc --noEmit"
   },
