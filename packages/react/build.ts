@@ -1,5 +1,15 @@
 import { $ } from "bun";
 
+// Bun's JSX transform picks `react/jsx-runtime` vs `react/jsx-dev-runtime`
+// based on NODE_ENV at process start. If NODE_ENV !== "production", the
+// emitted bundle imports `jsxDEV`, which is missing in React production
+// builds and crashes consumers (Vite/Laravel) at runtime.
+if (process.env.NODE_ENV !== "production") {
+  throw new Error(
+    "build.ts must be run with NODE_ENV=production (the package.json `build` script sets this).",
+  );
+}
+
 // Clean dist
 await $`rm -rf dist`;
 
