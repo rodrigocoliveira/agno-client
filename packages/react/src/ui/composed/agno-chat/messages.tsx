@@ -1,5 +1,5 @@
-import type { ChatMessage, ToolCall } from '@rodrigocoliveira/agno-types';
-import { useEffect, useRef, type ReactNode } from 'react';
+import type { ChatMessage } from '@rodrigocoliveira/agno-types';
+import { isValidElement, useEffect, useRef, type ReactNode } from 'react';
 import {
   Conversation,
   ConversationContent,
@@ -12,10 +12,16 @@ import { AgnoMessageItem } from '../AgnoMessageItem';
 import type { AgnoMessageItemProps } from '../AgnoMessageItem';
 import { AgnoChatSuggestedPrompts } from './suggested-prompts';
 import { useAgnoChatContext } from './context';
-import type { ToolResultRenderer } from './context';
+import type { RenderTool } from './render-tool';
 import { cn } from '../../lib/cn';
 import { Bot } from 'lucide-react';
-import type { AgnoMessageClassNames, AgnoMessageAvatars, AgnoMessageActions, SuggestedPrompt } from '../../types';
+import type {
+  AgnoMessageClassNames,
+  AgnoMessageAvatars,
+  AgnoMessageActions,
+  SuggestedPrompt,
+  ScrollBehaviorConfig,
+} from '../../types';
 
 export interface AgnoChatMessagesProps {
   className?: string;
@@ -34,26 +40,20 @@ export interface AgnoChatMessagesProps {
   showReferences?: boolean;
   /** Show timestamp (default: true) */
   showTimestamp?: boolean;
-  /** Show generative UI renders (default: true) */
-  showGenerativeUI?: boolean;
-  /** Show tool call details (default: true) */
-  showToolCalls?: boolean;
   /** Enable file preview cards with click-to-open modal (default: true) */
   showFilePreview?: boolean;
   /** Enable image lightbox on click (default: true) */
   showImageLightbox?: boolean;
-  /** Custom render for individual tool calls */
-  renderToolCall?: (tool: ToolCall, index: number) => ReactNode;
-  /** Custom render for the entire message content area */
-  renderContent?: (message: ChatMessage) => ReactNode;
-  /** Custom render for media sections */
-  renderMedia?: (message: ChatMessage) => ReactNode;
   /** Custom timestamp formatter */
   formatTimestamp?: (date: Date) => string;
   /** ClassNames override map for message item sections */
   messageClassNames?: AgnoMessageClassNames;
-  /** Per-tool renderers for displaying results inline in chat (live and on session reload) */
-  toolResultRenderers?: Record<string, ToolResultRenderer>;
+  /**
+   * Per-tool render function. Overrides the `renderTool` configured on `<AgnoChat>`
+   * for this messages list. Use the `byToolName` helper for the common
+   * dispatch-by-name case.
+   */
+  renderTool?: RenderTool;
 
   // ── Empty state ──────────────────────────────────────────────────
   emptyState?: ReactNode;
@@ -66,6 +66,31 @@ export interface AgnoChatMessagesProps {
   showThinkingIndicator?: boolean;
   /** Custom component to render instead of the default thinking indicator */
   renderThinkingIndicator?: ReactNode;
+
+  // ── Scroll behavior ──────────────────────────────────────────────
+  /**
+   * Customize the auto-scroll behavior (powered by `use-stick-to-bottom`).
+   * Defaults to `{ initial: 'smooth', resize: 'instant' }` — smooth initial
+   * scroll, instant snap during streaming to avoid spring oscillation on
+   * markdown/code/table reflow.
+   */
+  scrollBehavior?: ScrollBehaviorConfig;
+
+  // ── Scroll-to-bottom button ──────────────────────────────────────
+  /**
+   * Controls the floating "scroll to bottom" button that appears when the
+   * user scrolls up during streaming (the default affordance to resume
+   * following the stream).
+   *
+   * - `undefined` (default) → render the built-in button
+   * - `false` → hide the button entirely
+   * - `true` → render the built-in button (same as default; useful for clarity)
+   * - `{ className }` → render the built-in button with custom classes
+   * - `ReactNode` → render your own element instead. Your component will be
+   *   placed inside `<Conversation>`, so it can use `useStickToBottomContext()`
+   *   to read `isAtBottom` and call `scrollToBottom()`.
+   */
+  scrollToBottomButton?: boolean | ReactNode | { className?: string };
 }
 
 /** Scrolls to bottom only when the user sends a new message */
@@ -97,13 +122,8 @@ export function AgnoChatMessages({
   showReasoning,
   showReferences,
   showTimestamp,
-  showGenerativeUI,
-  showToolCalls,
   showFilePreview,
   showImageLightbox,
-  renderToolCall,
-  renderContent,
-  renderMedia,
   formatTimestamp,
   messageClassNames,
   // Empty state
@@ -113,12 +133,31 @@ export function AgnoChatMessages({
   // Thinking indicator
   showThinkingIndicator = true,
   renderThinkingIndicator,
-  toolResultRenderers: propToolResultRenderers,
+  renderTool: propRenderTool,
+  scrollBehavior,
+  scrollToBottomButton,
 }: AgnoChatMessagesProps) {
-  const { messages, isStreaming, toolResultRenderers: contextToolResultRenderers } = useAgnoChatContext();
-  const toolResultRenderers = propToolResultRenderers ?? contextToolResultRenderers;
+  const { messages, isStreaming } = useAgnoChatContext();
   const lastMessage = messages[messages.length - 1];
   const isThinking = showThinkingIndicator && isStreaming && (!lastMessage || lastMessage.role !== 'user') && !lastMessage?.content;
+
+  // Resolve the scroll-to-bottom button prop into a rendered node (or null to hide).
+  const resolvedScrollButton: ReactNode = (() => {
+    if (scrollToBottomButton === false) return null;
+    if (scrollToBottomButton === undefined || scrollToBottomButton === true) {
+      return <ConversationScrollButton />;
+    }
+    if (isValidElement(scrollToBottomButton)) return scrollToBottomButton;
+    if (
+      typeof scrollToBottomButton === 'object' &&
+      scrollToBottomButton !== null &&
+      'className' in scrollToBottomButton
+    ) {
+      return <ConversationScrollButton className={scrollToBottomButton.className} />;
+    }
+    // Any other ReactNode shape (string, number, fragment, array)
+    return scrollToBottomButton as ReactNode;
+  })();
 
   // Find the index of the last assistant message (for visibility logic)
   let lastAssistantIndex = -1;
@@ -134,16 +173,11 @@ export function AgnoChatMessages({
     ...(showReasoning !== undefined && { showReasoning }),
     ...(showReferences !== undefined && { showReferences }),
     ...(showTimestamp !== undefined && { showTimestamp }),
-    ...(showGenerativeUI !== undefined && { showGenerativeUI }),
-    ...(showToolCalls !== undefined && { showToolCalls }),
     ...(showFilePreview !== undefined && { showFilePreview }),
     ...(showImageLightbox !== undefined && { showImageLightbox }),
-    ...(renderToolCall !== undefined && { renderToolCall }),
-    ...(renderContent !== undefined && { renderContent }),
-    ...(renderMedia !== undefined && { renderMedia }),
     ...(formatTimestamp !== undefined && { formatTimestamp }),
     ...(messageClassNames !== undefined && { classNames: messageClassNames }),
-    ...(toolResultRenderers !== undefined && { toolResultRenderers }),
+    ...(propRenderTool !== undefined && { renderTool: propRenderTool }),
   };
 
   const resolvedEmptyState = children ??
@@ -168,7 +202,7 @@ export function AgnoChatMessages({
     );
 
   return (
-    <Conversation className={cn('relative flex-1 w-full', className)}>
+    <Conversation className={cn('relative flex-1 w-full', className)} scrollBehavior={scrollBehavior}>
       <ScrollOnNewUserMessage messageCount={messages.length} />
       <ConversationContent className="max-w-3xl mx-auto">
         {messages.length === 0 ? (
@@ -198,7 +232,7 @@ export function AgnoChatMessages({
           </div>
         )}
       </ConversationContent>
-      <ConversationScrollButton />
+      {resolvedScrollButton}
     </Conversation>
   );
 }

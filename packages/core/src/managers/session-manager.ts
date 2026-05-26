@@ -470,6 +470,7 @@ export class SessionManager {
           role: 'user',
           content: run.run_input,
           created_at: timestamp,
+          ...(run.run_id ? { run_id: run.run_id } : {}),
           ...(userImages.length > 0 ? { images: userImages } : {}),
           ...(userAudio.length > 0 ? { audio: userAudio } : {}),
           ...(userFiles.length > 0 ? { files: userFiles } : {}),
@@ -571,6 +572,7 @@ export class SessionManager {
           audio: run.audio as any,
           response_audio: run.response_audio as any,
           created_at: timestamp + 1, // Agent response is slightly after user message
+          ...(run.run_id ? { run_id: run.run_id } : {}),
         });
       }
     }

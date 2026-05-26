@@ -51,7 +51,34 @@ export { useAgnoSession } from './hooks/useAgnoSession';
 export { useAgnoActions } from './hooks/useAgnoActions';
 export { useAgnoToolExecution, getCustomRender } from './hooks/useAgnoToolExecution';
 export type { ToolHandler, ToolExecutionEvent } from './hooks/useAgnoToolExecution';
-export type { ToolResultRenderer } from './ui/composed/agno-chat/context';
+
+// Tool rendering (v2.0)
+export { byToolName } from './ui/composed/agno-chat/render-tool';
+export type { RenderTool, ToolRenderArgs, ToolEntry } from './ui/composed/agno-chat/render-tool';
+export { ToolDebugCard, ToolGenerativeUI } from './ui/composed/agno-chat/tool-building-blocks';
+export type {
+  ToolDebugCardProps,
+  ToolGenerativeUIProps,
+} from './ui/composed/agno-chat/tool-building-blocks';
+
+// Message slot composition (v2.0)
+export {
+  AgnoMessage,
+  AgnoMessageReasoning,
+  AgnoMessageMedia,
+  AgnoMessageTools,
+  AgnoMessageContent,
+  AgnoMessageReferences,
+  AgnoMessageFooter,
+  AgnoMessageContext,
+  useAgnoMessageContext,
+} from './ui/composed/agno-message';
+export type {
+  AgnoMessageProps,
+  AgnoMessageToolsProps,
+  AgnoMessageFooterProps,
+  AgnoMessageContextValue,
+} from './ui/composed/agno-message';
 export { useAgnoCustomEvents } from './hooks/useAgnoCustomEvents';
 export { useAgnoMemory } from './hooks/useAgnoMemory';
 export { useAgnoSessionState } from './hooks/useAgnoSessionState';

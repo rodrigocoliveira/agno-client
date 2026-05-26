@@ -680,6 +680,19 @@ When implementing or debugging frontend tool execution:
 6. **Error handling**: Wrap execution in try/catch and return error objects
 7. **Debugging**: Check browser console for `[useAgnoToolExecution]` logs
 
+## Rendering Tool Calls (v2.0)
+
+The React package exposes a single, unified API for rendering tool calls in the chat UI:
+
+- **`<AgnoChat debug renderTool={...} skipHydration={...}>`** — top-level config.
+- **`renderTool(tool, { index, isDebug, defaultRender })`** — runs per tool call. Return `null` to hide, return `defaultRender()` to fall back to library defaults, or return JSX for a custom render.
+- **`byToolName({ tool_name: false | RenderTool }, fallback?)`** — sugar for dispatch-by-name. Unlisted tools fall through to `defaultRender()` (or your fallback).
+- **`debug?: boolean`** — auto-detects via `process.env.NODE_ENV !== 'production'`. Controls whether `defaultRender()` includes the `<ToolDebugCard>`. Generative UI from `tool.ui_component` always renders by default. Set `debug={true}` in production to investigate live bugs.
+- **`<ToolDebugCard tool>`** and **`<ToolGenerativeUI tool>`** — exported building blocks used internally by `defaultRender` and available for manual composition.
+- **`skipHydration?: string[]`** — tool names whose handlers should not be re-invoked on session reload (used when the rendered output is derived from `tool.result` and re-running would trigger side effects).
+
+The old props (`renderToolCall`, `toolResultRenderers`, `showToolCalls`, `showGenerativeUI`, `ToolResultRenderer`) were removed in v2.0. See `docs/tool-rendering.md` for the migration table and four common patterns.
+
 ### `tool_args` Python-repr workaround (agno#8007 / #11)
 
 The agno backend serializes list/dict values inside `tool_args` via Python `str()` / `repr()`, producing single-quoted literals that are NOT valid JSON. The core client coerces these at the parser boundary so handlers receive structured JS values.

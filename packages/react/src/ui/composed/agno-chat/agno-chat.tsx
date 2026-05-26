@@ -3,32 +3,64 @@ import type { HTMLAttributes, ReactNode } from 'react';
 import { useAgnoChat, useAgnoToolExecution } from '@rodrigocoliveira/agno-react';
 import type { ToolHandler } from '@rodrigocoliveira/agno-react';
 import { AgnoChatContext } from './context';
-import type { AgnoChatContextValue, ToolResultRenderer } from './context';
+import type { AgnoChatContextValue } from './context';
+import type { RenderTool } from './render-tool';
 import { cn } from '../../lib/cn';
+
+function resolveDebug(debug?: boolean): boolean {
+  if (typeof debug === 'boolean') return debug;
+  // Default-off: only auto-enable when NODE_ENV is explicitly 'development'.
+  // Avoids leaking the debug card in production builds where `process` exists
+  // but `process.env` is missing or NODE_ENV is unset (some edge runtimes,
+  // partial polyfills, builds without bundler substitution).
+  return typeof process !== 'undefined' && process.env?.NODE_ENV === 'development';
+}
 
 export interface AgnoChatRootProps extends HTMLAttributes<HTMLDivElement> {
   children: ReactNode;
   toolHandlers?: Record<string, ToolHandler>;
   autoExecuteTools?: boolean;
-  toolResultRenderers?: Record<string, ToolResultRenderer>;
+  /**
+   * Single per-tool render function. Receives the tool plus `{ index, isDebug, defaultRender }`.
+   * Return `null` to hide, return `defaultRender()` to fall back to the library default,
+   * or return your own JSX. Use the `byToolName` helper for the common dispatch-by-name case.
+   */
+  renderTool?: RenderTool;
+  /**
+   * When true, the default tool rendering includes the debug card. When false, only
+   * user-facing content renders (generative UI from `tool.ui_component`, plus whatever
+   * a custom `renderTool` returns).
+   *
+   * Default: auto-detected via `process.env.NODE_ENV !== 'production'`. Set explicitly
+   * to investigate bugs in production (`debug={true}`) or preview the prod experience
+   * in dev (`debug={false}`).
+   */
+  debug?: boolean;
+  /**
+   * Tool names whose handlers should NOT be re-invoked on session reload. Useful when
+   * a tool produced a `result` you want to render as-is without re-executing side effects.
+   */
+  skipHydration?: string[];
 }
 
 export function AgnoChatRoot({
   children,
   toolHandlers = {},
   autoExecuteTools = true,
-  toolResultRenderers,
+  renderTool,
+  debug,
+  skipHydration,
   className,
   ...divProps
 }: AgnoChatRootProps) {
   const chat = useAgnoChat();
   const toolExec = useAgnoToolExecution(toolHandlers, autoExecuteTools, {
-    skipHydration: toolResultRenderers ? Object.keys(toolResultRenderers) : undefined,
+    skipHydration,
   });
 
   const containerRef = useRef<HTMLDivElement>(null);
+  const isDebug = resolveDebug(debug);
 
-  // Stable ref so handleSend never changes identity
   const sendRef = useRef(chat.sendMessage);
   sendRef.current = chat.sendMessage;
 
@@ -40,7 +72,6 @@ export function AgnoChatRoot({
     }
   }, []);
 
-  // Destructure individual values for stable dependency tracking
   const {
     messages,
     sendMessage,
@@ -66,7 +97,6 @@ export function AgnoChatRoot({
 
   const contextValue = useMemo<AgnoChatContextValue>(
     () => ({
-      // chat
       messages,
       sendMessage,
       clearMessages,
@@ -77,8 +107,6 @@ export function AgnoChatRoot({
       currentRunId,
       error,
       state,
-
-      // tool execution
       isPaused,
       isExecuting,
       pendingTools,
@@ -86,16 +114,11 @@ export function AgnoChatRoot({
       executeTools,
       continueWithResults,
       executionError,
-
-      // derived
       handleSend,
       inputDisabled: isStreaming || isPaused,
-
-      // drop zone
       dropZoneContainerRef: containerRef,
-
-      // tool result renderers
-      toolResultRenderers,
+      renderTool,
+      isDebug,
     }),
     [
       messages,
@@ -116,7 +139,8 @@ export function AgnoChatRoot({
       continueWithResults,
       executionError,
       handleSend,
-      toolResultRenderers,
+      renderTool,
+      isDebug,
     ],
   );
 

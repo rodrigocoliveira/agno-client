@@ -95,6 +95,33 @@ export type AgnoMessageActions = {
   visibility?: AgnoActionsVisibility;
 };
 
+/**
+ * Configuration for the chat scroll behavior (powered by `use-stick-to-bottom`).
+ *
+ * Defaults: `{ initial: 'smooth', resize: 'instant' }`.
+ *
+ * - `initial` controls the first scroll-to-bottom on mount (e.g., when a session
+ *   is loaded). Smooth gives a nice arrival animation.
+ * - `resize` controls scrolling while content grows (e.g., during streaming).
+ *   `'instant'` snaps to the bottom on each chunk and avoids the spring-chase
+ *   oscillation that markdown/table/code reflows can produce.
+ *
+ * Spring physics knobs (`damping`, `stiffness`, `mass`) only apply when the
+ * matching mode is `'smooth'` or a numeric duration.
+ */
+export type ScrollBehaviorConfig = {
+  /** How to scroll on first mount. Default: `'smooth'`. */
+  initial?: 'smooth' | 'instant' | 'auto';
+  /** How to scroll when content resizes (streaming). Default: `'instant'`. */
+  resize?: 'smooth' | 'instant' | 'auto';
+  /** Spring damping (default `0.7` in the library). */
+  damping?: number;
+  /** Spring stiffness (default `0.05` in the library). */
+  stiffness?: number;
+  /** Spring mass (default `1.25` in the library). */
+  mass?: number;
+};
+
 export type AgnoMessageClassNames = {
   root?: string;
   user?: {

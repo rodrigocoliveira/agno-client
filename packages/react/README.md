@@ -288,7 +288,7 @@ npm install @radix-ui/react-accordion @radix-ui/react-avatar @radix-ui/react-col
 All UI components are imported from the `/ui` sub-path:
 
 ```tsx
-import { AgnoChat, AgnoChatInterface, AgnoChatInput, Button, Response } from '@rodrigocoliveira/agno-react/ui';
+import { AgnoChat, AgnoChatInput, AgnoMessage, byToolName, Button, Response } from '@rodrigocoliveira/agno-react/ui';
 ```
 
 ---
@@ -298,8 +298,8 @@ import { AgnoChat, AgnoChatInterface, AgnoChatInput, Button, Response } from '@r
 The primary way to build a full-featured chat interface. Uses a compound component pattern — compose only the pieces you need.
 
 ```tsx
-import { AgnoChat } from '@rodrigocoliveira/agno-react/ui';
-import type { ToolHandler } from '@rodrigocoliveira/agno-react';
+import { AgnoChat, byToolName } from '@rodrigocoliveira/agno-react/ui';
+import type { ToolHandler, RenderTool } from '@rodrigocoliveira/agno-react';
 
 const toolHandlers: Record<string, ToolHandler> = {
   show_alert: async (args) => {
@@ -308,21 +308,37 @@ const toolHandlers: Record<string, ToolHandler> = {
   },
 };
 
+// Optional: customize per-tool rendering. `byToolName` is a helper that
+// dispatches by `tool.tool_name`; unlisted tools fall through to the default.
+const renderTool: RenderTool = byToolName({
+  internal_log: false,                                    // hide entirely
+  search_flights: (tool) => <FlightResults tool={tool} />, // custom widget
+});
+
 function ChatPage() {
   return (
-    <AgnoChat toolHandlers={toolHandlers} autoExecuteTools={true}>
+    <AgnoChat
+      toolHandlers={toolHandlers}
+      autoExecuteTools={true}
+      renderTool={renderTool}
+      // debug auto-detects from NODE_ENV; set explicitly to force the debug
+      // tool card on/off (e.g. enable in prod to investigate a live bug).
+      debug={false}
+    >
       <AgnoChat.Messages
-        userAvatar={<img src="/user.png" className="h-8 w-8 rounded-full" />}
-        assistantAvatar={<img src="/bot.png" className="h-8 w-8 rounded-full" />}
-        messageItemProps={{
-          showToolCalls: false,
-          showReasoning: false,
-          renderActions: (message) => (
+        avatars={{
+          user: <img src="/user.png" className="h-8 w-8 rounded-full" />,
+          assistant: <img src="/bot.png" className="h-8 w-8 rounded-full" />,
+        }}
+        actions={{
+          visibility: 'hover-last-visible',
+          assistant: (message) => (
             <button onClick={() => navigator.clipboard.writeText(message.content || '')}>
               Copy
             </button>
           ),
         }}
+        showReasoning={false}
       >
         <AgnoChat.EmptyState>
           <h3>Welcome!</h3>
@@ -348,50 +364,20 @@ function ChatPage() {
 }
 ```
 
+For custom message layouts (reordering slots, replacing sections), use the
+`<AgnoMessage>` compound components via `renderMessage`. See
+[docs/tool-rendering.md](../../docs/tool-rendering.md) for the full reference.
+
 **Sub-components:**
 
 | Component | Description |
 |-----------|-------------|
-| `AgnoChat` | Root wrapper. Accepts `toolHandlers` and `autoExecuteTools` props. |
-| `AgnoChat.Messages` | Message list with auto-scroll. Accepts `userAvatar`, `assistantAvatar`, `messageItemProps`. |
+| `AgnoChat` | Root wrapper. Accepts `toolHandlers`, `autoExecuteTools`, `renderTool`, `debug`, `skipHydration`. |
+| `AgnoChat.Messages` | Message list with auto-scroll. Accepts `avatars`, `actions`, `showReasoning`, `showReferences`, `showTimestamp`, `renderMessage`, `renderTool`, and more. |
 | `AgnoChat.EmptyState` | Shown when there are no messages. Place inside `Messages`. |
 | `AgnoChat.SuggestedPrompts` | Clickable prompt suggestions. Place inside `EmptyState`. |
 | `AgnoChat.ErrorBar` | Error display bar. |
 | `AgnoChat.Input` | Chat input with file uploads and optional audio recorder. |
-
----
-
-### AgnoChatInterface
-
-A single-component shortcut that renders a complete chat interface. Less flexible than `AgnoChat` but requires zero composition.
-
-```tsx
-import { AgnoChatInterface } from '@rodrigocoliveira/agno-react/ui';
-
-function ChatPage() {
-  return (
-    <AgnoChatInterface
-      placeholder="Type a message..."
-      suggestedPrompts={[
-        { text: 'What can you help me with?' },
-        { text: 'Explain how you work' },
-      ]}
-      toolHandlers={toolHandlers}
-      showAudioRecorder={true}
-      userAvatar={<img src="/user.png" />}
-      assistantAvatar={<img src="/bot.png" />}
-      emptyState={<div>Start a conversation!</div>}
-      classNames={{
-        root: 'h-full',
-        messagesArea: 'px-4',
-        inputArea: 'border-t',
-      }}
-    />
-  );
-}
-```
-
-**Key props:** `className`, `classNames`, `renderMessage`, `renderInput`, `emptyState`, `headerSlot`, `inputToolbarSlot`, `suggestedPrompts`, `toolHandlers`, `autoExecuteTools`, `placeholder`, `userAvatar`, `assistantAvatar`, `fileUpload`, `showAudioRecorder`, `messageItemProps`, `chatInputProps`.
 
 ---
 

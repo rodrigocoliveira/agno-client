@@ -545,6 +545,22 @@ export class AgnoClient extends EventEmitter {
       if (this.shouldProcessForUserMessage(event) && chunk.run_id) {
         this.currentRunId = chunk.run_id;
         this.state.currentRunId = chunk.run_id;
+
+        // Backfill run_id onto the optimistic user message + agent placeholder
+        // added in sendMessage() before the backend assigned a run_id.
+        // Both messages of the same round share the run_id so consumers can
+        // correlate them with backend traces / metrics / feedback.
+        const runId = chunk.run_id;
+        const messages = this.messageStore.getMessages();
+        const lastIndex = messages.length - 1;
+        if (lastIndex >= 0 && messages[lastIndex].role === 'agent' && !messages[lastIndex].run_id) {
+          this.messageStore.updateMessage(lastIndex, (m) => ({ ...m, run_id: runId }));
+        }
+        if (lastIndex - 1 >= 0 && messages[lastIndex - 1].role === 'user' && !messages[lastIndex - 1].run_id) {
+          this.messageStore.updateMessage(lastIndex - 1, (m) => ({ ...m, run_id: runId }));
+        }
+
+        this.emit('message:update', this.messageStore.getMessages());
         this.emit('state:change', this.getState());
       }
 

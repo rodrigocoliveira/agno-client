@@ -56,8 +56,8 @@ agent_os = AgentOS(
     db=db,
     knowledge=[knowledge],  # Attach knowledge to AgentOS for the knowledge API
     tracing=True,  # Enable detailed tracing (uses setup_tracing db)
-    scheduler=True,
-    scheduler_poll_interval=15,  # seconds between poll cycles (default: 15)
+    # scheduler=True,
+    # scheduler_poll_interval=15,  # seconds between poll cycles (default: 15)
 )
 
 app = agent_os.get_app()

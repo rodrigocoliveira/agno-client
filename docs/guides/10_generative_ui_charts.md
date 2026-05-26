@@ -303,31 +303,42 @@ interface ChartHelperOptions {
 
 ## Rendering Charts in Messages
 
-Charts are automatically rendered when you use `GenerativeUIRenderer`:
+If you use `<AgnoChat>` from `@rodrigocoliveira/agno-react/ui`, generative UI
+renders automatically — tool calls with a `ui_component` are picked up by the
+default tool pipeline. **You don't need to write any rendering code** unless
+you want to customize.
+
+If you're rendering messages yourself (the hooks API), use the building-block
+component `<ToolGenerativeUI>`, which encapsulates the `ui_component` check:
 
 ```tsx
-import { GenerativeUIRenderer } from '@rodrigocoliveira/agno-react';
+import { ToolGenerativeUI } from '@rodrigocoliveira/agno-react';
 import type { ToolCall } from '@rodrigocoliveira/agno-types';
 
 function ToolCallDisplay({ toolCall }: { toolCall: ToolCall }) {
-  // ui_component is attached by useAgnoToolExecution
-  const uiSpec = (toolCall as any).ui_component;
-
-  if (uiSpec) {
-    return (
-      <div className="tool-ui">
-        <GenerativeUIRenderer spec={uiSpec} />
-      </div>
-    );
-  }
-
-  // Fallback to text result
   return (
     <div className="tool-result">
-      <pre>{toolCall.content}</pre>
+      {/* Renders the generative UI when ui_component is set, otherwise null */}
+      <ToolGenerativeUI tool={toolCall} />
+
+      {/* Fallback for plain text output. Read `result ?? content` —
+          Agno 2.6+ only populates `result`. */}
+      {(toolCall.result ?? toolCall.content) && (
+        <pre>{toolCall.result ?? toolCall.content}</pre>
+      )}
     </div>
   );
 }
+```
+
+For the lower-level pattern (used internally by `<ToolGenerativeUI>`), the
+`GenerativeUIRenderer` component is still exported:
+
+```tsx
+import { GenerativeUIRenderer } from '@rodrigocoliveira/agno-react';
+
+const uiSpec = (toolCall as any).ui_component;
+if (uiSpec) <GenerativeUIRenderer spec={uiSpec} />;
 ```
 
 ## Complete Example
@@ -337,7 +348,7 @@ import {
   AgnoProvider,
   useAgnoChat,
   useAgnoToolExecution,
-  GenerativeUIRenderer,
+  ToolGenerativeUI,
   createBarChart,
   createLineChart,
   createToolResult,
@@ -385,21 +396,25 @@ function AnalyticsChat() {
         <div key={i} className={`message ${msg.role}`}>
           <p>{msg.content}</p>
 
-          {msg.tool_calls?.map((tool) => (
-            <div key={tool.tool_call_id} className="tool-output">
-              {(tool as any).ui_component ? (
-                <GenerativeUIRenderer spec={(tool as any).ui_component} />
-              ) : (
-                <pre>{tool.content}</pre>
-              )}
-            </div>
-          ))}
+          {msg.tool_calls?.map((tool) => {
+            const output = tool.result ?? tool.content;
+            return (
+              <div key={tool.tool_call_id} className="tool-output">
+                <ToolGenerativeUI tool={tool} />
+                {!(tool as any).ui_component && output && <pre>{output}</pre>}
+              </div>
+            );
+          })}
         </div>
       ))}
     </div>
   );
 }
 ```
+
+> If you're using the compound `<AgnoChat>` component (recommended), drop the
+> manual `msg.tool_calls.map(...)` block entirely — `<AgnoChat.Messages>`
+> renders generative UI automatically via the built-in tool pipeline.
 
 ## Key Points
 
@@ -408,8 +423,9 @@ function AnalyticsChat() {
 - `createSmartChart` auto-detects the best chart type
 - `resultWithBarChart` and `resultWithSmartChart` are quick one-liners
 - Set `layout: 'artifact'` to open charts in a modal/side panel
-- Use `GenerativeUIRenderer` to render UI specs in messages
-- Charts use Recharts under the hood - all standard props are supported
+- Use `<ToolGenerativeUI tool={tool} />` to render UI specs in messages (v2.0+) — handles the `ui_component` check internally
+- For the lower-level rendering primitive, `GenerativeUIRenderer` is still exported
+- Charts use Recharts under the hood — all standard props are supported
 
 ## Next Steps
 

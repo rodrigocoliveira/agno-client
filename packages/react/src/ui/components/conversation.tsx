@@ -4,17 +4,29 @@ import { ArrowDownIcon } from 'lucide-react';
 import type { ComponentProps, ReactNode } from 'react';
 import { useCallback } from 'react';
 import { StickToBottom, useStickToBottomContext } from 'use-stick-to-bottom';
+import type { ScrollBehaviorConfig } from '../types';
 
-export type ConversationProps = ComponentProps<typeof StickToBottom>;
+export type ConversationProps = ComponentProps<typeof StickToBottom> & {
+  scrollBehavior?: ScrollBehaviorConfig;
+};
 
-export const Conversation = ({ className, ...props }: ConversationProps) => (
-  <StickToBottom
-    className={cn('relative flex-1 overflow-y-auto', className)}
-    initial="smooth"
-    role="log"
-    {...props}
-  />
-);
+export const Conversation = ({ className, scrollBehavior, ...props }: ConversationProps) => {
+  const initial = scrollBehavior?.initial ?? 'smooth';
+  const resize = scrollBehavior?.resize ?? 'instant';
+
+  return (
+    <StickToBottom
+      className={cn('relative flex-1 overflow-y-auto', className)}
+      initial={initial}
+      resize={resize}
+      {...(scrollBehavior?.damping !== undefined && { damping: scrollBehavior.damping })}
+      {...(scrollBehavior?.stiffness !== undefined && { stiffness: scrollBehavior.stiffness })}
+      {...(scrollBehavior?.mass !== undefined && { mass: scrollBehavior.mass })}
+      role="log"
+      {...props}
+    />
+  );
+};
 
 export type ConversationContentProps = ComponentProps<typeof StickToBottom.Content>;
 

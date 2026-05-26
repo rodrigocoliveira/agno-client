@@ -1,8 +1,7 @@
 import { createContext, useContext } from 'react';
-import type { RefObject, ReactNode } from 'react';
+import type { RefObject } from 'react';
 import type { ChatMessage, ClientState, ToolCall } from '@rodrigocoliveira/agno-types';
-
-export type ToolResultRenderer = (args: Record<string, any>, content: string) => ReactNode;
+import type { RenderTool } from './render-tool';
 
 export interface AgnoChatContextValue {
   // From useAgnoChat()
@@ -39,8 +38,9 @@ export interface AgnoChatContextValue {
   // Drop zone
   dropZoneContainerRef?: RefObject<HTMLElement | null>;
 
-  // Tool result renderers
-  toolResultRenderers?: Record<string, ToolResultRenderer>;
+  // Tool rendering
+  renderTool?: RenderTool;
+  isDebug: boolean;
 }
 
 export const AgnoChatContext = createContext<AgnoChatContextValue | null>(null);

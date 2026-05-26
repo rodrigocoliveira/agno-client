@@ -153,4 +153,18 @@ export interface ChatMessage {
    * Whether this message was cancelled during streaming
    */
   cancelled?: boolean;
+  /**
+   * Run ID this message belongs to.
+   *
+   * Both the user message and the agent response of the same conversation
+   * round share the same `run_id`, allowing consumers to correlate a pair
+   * (or a paused/continued run) with backend traces, metrics, feedback, etc.
+   *
+   * - Populated from `RunSchema.run_id` when loading session history.
+   * - Populated from the `RunStarted` / `TeamRunStarted` event during streaming.
+   * - May be absent on the optimistic user message and agent placeholder
+   *   added locally before the first streaming chunk arrives — the lib
+   *   backfills it as soon as `RunStarted` is received.
+   */
+  run_id?: string;
 }

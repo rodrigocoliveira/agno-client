@@ -127,12 +127,15 @@ export function MessageItem({ message }: MessageItemProps) {
                     />
                     <ToolContent>
                       <ToolInput input={tool.tool_args} />
-                      {tool.content && (
-                        <ToolOutput
-                          output={tool.content}
-                          errorText={tool.tool_call_error ? 'Tool execution failed' : undefined}
-                        />
-                      )}
+                      {(() => {
+                        const output = tool.result ?? tool.content
+                        return output ? (
+                          <ToolOutput
+                            output={output}
+                            errorText={tool.tool_call_error ? 'Tool execution failed' : undefined}
+                          />
+                        ) : null
+                      })()}
                     </ToolContent>
                   </Tool>
                 ))}

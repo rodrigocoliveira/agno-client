@@ -21,6 +21,7 @@ export type {
   AgnoMessageAvatars,
   AgnoMessageActions,
   AgnoActionsVisibility,
+  ScrollBehaviorConfig,
 } from './types';
 
 // ── Primitives ──────────────────────────────────────────────────────────────
@@ -295,6 +296,38 @@ export type { AgnoMessageItemProps } from './composed/AgnoMessageItem';
 
 export { AgnoChatInput } from './composed/AgnoChatInput';
 export type { AgnoChatInputProps } from './composed/AgnoChatInput';
+
+// Slot composition (v2.0)
+export {
+  AgnoMessage,
+  AgnoMessageReasoning,
+  AgnoMessageMedia,
+  AgnoMessageTools,
+  AgnoMessageContent,
+  AgnoMessageReferences,
+  AgnoMessageFooter,
+  AgnoMessageContext,
+  useAgnoMessageContext,
+} from './composed/agno-message';
+export type {
+  AgnoMessageProps,
+  AgnoMessageToolsProps,
+  AgnoMessageFooterProps,
+  AgnoMessageContextValue,
+} from './composed/agno-message';
+
+// Tool rendering (v2.0)
+export { byToolName } from './composed/agno-chat/render-tool';
+export type {
+  RenderTool,
+  ToolRenderArgs,
+  ToolEntry,
+} from './composed/agno-chat/render-tool';
+export { ToolDebugCard, ToolGenerativeUI } from './composed/agno-chat/tool-building-blocks';
+export type {
+  ToolDebugCardProps,
+  ToolGenerativeUIProps,
+} from './composed/agno-chat/tool-building-blocks';
 
 // ── AgnoChat (compound component) ───────────────────────────────────────────
 

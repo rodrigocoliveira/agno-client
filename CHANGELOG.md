@@ -5,6 +5,56 @@ All notable changes to the Agno Client libraries will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.0.0] - 2026-05-26
+
+### Breaking Changes
+
+#### @rodrigocoliveira/agno-react
+
+The tool-call rendering API was consolidated into a single function-based prop. Five legacy props were removed in favor of one unified entry point.
+
+**Removed:**
+- `<AgnoChat.Messages renderToolCall>`
+- `<AgnoChat.Messages toolResultRenderers>` (and `<AgnoChat toolResultRenderers>`)
+- `<AgnoChat.Messages showToolCalls>`
+- `<AgnoChat.Messages showGenerativeUI>`
+- `<AgnoChat.Messages renderContent>` and `renderMedia` — superseded by slot composition (see "Slot composition" below)
+- `ToolResultRenderer` exported type
+- `AgnoMessageItem` props of the same names
+
+**Added:**
+- `<AgnoChat renderTool>` and `<AgnoChat.Messages renderTool>` — a single function `(tool, { index, isDebug, defaultRender }) => ReactNode | null`. Return `null` to hide, `defaultRender()` to fall back to library defaults, or your own JSX. Messages-level prop overrides the chat-level one.
+- `<AgnoChat debug>` — boolean (auto-detected via `process.env.NODE_ENV !== 'production'`). Controls whether `defaultRender()` includes the debug card. Set `debug={true}` in production to investigate live bugs without changing the build.
+- `<AgnoChat skipHydration>` — explicit list of tool names whose handlers should not be re-invoked on session reload. (Previously auto-derived from `toolResultRenderers` keys.)
+- `byToolName(map, fallback?)` helper — sugar for dispatch-by-name. Returns a `RenderTool`.
+- `ToolDebugCard` and `ToolGenerativeUI` exported components — building blocks used by `defaultRender` and composable manually.
+- `RenderTool`, `ToolRenderArgs`, `ToolEntry` exported types.
+- The default rendering now folds the previous separate "generative UI" block and "debug card" block into a single `defaultRender()` call. `tool.ui_component` always renders when present; the debug card renders only when `isDebug` is true.
+- **Slot composition**: new `<AgnoMessage>` compound component with sub-slots `<AgnoMessage.Reasoning />`, `<AgnoMessage.Media />`, `<AgnoMessage.Tools />`, `<AgnoMessage.Content />`, `<AgnoMessage.References />`, `<AgnoMessage.Footer />`. Use via `<AgnoChat.Messages renderMessage={(m) => <AgnoMessage ...>{slots}</AgnoMessage>}>`. User messages keep their fixed layout. State for image lightbox and file preview lives at the `<AgnoMessage>` root so reordering doesn't break modals. `useAgnoMessageContext()` exposed for advanced custom slots.
+- **Default ordering changed**: assistant messages now render in the order **Reasoning → Media → Tools → Content → References → Footer**. v1.x rendered Content before Media and Tools. The rationale: tool outputs and generated media are "the work" — better seen above the textual explanation. To restore the old order, supply a custom `renderMessage` with slots in `<AgnoMessage.Content />` before `<AgnoMessage.Media />` and `<AgnoMessage.Tools />`.
+
+**Migration:**
+
+| v1.4 | v2.0 |
+| --- | --- |
+| `showToolCalls={true}` | `<AgnoChat debug={true}>` (or rely on `NODE_ENV` auto-detect) |
+| `showToolCalls={false}` | `<AgnoChat debug={false}>` (or rely on auto-detect in prod builds) |
+| `showGenerativeUI={false}` | `renderTool={(tool) => <ToolDebugCard tool={tool} />}` |
+| `renderToolCall={(tool, idx) => X}` | `renderTool={(tool) => X}` — index is in `args.index` if needed |
+| `toolResultRenderers={{ name: (args, content) => X }}` | `renderTool={byToolName({ name: (tool) => X })}` — `tool.tool_args` and `tool.result` provide the same data with full tool context |
+| `<AgnoChat toolResultRenderers={...}>` (auto skipHydration) | `<AgnoChat skipHydration={['name1', 'name2']}>` (explicit) |
+
+See `docs/tool-rendering.md` for the complete guide and four common patterns.
+
+#### @rodrigocoliveira/agno-types and @rodrigocoliveira/agno-client
+
+No API changes. Version aligned with `agno-react` to keep majors in lockstep.
+
+### Fixed
+
+#### @rodrigocoliveira/agno-react
+- Default tool card now reads `tool.result ?? tool.content`, surfacing tool output from Agno 2.6+ payloads where `tool.content` is undefined. [#23](https://github.com/rodrigocoliveira/agno-client/issues/23)
+
 ## [0.9.0] - 2026-01-09
 
 ### Added
