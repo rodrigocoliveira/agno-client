@@ -1,6 +1,6 @@
 {
   "name": "@rodrigocoliveira/agno-react",
-  "version": "2.1.0",
+  "version": "2.1.1",
   "description": "React hooks and pre-built UI components for Agno client",
   "author": "rodrigocoliveira",
   "license": "MIT",
@@ -122,12 +122,6 @@
       "optional": true
     },
     "shiki": {
-      "optional": true
-    },
-    "streamdown": {
-      "optional": true
-    },
-    "use-stick-to-bottom": {
       "optional": true
     },
     "cmdk": {

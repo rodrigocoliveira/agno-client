@@ -265,23 +265,46 @@ The library ships with a complete set of pre-built UI components accessible via 
 
 ### Peer Dependencies
 
-UI components rely on optional peer dependencies. Install only what you need:
+The library ships UI as peer dependencies so your app controls the versions and avoids duplicate React instances. **Required** vs **optional** depends on which import path you use.
+
+**If you only import from `@rodrigocoliveira/agno-react` (hooks-only, no UI):** zero peer deps beyond React itself.
+
+**If you import anything from `@rodrigocoliveira/agno-react/ui`:** the following are required.
 
 ```bash
-# Core UI dependencies
-npm install @radix-ui/react-slot class-variance-authority clsx tailwind-merge lucide-react
+# Required by /ui (used by <AgnoChat> / <Conversation> / <Response>)
+npm install use-stick-to-bottom streamdown
 
-# For markdown rendering
-npm install shiki streamdown
-
-# For auto-scroll behavior
-npm install use-stick-to-bottom
-
-# For additional primitives (as needed)
-npm install @radix-ui/react-accordion @radix-ui/react-avatar @radix-ui/react-collapsible \
-  @radix-ui/react-tooltip @radix-ui/react-dropdown-menu @radix-ui/react-hover-card \
-  @radix-ui/react-select cmdk
+# Core styling / variant utilities — required by every component in /ui
+npm install class-variance-authority clsx tailwind-merge lucide-react
 ```
+
+**Per-feature optional peer deps** — install only the ones whose components you actually import:
+
+| If you use… | Install |
+| --- | --- |
+| `<AgnoChat.Input>` with attachments / model select / command palette | `@radix-ui/react-slot @radix-ui/react-dropdown-menu cmdk` |
+| `<Tooltip>` | `@radix-ui/react-tooltip` |
+| `<Avatar>` | `@radix-ui/react-avatar` |
+| `<Accordion>` | `@radix-ui/react-accordion` |
+| `<Collapsible>` (used by `<Tool>` and tool debug card) | `@radix-ui/react-collapsible` |
+| `<HoverCard>` | `@radix-ui/react-hover-card` |
+| `<Select>` | `@radix-ui/react-select` |
+| `<Dialog>` / `<AskUserQuestionModal>` patterns | `@radix-ui/react-dialog` |
+| Code-block syntax highlighting in `<Response>` | `shiki` (auto-loaded by `streamdown` if installed) |
+| `<BarChart>` / `<LineChart>` / `<AreaChart>` / `<PieChart>` | `recharts` |
+
+**Quick install for "I want everything that ships in `/ui`":**
+
+```bash
+npm install use-stick-to-bottom streamdown shiki recharts \
+  class-variance-authority clsx tailwind-merge lucide-react cmdk \
+  @radix-ui/react-accordion @radix-ui/react-avatar @radix-ui/react-collapsible \
+  @radix-ui/react-dialog @radix-ui/react-dropdown-menu @radix-ui/react-hover-card \
+  @radix-ui/react-select @radix-ui/react-slot @radix-ui/react-tooltip
+```
+
+> **Note:** `use-stick-to-bottom` and `streamdown` were marked `optional` in 2.1.0 and earlier, which prevented `npm install` from warning when they were missing — consumers using `/ui` would then hit a runtime "Could not resolve …" error. As of **2.1.1** they are required peer deps and `npm install` reports them up front.
 
 ### Import Path
 

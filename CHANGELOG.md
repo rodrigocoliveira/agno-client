@@ -5,6 +5,30 @@ All notable changes to the Agno Client libraries will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.1] - 2026-05-27
+
+### Fixed
+
+#### @rodrigocoliveira/agno-react
+
+`use-stick-to-bottom` and `streamdown` were marked as **optional** peer dependencies in 2.1.0 and earlier, but they are imported unconditionally by `<Conversation>` and `<Response>` — both of which are part of the `<AgnoChat>` compound component exported from `@rodrigocoliveira/agno-react/ui`. Anyone using `/ui` without these installed hit a Vite error at runtime ("Could not resolve `use-stick-to-bottom` imported by `@rodrigocoliveira/agno-react`. Is it installed?") instead of a peer-dep warning at install time.
+
+The fix: remove the `optional: true` flag for both packages in `peerDependenciesMeta`. They are now correctly signaled as required peer deps. Existing installs that already have them are unaffected; new installs without them now produce a clear `npm install` warning instead of a runtime crash.
+
+**To upgrade:** install the two packages in your app if you don't already have them:
+
+```bash
+npm install use-stick-to-bottom streamdown
+# or
+bun add use-stick-to-bottom streamdown
+```
+
+No code changes needed. See `packages/react/README.md` for the full peer-dependency matrix mapping each import path to its required runtime packages.
+
+#### @rodrigocoliveira/agno-types and @rodrigocoliveira/agno-client
+
+No API changes. Versions aligned to 2.1.1 to keep the three packages in lockstep.
+
 ## [2.1.0] - 2026-05-27
 
 ### Breaking Changes
