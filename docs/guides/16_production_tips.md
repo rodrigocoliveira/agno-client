@@ -180,22 +180,26 @@ const handlers = {
 
 ```tsx
 import { lazy, Suspense } from 'react';
+import type { ToolCall } from '@rodrigocoliveira/agno-types';
 
-// Lazy load heavy components
-const GenerativeUIRenderer = lazy(() =>
-  import('@rodrigocoliveira/agno-react').then(m => ({ default: m.GenerativeUIRenderer }))
+// Lazy-load the chart components — they pull in recharts which is heavy.
+const BarChart = lazy(() =>
+  import('@rodrigocoliveira/agno-react/ui').then(m => ({ default: m.BarChart }))
+);
+const LineChart = lazy(() =>
+  import('@rodrigocoliveira/agno-react/ui').then(m => ({ default: m.LineChart }))
 );
 
 function ToolCallDisplay({ toolCall }: { toolCall: ToolCall }) {
-  if ((toolCall as any).ui_component) {
-    return (
-      <Suspense fallback={<div>Loading visualization...</div>}>
-        <GenerativeUIRenderer spec={(toolCall as any).ui_component} />
-      </Suspense>
-    );
-  }
+  const ui = (toolCall as any).ui_component;
+  if (!ui) return <pre>{(toolCall.result ?? toolCall.content) as string}</pre>;
 
-  return <pre>{toolCall.content}</pre>;
+  return (
+    <Suspense fallback={<div>Loading visualization...</div>}>
+      {ui.component === 'BarChart' && <BarChart {...ui.props} />}
+      {ui.component === 'LineChart' && <LineChart {...ui.props} />}
+    </Suspense>
+  );
 }
 ```
 

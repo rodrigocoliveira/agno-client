@@ -1,7 +1,5 @@
 import type { ToolCall } from '@rodrigocoliveira/agno-types';
 import { Tool, ToolContent, ToolHeader, ToolInput, ToolOutput } from '../../components/tool';
-import { Artifact } from '../../components/artifact';
-import { GenerativeUIRenderer } from '../../../components/GenerativeUIRenderer';
 import type { ToolState } from '../../types';
 
 export interface ToolDebugCardProps {
@@ -27,21 +25,5 @@ export function ToolDebugCard({ tool, defaultOpen }: ToolDebugCardProps) {
         ) : null}
       </ToolContent>
     </Tool>
-  );
-}
-
-export interface ToolGenerativeUIProps {
-  tool: ToolCall;
-}
-
-export function ToolGenerativeUI({ tool }: ToolGenerativeUIProps) {
-  const uiComponent = (tool as ToolCall & { ui_component?: any }).ui_component;
-  if (!uiComponent) return null;
-  return uiComponent.layout === 'artifact' ? (
-    <Artifact>
-      <GenerativeUIRenderer spec={uiComponent} className="w-full p-2" />
-    </Artifact>
-  ) : (
-    <GenerativeUIRenderer spec={uiComponent} className="w-full" />
   );
 }

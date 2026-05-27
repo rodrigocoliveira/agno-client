@@ -335,64 +335,46 @@ function App() {
 }
 ```
 
-## Custom Render Functions
+## Custom Renders (use `renderTool` directly)
 
-For advanced use cases, use custom render functions:
-
-```tsx
-import { useAgnoToolExecution, createToolResult } from '@rodrigocoliveira/agno-react';
-import type { CustomComponentSpec } from '@rodrigocoliveira/agno-types';
-
-function App() {
-  const handlers = {
-    show_interactive_widget: async (args) => {
-      // Custom component with render function
-      const customUI: CustomComponentSpec = {
-        type: 'custom',
-        renderKey: '', // Will be set automatically
-        props: {
-          initialValue: args.value,
-          options: args.options,
-        },
-        // The render function - receives props and returns React node
-        render: (props: any) => (
-          <div className="custom-widget">
-            <h3>Interactive Widget</h3>
-            <select defaultValue={props.initialValue}>
-              {props.options.map((opt: string) => (
-                <option key={opt} value={opt}>{opt}</option>
-              ))}
-            </select>
-          </div>
-        ),
-      };
-
-      return createToolResult(args, customUI as any);
-    },
-  };
-
-  useAgnoToolExecution(handlers);
-  return <Chat />;
-}
-```
-
-### Accessing Custom Renders
-
-Custom render functions are stored in a registry and accessed via `getCustomRender`:
+> **2.0.1 update:** The previous `getCustomRender` / `renderKey` registry pattern was removed alongside `GenerativeUIRenderer`. For arbitrary one-off UIs, drop the spec format and render the React component directly inside your `renderTool` callback — that's what the v2 API exists for.
 
 ```tsx
-import { GenerativeUIRenderer, getCustomRender } from '@rodrigocoliveira/agno-react';
+import { AgnoChat } from '@rodrigocoliveira/agno-react/ui';
+import { byToolName, type RenderTool } from '@rodrigocoliveira/agno-react';
 
-function CustomComponentRenderer({ spec }: { spec: CustomComponentSpec }) {
-  const renderFn = getCustomRender(spec.renderKey);
-
-  if (!renderFn) {
-    return <div>Custom component not found</div>;
-  }
-
-  return renderFn(spec.props || {});
+function InteractiveWidget({ initialValue, options }: { initialValue: string; options: string[] }) {
+  return (
+    <div className="custom-widget">
+      <h3>Interactive Widget</h3>
+      <select defaultValue={initialValue}>
+        {options.map((opt) => (
+          <option key={opt} value={opt}>{opt}</option>
+        ))}
+      </select>
+    </div>
+  );
 }
+
+const renderTool: RenderTool = byToolName({
+  show_interactive_widget: (tool) => {
+    const args = tool.tool_args as { value: string; options: string[] };
+    return <InteractiveWidget initialValue={args.value} options={args.options} />;
+  },
+});
+
+const toolHandlers = {
+  // The handler only returns data; rendering is owned by `renderTool`.
+  show_interactive_widget: async (args: Record<string, any>) => ({
+    value: args.value,
+    options: args.options,
+  }),
+};
+
+<AgnoChat toolHandlers={toolHandlers} renderTool={renderTool} />
 ```
+
+If you previously emitted a `{ type: 'custom', render, props }` spec from a handler, just move the render into a real React component and dispatch it via `renderTool` as above. The library no longer carries the render function through the registry.
 
 ## Layout Options
 
@@ -483,14 +465,11 @@ function DashboardAgent() {
 
 ## Key Points
 
-- `createCardGrid` displays data as visual cards with images and actions
-- `createTable` creates sortable, filterable data tables
-- `createMarkdown` renders rich text with syntax highlighting
-- `createArtifact` groups multiple components together
-- Custom render functions enable React components in tool results
-- All components support `layout: 'inline' | 'artifact'`
-- Use `createToolResult(data, ui)` to return both data for the agent and UI for display
-- Quick helpers: `resultWithCardGrid`, `resultWithTable`
+- `createCardGrid` / `createTable` / `createMarkdown` / `createArtifact` produce passive `{ type, props, ... }` shape objects. Tool handlers wrap them via `createToolResult(data, ui)` (or `resultWithCardGrid` / `resultWithTable`).
+- The library ships a `<CardGrid>` component (from `@rodrigocoliveira/agno-react/ui`) that consumes the `createCardGrid` props shape directly.
+- `<Table>`, `<Markdown>`, and `<Artifact>` (the multi-child container) are **not** shipped as auto-renderable components — render them yourself inside `renderTool` (for markdown, the existing `Response` export from `/ui` covers most cases).
+- For arbitrary one-off UIs, skip the spec format entirely and return JSX directly from your `renderTool` callback — that's the v2 API.
+- All shape helpers still support `layout: 'inline' | 'artifact'` for your dispatcher to read.
 
 ## Next Steps
 

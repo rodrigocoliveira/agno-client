@@ -1,11 +1,25 @@
+import type { ReactNode } from 'react'
 import { Response } from '@/components/ai-elements/response'
 import { Tool, ToolContent, ToolHeader, ToolInput, ToolOutput } from '@/components/ai-elements/tool'
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from '@/components/ui/accordion'
 import { cn } from '@/lib/utils'
 import { ChatMessage } from '@rodrigocoliveira/agno-types'
 import { AlertCircle, Bot, FileIcon, FileText, Image as ImageIcon, Lightbulb, Music, Paperclip, User, Video } from 'lucide-react'
-import { GenerativeUIRenderer } from '@rodrigocoliveira/agno-react'
+import { BarChart, LineChart, AreaChart, PieChart, CardGrid } from '@rodrigocoliveira/agno-react/ui'
 import { Artifact } from '@/components/ai-elements/artifact'
+
+function renderUISpec(spec: any): ReactNode {
+  if (!spec) return null
+  const key = spec.component ?? spec.type
+  switch (key) {
+    case 'BarChart':  return <BarChart {...spec.props} />
+    case 'LineChart': return <LineChart {...spec.props} />
+    case 'AreaChart': return <AreaChart {...spec.props} />
+    case 'PieChart':  return <PieChart {...spec.props} />
+    case 'card-grid': return <CardGrid {...spec.props} />
+    default: return null
+  }
+}
 
 interface MessageItemProps {
   message: ChatMessage
@@ -87,20 +101,32 @@ export function MessageItem({ message }: MessageItemProps) {
               <div className="space-y-3">
                 {toolsWithUI.map((tool) => {
                   const uiComponent = (tool as any).ui_component
+                  const rendered = renderUISpec(uiComponent)
+                  if (!rendered) return null
                   return (
                     <div key={tool.tool_call_id}>
                       {uiComponent.layout === 'artifact' ? (
                         <Artifact>
-                          <GenerativeUIRenderer
-                            spec={uiComponent}
-                            className="w-full p-2"
-                          />
+                          <div className="w-full p-2">
+                            {uiComponent.title && (
+                              <h3 className="font-semibold mb-2">{uiComponent.title}</h3>
+                            )}
+                            {uiComponent.description && (
+                              <p className="text-sm text-muted-foreground mb-4">{uiComponent.description}</p>
+                            )}
+                            {rendered}
+                          </div>
                         </Artifact>
                       ) : (
-                        <GenerativeUIRenderer
-                          spec={uiComponent}
-                          className="w-full"
-                        />
+                        <div className="w-full">
+                          {uiComponent.title && (
+                            <h3 className="font-semibold mb-2">{uiComponent.title}</h3>
+                          )}
+                          {uiComponent.description && (
+                            <p className="text-sm text-muted-foreground mb-4">{uiComponent.description}</p>
+                          )}
+                          {rendered}
+                        </div>
                       )}
                     </div>
                   )

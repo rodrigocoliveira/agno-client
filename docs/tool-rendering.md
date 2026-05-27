@@ -24,12 +24,12 @@ One function, one prop:
 
 ## The default
 
-If you don't pass `renderTool`, the library calls `defaultRender()` for every tool call. `defaultRender()` produces:
+If you don't pass `renderTool`, the library calls `defaultRender()` for every tool call. `defaultRender()` returns:
 
-- `<ToolGenerativeUI tool={tool} />` — when `tool.ui_component` is set (the backend asked you to render a widget)
-- `<ToolDebugCard tool={tool} />` — when `debug={true}` (developer-facing card with input + output)
+- `<ToolDebugCard tool={tool} />` — when `debug={true}` (developer-facing card with input + output).
+- `null` — when `debug={false}` (production builds): tool calls render nothing by default.
 
-Both stack when both apply. Returns `null` if neither applies.
+There is no implicit "generative UI" auto-render. If your tool returns a chart spec via `tool.ui_component`, you decide where and how to render it inside your `renderTool` — see [Rendering generative UI](#rendering-generative-ui) below.
 
 ## The `debug` prop
 
@@ -71,19 +71,58 @@ Unlisted tools fall through to `defaultRender()`. Pass a second argument to `byT
 
 ## Building blocks
 
-`<ToolDebugCard>` and `<ToolGenerativeUI>` are exported so you can compose them yourself:
+`<ToolDebugCard>` is exported so you can compose it yourself:
 
 ```tsx
-import { ToolDebugCard, ToolGenerativeUI } from '@rodrigocoliveira/agno-react';
+import { ToolDebugCard } from '@rodrigocoliveira/agno-react';
 
 renderTool={(tool) => (
   <div className="rounded-xl border p-3">
     <h4>{tool.tool_name}</h4>
-    <ToolGenerativeUI tool={tool} />
     <ToolDebugCard tool={tool} />
   </div>
 )}
 ```
+
+## Rendering generative UI
+
+A tool handler that returns `{ data, ui }` (via helpers like `createBarChart` / `resultWithBarChart`) puts the UI spec on `tool.ui_component`. The library doesn't render that field for you — you dispatch it inside `renderTool` onto whichever components you want to use. The library ships plain `BarChart`, `LineChart`, `AreaChart`, `PieChart`, and `CardGrid` components for the common cases.
+
+```tsx
+import { AgnoChat, BarChart, LineChart, AreaChart, PieChart, CardGrid } from '@rodrigocoliveira/agno-react/ui';
+import { byToolName, type RenderTool } from '@rodrigocoliveira/agno-react';
+import type { ToolCall } from '@rodrigocoliveira/agno-types';
+
+function renderUI(tool: ToolCall) {
+  const ui = (tool as any).ui_component;
+  if (!ui) return null;
+  let body;
+  switch (ui.component ?? ui.type) {
+    case 'BarChart':  body = <BarChart {...ui.props} />; break;
+    case 'LineChart': body = <LineChart {...ui.props} />; break;
+    case 'AreaChart': body = <AreaChart {...ui.props} />; break;
+    case 'PieChart':  body = <PieChart {...ui.props} />; break;
+    case 'card-grid': body = <CardGrid {...ui.props} />; break;
+    default: return null;
+  }
+  return (
+    <div className="w-full">
+      {ui.title && <h3 className="font-semibold mb-2">{ui.title}</h3>}
+      {ui.description && <p className="text-sm text-muted-foreground mb-4">{ui.description}</p>}
+      {body}
+    </div>
+  );
+}
+
+const renderTool: RenderTool = byToolName({
+  render_revenue_chart: renderUI,
+  show_product_grid:    renderUI,
+});
+
+<AgnoChat renderTool={renderTool} />
+```
+
+The chart components require `recharts` as a peer dependency (`^2.0.0 || ^3.0.0`). If you need custom chart layouts, the underlying shadcn-style primitives are also exported: `ChartContainer`, `ChartTooltip`, `ChartTooltipContent`, `ChartLegend`, `ChartLegendContent`, `ChartStyle`.
 
 ## Four common patterns
 
@@ -133,14 +172,14 @@ renderTool={(tool) => (
 />
 ```
 
-## HITL sessions: `skipHydration`
+## HITL sessions: `skipToolsOnSessionLoad`
 
-If a tool was a Human-in-the-Loop interaction and its result is already on the message (from a previous run), you don't want its handler to re-execute when the session loads. Pass the tool names to `skipHydration`:
+If a tool was a Human-in-the-Loop interaction and its result is already on the message (from a previous run), you don't want its handler to re-execute when the session loads — re-invoking it would replay side effects (open a modal, navigate, fire a mutation). Pass the tool names to `skipToolsOnSessionLoad` and the library will render the stored result from history instead:
 
 ```tsx
 <AgnoChat
   toolHandlers={{ ask_user_question: askHandler }}
-  skipHydration={['ask_user_question']}
+  skipToolsOnSessionLoad={['ask_user_question']}
   renderTool={byToolName({
     ask_user_question: (tool) => (
       <AnswerBubble answer={tool.result as string} />
@@ -191,12 +230,22 @@ Available slots:
 
 ## Migrating from v1.x
 
-| Old (v1.4)                                          | New (v2.0)                                                                    |
+| Old (v1.4)                                          | New (v2.0.1)                                                                  |
 | --------------------------------------------------- | ----------------------------------------------------------------------------- |
 | `showToolCalls={true}`                              | `<AgnoChat debug={true}>` (or rely on `NODE_ENV` auto-detect)                 |
 | `showToolCalls={false}`                             | `<AgnoChat debug={false}>`                                                    |
-| `showGenerativeUI={false}`                          | `renderTool={(tool) => <ToolDebugCard tool={tool} />}`                        |
+| `showGenerativeUI={true}` (auto-render via registry) | Dispatch `tool.ui_component` yourself inside `renderTool` — see [Rendering generative UI](#rendering-generative-ui). |
+| `showGenerativeUI={false}`                          | Default behavior in production. (No auto-render exists anymore.)              |
 | `renderToolCall={(tool, idx) => X}`                 | `renderTool={(tool) => X}` (index is in the second arg if you need it)        |
 | `toolResultRenderers={{ name: (args, content) => X }}` | `renderTool={byToolName({ name: (tool) => X })}` — `tool.tool_args`/`tool.result` give you the same data with more context |
 | `<AgnoChat.Messages renderContent={...}>` | `renderMessage={(m) => <AgnoMessage message={m}>{/* your custom slots */}</AgnoMessage>}` |
 | `<AgnoChat.Messages renderMedia={...}>` | Same — use `renderMessage` + slots; replace `<AgnoMessage.Media />` with your component |
+
+## Migrating from v2.0.0
+
+If you were on 2.0.0 and your tool used `tool.ui_component`, charts likely rendered as raw JSON (the registry singleton was duplicated across bundles — see CHANGELOG). To migrate:
+
+1. Remove any call to `registerChartComponent` / `getComponentRegistry` / `registerGenerativeUIComponents`.
+2. Replace `<GenerativeUIRenderer spec={uiSpec} />` and `<ToolGenerativeUI tool={tool} />` with explicit dispatch — see [Rendering generative UI](#rendering-generative-ui).
+3. Import `BarChart` / `LineChart` / `AreaChart` / `PieChart` / `CardGrid` from `@rodrigocoliveira/agno-react/ui`.
+4. Add `recharts` to your app (it's a peer dep now).

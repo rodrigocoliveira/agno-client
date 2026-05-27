@@ -37,10 +37,12 @@ export interface AgnoChatRootProps extends HTMLAttributes<HTMLDivElement> {
    */
   debug?: boolean;
   /**
-   * Tool names whose handlers should NOT be re-invoked on session reload. Useful when
-   * a tool produced a `result` you want to render as-is without re-executing side effects.
+   * Tool names whose handlers should NOT be re-invoked when a saved session is loaded.
+   * Use this for interactive tools whose handlers cause side effects (open a modal,
+   * navigate, fire a mutation) — re-running them on session reload would replay those
+   * effects. The tool's stored `result` is still rendered from history.
    */
-  skipHydration?: string[];
+  skipToolsOnSessionLoad?: string[];
 }
 
 export function AgnoChatRoot({
@@ -49,13 +51,13 @@ export function AgnoChatRoot({
   autoExecuteTools = true,
   renderTool,
   debug,
-  skipHydration,
+  skipToolsOnSessionLoad,
   className,
   ...divProps
 }: AgnoChatRootProps) {
   const chat = useAgnoChat();
   const toolExec = useAgnoToolExecution(toolHandlers, autoExecuteTools, {
-    skipHydration,
+    skipToolsOnSessionLoad,
   });
 
   const containerRef = useRef<HTMLDivElement>(null);

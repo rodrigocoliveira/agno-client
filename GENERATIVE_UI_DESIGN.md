@@ -1,8 +1,16 @@
 # Generative UI Design Document for Agno Client
 
-> **Status:** Implementation Ready
+> **Status:** Historical (superseded in v2.0.1)
 > **Author:** Claude + Human collaboration
 > **Date:** 2026-01-26
+
+---
+
+> **⚠ This document describes the registry-based generative-UI architecture that shipped in v2.0.0 and was REMOVED in v2.0.1.** The `GenerativeUIRenderer` + `ComponentRegistry` singleton, `getCustomRender` registry, and the auto-render pathway no longer exist. The shape helpers (`createBarChart`, `resultWithBarChart`, etc.) and the `UIComponentSpec` types described here still exist; everything related to the registry / auto-renderer does not.
+>
+> For the current rendering model, see [`docs/tool-rendering.md`](./docs/tool-rendering.md) and [`docs/guides/10_generative_ui_charts.md`](./docs/guides/10_generative_ui_charts.md). The CHANGELOG entry for `[2.0.1]` documents why the subsystem was removed (a bundler-level singleton-duplication bug).
+>
+> This document is kept for design-history context only.
 
 ---
 

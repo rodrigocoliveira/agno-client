@@ -53,8 +53,10 @@ export type {
   ToolRenderArgs,
   ToolEntry,
 } from './agno-chat/render-tool';
-export { ToolDebugCard, ToolGenerativeUI } from './agno-chat/tool-building-blocks';
-export type {
-  ToolDebugCardProps,
-  ToolGenerativeUIProps,
-} from './agno-chat/tool-building-blocks';
+export { ToolDebugCard } from './agno-chat/tool-building-blocks';
+export type { ToolDebugCardProps } from './agno-chat/tool-building-blocks';
+
+export { BarChart, LineChart, AreaChart, PieChart } from './generative-components/charts';
+export type { ChartProps } from './generative-components/charts';
+export { CardGrid } from './generative-components/card-grid';
+export type { CardGridProps } from './generative-components/card-grid';

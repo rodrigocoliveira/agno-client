@@ -3,107 +3,44 @@ import type {
   ToolCall,
   UIComponentSpec,
   ToolHandlerResult,
-  CustomRenderFunction
 } from '@rodrigocoliveira/agno-types';
 import { useAgnoClient } from '../context/AgnoContext';
 import { useToolHandlers } from '../context/ToolHandlerContext';
 
-/**
- * Tool handler function type (now supports generative UI)
- */
 export type ToolHandler = (args: Record<string, any>) => Promise<any>;
 
-/**
- * Runtime registry for custom render functions (not serializable)
- * These are React components/functions that can't be stored in JSON
- */
-const customRenderRegistry = new Map<string, CustomRenderFunction>();
-
-/**
- * Store a custom render function and return its unique key
- */
-function registerCustomRender(renderFn: CustomRenderFunction): string {
-  const key = `custom-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`;
-  customRenderRegistry.set(key, renderFn);
-  return key;
-}
-
-/**
- * Get a custom render function by key
- */
-export function getCustomRender(key: string): CustomRenderFunction | undefined {
-  return customRenderRegistry.get(key);
-}
-
-/**
- * Check if a value is a ToolHandlerResult with UI spec
- */
 function isToolHandlerResult(value: any): value is ToolHandlerResult {
   return value && typeof value === 'object' && ('data' in value || 'ui' in value);
 }
 
-/**
- * Check if a value is a UIComponentSpec
- */
 function isUIComponentSpec(value: any): value is UIComponentSpec {
   return value && typeof value === 'object' && 'type' in value;
 }
 
 /**
- * Process tool handler result and extract data/UI
- * Exported for use in session loading UI hydration
+ * Split a handler return value into (a) the string `tool.result` field sent
+ * back to the backend and (b) an optional `ui` spec attached as
+ * `tool.ui_component` for consumer renderers to read.
  */
 export function processToolResult(result: any, _tool: ToolCall): {
   resultData: string;
   uiComponent?: any;
 } {
-  // Case 1: ToolHandlerResult with data and ui
   if (isToolHandlerResult(result)) {
     const { data, ui } = result;
-
-    let uiComponent: any = undefined;
-    if (ui) {
-      // Handle custom render functions
-      if (ui.type === 'custom' && typeof (ui as any).render === 'function') {
-        const renderKey = registerCustomRender((ui as any).render);
-        uiComponent = {
-          ...ui,
-          renderKey,
-          render: undefined, // Don't store the function itself
-        };
-      } else {
-        // Serializable UI spec
-        uiComponent = ui;
-      }
-    }
-
     return {
       resultData: typeof data === 'string' ? data : JSON.stringify(data),
-      uiComponent,
+      uiComponent: ui,
     };
   }
 
-  // Case 2: Direct UI component spec (no separate data)
   if (isUIComponentSpec(result)) {
-    let uiComponent: any;
-    if (result.type === 'custom' && typeof (result as any).render === 'function') {
-      const renderKey = registerCustomRender((result as any).render);
-      uiComponent = {
-        ...result,
-        renderKey,
-        render: undefined,
-      };
-    } else {
-      uiComponent = result;
-    }
-
     return {
       resultData: JSON.stringify(result),
-      uiComponent,
+      uiComponent: result,
     };
   }
 
-  // Case 3: Legacy format - plain data (backward compatible)
   return {
     resultData: typeof result === 'string' ? result : JSON.stringify(result),
     uiComponent: undefined,
@@ -127,6 +64,8 @@ export interface ToolExecutionEvent {
  *
  * @param handlers - Map of tool names to handler functions (local handlers)
  * @param autoExecute - Whether to automatically execute tools when paused (default: true)
+ * @param options.skipToolsOnSessionLoad - Tool names whose handlers should NOT be re-invoked
+ *   when a saved session is loaded. Use this for interactive tools with side effects.
  *
  * @example
  * ```tsx
@@ -147,7 +86,7 @@ export interface ToolExecutionEvent {
 export function useAgnoToolExecution(
   handlers: Record<string, ToolHandler> = {},
   autoExecute: boolean = true,
-  options?: { skipHydration?: string[] }
+  options?: { skipToolsOnSessionLoad?: string[] }
 ) {
   const client = useAgnoClient();
   const toolHandlerContext = useToolHandlers();
@@ -293,9 +232,9 @@ export function useAgnoToolExecution(
           // Skip if already has UI
           if ((tool as any).ui_component) continue;
 
-          // Skip HITL/interactive tools — re-invoking would trigger side effects (modals, panels).
-          // Tools with a toolResultRenderer are handled at display time via the preserved result.
-          if (options?.skipHydration?.includes(tool.tool_name)) continue;
+          // Skip interactive tools — re-invoking would trigger side effects (modals, navigation).
+          // The stored result still renders from history via the message's tool_calls.
+          if (options?.skipToolsOnSessionLoad?.includes(tool.tool_name)) continue;
 
           const handler = mergedHandlers[tool.tool_name];
           if (!handler) continue;

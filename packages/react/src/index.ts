@@ -9,17 +9,6 @@ export type { AgnoProviderProps } from './context/AgnoContext';
 export { ToolHandlerProvider, useToolHandlers } from './context/ToolHandlerContext';
 export type { ToolHandlerProviderProps, ToolHandlerContextValue } from './context/ToolHandlerContext';
 
-// Generative UI Components
-export { GenerativeUIRenderer } from './components/GenerativeUIRenderer';
-export type { GenerativeUIRendererProps } from './components/GenerativeUIRenderer';
-export {
-  ComponentRegistry,
-  getComponentRegistry,
-  registerChartComponent,
-  getChartComponent,
-} from './utils/component-registry';
-export type { ComponentRenderer } from './utils/component-registry';
-
 // Generative UI Helpers
 export {
   createBarChart,
@@ -49,17 +38,14 @@ export type {
 export { useAgnoChat } from './hooks/useAgnoChat';
 export { useAgnoSession } from './hooks/useAgnoSession';
 export { useAgnoActions } from './hooks/useAgnoActions';
-export { useAgnoToolExecution, getCustomRender } from './hooks/useAgnoToolExecution';
+export { useAgnoToolExecution } from './hooks/useAgnoToolExecution';
 export type { ToolHandler, ToolExecutionEvent } from './hooks/useAgnoToolExecution';
 
 // Tool rendering (v2.0)
 export { byToolName } from './ui/composed/agno-chat/render-tool';
 export type { RenderTool, ToolRenderArgs, ToolEntry } from './ui/composed/agno-chat/render-tool';
-export { ToolDebugCard, ToolGenerativeUI } from './ui/composed/agno-chat/tool-building-blocks';
-export type {
-  ToolDebugCardProps,
-  ToolGenerativeUIProps,
-} from './ui/composed/agno-chat/tool-building-blocks';
+export { ToolDebugCard } from './ui/composed/agno-chat/tool-building-blocks';
+export type { ToolDebugCardProps } from './ui/composed/agno-chat/tool-building-blocks';
 
 // Message slot composition (v2.0)
 export {

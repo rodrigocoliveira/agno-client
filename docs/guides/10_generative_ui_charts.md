@@ -303,70 +303,100 @@ interface ChartHelperOptions {
 
 ## Rendering Charts in Messages
 
-If you use `<AgnoChat>` from `@rodrigocoliveira/agno-react/ui`, generative UI
-renders automatically — tool calls with a `ui_component` are picked up by the
-default tool pipeline. **You don't need to write any rendering code** unless
-you want to customize.
+> **2.0.1 update:** The previous registry-based auto-renderer (`GenerativeUIRenderer`, `ComponentRegistry`, `ToolGenerativeUI`) had a bundling bug and was removed. The library now ships plain React chart components, and you wire them up explicitly via the `renderTool` API.
 
-If you're rendering messages yourself (the hooks API), use the building-block
-component `<ToolGenerativeUI>`, which encapsulates the `ui_component` check:
+Inside `<AgnoChat>` from `@rodrigocoliveira/agno-react/ui`, dispatch
+`tool.ui_component` onto one of the chart components via `renderTool`:
 
 ```tsx
-import { ToolGenerativeUI } from '@rodrigocoliveira/agno-react';
+import { AgnoChat, BarChart, LineChart, AreaChart, PieChart, CardGrid } from '@rodrigocoliveira/agno-react/ui';
+import { byToolName, type RenderTool } from '@rodrigocoliveira/agno-react';
+import type { ToolCall } from '@rodrigocoliveira/agno-types';
+
+function renderUI(tool: ToolCall) {
+  const ui = (tool as any).ui_component;
+  if (!ui) return null;
+  let body;
+  switch (ui.component ?? ui.type) {
+    case 'BarChart':  body = <BarChart {...ui.props} />; break;
+    case 'LineChart': body = <LineChart {...ui.props} />; break;
+    case 'AreaChart': body = <AreaChart {...ui.props} />; break;
+    case 'PieChart':  body = <PieChart {...ui.props} />; break;
+    case 'card-grid': body = <CardGrid {...ui.props} />; break;
+    default: return null;
+  }
+  return (
+    <div className="w-full">
+      {ui.title && <h3 className="font-semibold mb-2">{ui.title}</h3>}
+      {ui.description && <p className="text-sm text-muted-foreground mb-4">{ui.description}</p>}
+      {body}
+    </div>
+  );
+}
+
+const renderTool: RenderTool = byToolName({
+  show_sales_data:       renderUI,
+  show_trend_analysis:   renderUI,
+  show_market_share:     renderUI,
+  show_revenue_breakdown: renderUI,
+});
+
+<AgnoChat renderTool={renderTool} />
+```
+
+If you're rendering messages yourself with the hooks API (no `<AgnoChat>`), call
+the same `renderUI` helper from wherever you walk `message.tool_calls`:
+
+```tsx
+import { BarChart, LineChart /* … */ } from '@rodrigocoliveira/agno-react/ui';
 import type { ToolCall } from '@rodrigocoliveira/agno-types';
 
 function ToolCallDisplay({ toolCall }: { toolCall: ToolCall }) {
+  const ui = (toolCall as any).ui_component;
+  const output = toolCall.result ?? toolCall.content;
   return (
     <div className="tool-result">
-      {/* Renders the generative UI when ui_component is set, otherwise null */}
-      <ToolGenerativeUI tool={toolCall} />
-
-      {/* Fallback for plain text output. Read `result ?? content` —
-          Agno 2.6+ only populates `result`. */}
-      {(toolCall.result ?? toolCall.content) && (
-        <pre>{toolCall.result ?? toolCall.content}</pre>
-      )}
+      {ui ? renderUI(toolCall) : null}
+      {!ui && output ? <pre>{output as string}</pre> : null}
     </div>
   );
 }
 ```
 
-For the lower-level pattern (used internally by `<ToolGenerativeUI>`), the
-`GenerativeUIRenderer` component is still exported:
-
-```tsx
-import { GenerativeUIRenderer } from '@rodrigocoliveira/agno-react';
-
-const uiSpec = (toolCall as any).ui_component;
-if (uiSpec) <GenerativeUIRenderer spec={uiSpec} />;
-```
+**Peer dependency:** the chart components require `recharts ^2.0.0 || ^3.0.0`. If you only use `CardGrid`, you don't need recharts. The underlying shadcn-style primitives (`ChartContainer`, `ChartTooltip`, `ChartTooltipContent`, `ChartLegend`, `ChartLegendContent`, `ChartStyle`) are also exported from `/ui` if you want to assemble custom chart layouts.
 
 ## Complete Example
 
 ```tsx
-import {
-  AgnoProvider,
-  useAgnoChat,
-  useAgnoToolExecution,
-  ToolGenerativeUI,
-  createBarChart,
-  createLineChart,
-  createToolResult,
-} from '@rodrigocoliveira/agno-react';
+import { AgnoProvider, useAgnoToolExecution, byToolName, type RenderTool } from '@rodrigocoliveira/agno-react';
+import { AgnoChat, BarChart, LineChart, AreaChart, PieChart, CardGrid } from '@rodrigocoliveira/agno-react/ui';
+import { createBarChart, createLineChart, createToolResult } from '@rodrigocoliveira/agno-react';
+import type { ToolCall } from '@rodrigocoliveira/agno-types';
 
-function App() {
+function renderUI(tool: ToolCall) {
+  const ui = (tool as any).ui_component;
+  if (!ui) return null;
+  let body;
+  switch (ui.component ?? ui.type) {
+    case 'BarChart':  body = <BarChart {...ui.props} />; break;
+    case 'LineChart': body = <LineChart {...ui.props} />; break;
+    case 'AreaChart': body = <AreaChart {...ui.props} />; break;
+    case 'PieChart':  body = <PieChart {...ui.props} />; break;
+    case 'card-grid': body = <CardGrid {...ui.props} />; break;
+    default: return null;
+  }
   return (
-    <AgnoProvider config={{ endpoint: 'http://localhost:7777', mode: 'agent', agentId: 'analytics-agent' }}>
-      <AnalyticsChat />
-    </AgnoProvider>
+    <div className="w-full">
+      {ui.title && <h3 className="font-semibold mb-2">{ui.title}</h3>}
+      {ui.description && <p className="text-sm text-muted-foreground mb-4">{ui.description}</p>}
+      {body}
+    </div>
   );
 }
 
 function AnalyticsChat() {
-  const { messages, sendMessage, isStreaming } = useAgnoChat();
-
-  const handlers = {
-    get_revenue_chart: async (args) => {
+  const toolHandlers = {
+    get_revenue_chart: async (args: Record<string, any>) => {
       const data = await fetchRevenue(args.period);
       return createToolResult(
         data,
@@ -375,12 +405,11 @@ function AnalyticsChat() {
         })
       );
     },
-
-    get_comparison_chart: async (args) => {
+    get_comparison_chart: async (args: Record<string, any>) => {
       const data = await fetchComparison(args.metrics);
       return createToolResult(
         data,
-        createBarChart(data, 'category', args.metrics.map(m => ({ key: m })), {
+        createBarChart(data, 'category', args.metrics.map((m: string) => ({ key: m })), {
           title: 'Metric Comparison',
           showLegend: true,
         })
@@ -388,44 +417,37 @@ function AnalyticsChat() {
     },
   };
 
-  useAgnoToolExecution(handlers);
+  const renderTool: RenderTool = byToolName({
+    get_revenue_chart:    renderUI,
+    get_comparison_chart: renderUI,
+  });
 
   return (
-    <div className="chat">
-      {messages.map((msg, i) => (
-        <div key={i} className={`message ${msg.role}`}>
-          <p>{msg.content}</p>
+    <AgnoChat toolHandlers={toolHandlers} renderTool={renderTool}>
+      <AgnoChat.Messages />
+      <AgnoChat.Input />
+    </AgnoChat>
+  );
+}
 
-          {msg.tool_calls?.map((tool) => {
-            const output = tool.result ?? tool.content;
-            return (
-              <div key={tool.tool_call_id} className="tool-output">
-                <ToolGenerativeUI tool={tool} />
-                {!(tool as any).ui_component && output && <pre>{output}</pre>}
-              </div>
-            );
-          })}
-        </div>
-      ))}
-    </div>
+function App() {
+  return (
+    <AgnoProvider config={{ endpoint: 'http://localhost:7777', mode: 'agent', agentId: 'analytics-agent' }}>
+      <AnalyticsChat />
+    </AgnoProvider>
   );
 }
 ```
 
-> If you're using the compound `<AgnoChat>` component (recommended), drop the
-> manual `msg.tool_calls.map(...)` block entirely — `<AgnoChat.Messages>`
-> renders generative UI automatically via the built-in tool pipeline.
-
 ## Key Points
 
-- Use `createToolResult(data, ui)` to return both data and UI
-- `createBarChart`, `createLineChart`, `createPieChart`, `createAreaChart` create chart specs
-- `createSmartChart` auto-detects the best chart type
-- `resultWithBarChart` and `resultWithSmartChart` are quick one-liners
-- Set `layout: 'artifact'` to open charts in a modal/side panel
-- Use `<ToolGenerativeUI tool={tool} />` to render UI specs in messages (v2.0+) — handles the `ui_component` check internally
-- For the lower-level rendering primitive, `GenerativeUIRenderer` is still exported
-- Charts use Recharts under the hood — all standard props are supported
+- Use `createToolResult(data, ui)` (or `resultWithBarChart` / `resultWithSmartChart`) in tool handlers to package data + a UI spec.
+- The library no longer auto-renders `tool.ui_component`; you dispatch it via `renderTool` onto the components you want.
+- `BarChart`, `LineChart`, `AreaChart`, `PieChart`, `CardGrid` are exported from `@rodrigocoliveira/agno-react/ui` and accept the spec's `props` shape directly.
+- `byToolName({ tool_name: handler })` is the easiest way to attach the same `renderUI` to several generative tools.
+- `recharts` is an optional peer dep (`^2.0.0 || ^3.0.0`) — only required if you import the chart components.
+- `createSmartChart` still works — it picks a component name (`'BarChart'` vs `'LineChart'`) based on the data shape; your switch dispatches on that name.
+- The shadcn-style primitives (`ChartContainer`, `ChartTooltip`, `ChartTooltipContent`, etc.) are also exported if you want to build custom chart layouts.
 
 ## Next Steps
 

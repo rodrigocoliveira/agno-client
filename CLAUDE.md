@@ -680,18 +680,75 @@ When implementing or debugging frontend tool execution:
 6. **Error handling**: Wrap execution in try/catch and return error objects
 7. **Debugging**: Check browser console for `[useAgnoToolExecution]` logs
 
-## Rendering Tool Calls (v2.0)
+## Rendering Tool Calls (v2.1)
 
-The React package exposes a single, unified API for rendering tool calls in the chat UI:
+The React package exposes a single rendering pathway: a user-supplied `renderTool` callback. There is no implicit "generative UI" auto-rendering — what shows up in the chat for a tool call is exactly what `renderTool` returns.
 
-- **`<AgnoChat debug renderTool={...} skipHydration={...}>`** — top-level config.
-- **`renderTool(tool, { index, isDebug, defaultRender })`** — runs per tool call. Return `null` to hide, return `defaultRender()` to fall back to library defaults, or return JSX for a custom render.
+- **`<AgnoChat debug renderTool={...} skipToolsOnSessionLoad={...}>`** — top-level config.
+- **`renderTool(tool, { index, isDebug, defaultRender })`** — runs per tool call. Return `null` to hide, return `defaultRender()` to keep the library default, or return JSX for a custom render.
 - **`byToolName({ tool_name: false | RenderTool }, fallback?)`** — sugar for dispatch-by-name. Unlisted tools fall through to `defaultRender()` (or your fallback).
-- **`debug?: boolean`** — auto-detects via `process.env.NODE_ENV !== 'production'`. Controls whether `defaultRender()` includes the `<ToolDebugCard>`. Generative UI from `tool.ui_component` always renders by default. Set `debug={true}` in production to investigate live bugs.
-- **`<ToolDebugCard tool>`** and **`<ToolGenerativeUI tool>`** — exported building blocks used internally by `defaultRender` and available for manual composition.
-- **`skipHydration?: string[]`** — tool names whose handlers should not be re-invoked on session reload (used when the rendered output is derived from `tool.result` and re-running would trigger side effects).
+- **`debug?: boolean`** — auto-detects via `process.env.NODE_ENV !== 'production'`. Controls whether `defaultRender()` emits a `<ToolDebugCard>`. In production with no custom `renderTool`, tool calls render nothing by default; set `debug={true}` in production to investigate live bugs.
+- **`<ToolDebugCard tool>`** — exported building block used by `defaultRender` in debug mode; also available for manual composition.
+- **`skipToolsOnSessionLoad?: string[]`** — tool names whose handlers should not be re-invoked when a saved session is loaded. Use this for interactive tools whose handlers have side effects (open a modal, navigate, fire a mutation) — the stored `result` is still rendered from history. (Renamed from `skipHydration` in v2.1.)
 
 The old props (`renderToolCall`, `toolResultRenderers`, `showToolCalls`, `showGenerativeUI`, `ToolResultRenderer`) were removed in v2.0. See `docs/tool-rendering.md` for the migration table and four common patterns.
+
+### Generative UI components (v2.0.1)
+
+In v2.0.0 the library tried to auto-render `tool.ui_component` via an internal registry (`GenerativeUIRenderer` + `ComponentRegistry` singleton). That subsystem had a packaging-level bug — its singleton was duplicated across the `./` and `./ui` ESM bundles, so registrations made via one entry were invisible to the renderer running in the other — and competed with the explicit `renderTool` API. **It was removed in v2.0.1.** The chart/card-grid components remain as plain React components consumers wire up themselves via `renderTool`.
+
+**What shipped with v2.0.1:**
+
+- `BarChart`, `LineChart`, `AreaChart`, `PieChart`, `CardGrid` — plain React components exported from `@rodrigocoliveira/agno-react/ui`. They accept the `props` shape of `ChartComponentSpec` / `CardGridComponentSpec` directly. Built on Recharts (new optional peer dep `recharts ^2.0.0 || ^3.0.0`).
+- `ChartContainer`, `ChartTooltip`, `ChartTooltipContent`, `ChartLegend`, `ChartLegendContent`, `ChartStyle` — shadcn-style chart primitives, also exported from `/ui`, available if you want to assemble custom chart layouts.
+- All `ui-helpers` (`createBarChart`, `createSmartChart`, `resultWithBarChart`, `createTable`, `createMarkdown`, etc.) **stayed** — they are passive shape helpers. They return `{ data, ui: { type, component, props, ... } }` objects with zero rendering coupling, so tool handlers can keep using them to package output.
+
+**What was removed in v2.0.1:**
+
+- `GenerativeUIRenderer`, `GenerativeUIRendererProps`
+- `ComponentRegistry`, `getComponentRegistry`, `registerChartComponent`, `getChartComponent`, `ComponentRenderer`
+- `ToolGenerativeUI`, `ToolGenerativeUIProps`
+- `getCustomRender` (and the internal `customRenderRegistry` for non-serializable custom render functions)
+
+**The `ToolCall.ui_component` field stays** (typed `any` in `@rodrigocoliveira/agno-types`). The library no longer reads it, but `useAgnoToolExecution` still populates it from a handler's `{ data, ui }` return and `client.hydrateToolCallUI` still re-hydrates it on session reload. Consumers read `tool.ui_component` from their `renderTool` callback and dispatch onto the components they want — see the example below or `examples/react-chat/src/pages/ChatComponentsPage.tsx`.
+
+**Reference dispatcher (lives in consumer code, not the library):**
+
+```tsx
+import { AgnoChat, BarChart, LineChart, AreaChart, PieChart, CardGrid } from '@rodrigocoliveira/agno-react/ui';
+import { byToolName, type RenderTool } from '@rodrigocoliveira/agno-react';
+import type { ToolCall } from '@rodrigocoliveira/agno-types';
+
+function renderUI(tool: ToolCall) {
+  const ui = (tool as any).ui_component;
+  if (!ui) return null;
+  let body;
+  switch (ui.component ?? ui.type) {
+    case 'BarChart':  body = <BarChart {...ui.props} />; break;
+    case 'LineChart': body = <LineChart {...ui.props} />; break;
+    case 'AreaChart': body = <AreaChart {...ui.props} />; break;
+    case 'PieChart':  body = <PieChart {...ui.props} />; break;
+    case 'card-grid': body = <CardGrid {...ui.props} />; break;
+    default: return null;
+  }
+  return (
+    <div className="w-full">
+      {ui.title && <h3 className="font-semibold mb-2">{ui.title}</h3>}
+      {ui.description && <p className="text-sm text-muted-foreground mb-4">{ui.description}</p>}
+      {body}
+    </div>
+  );
+}
+
+const renderTool: RenderTool = byToolName({
+  render_revenue_chart: renderUI,
+  // …other generative tools…
+});
+
+<AgnoChat renderTool={renderTool} debug={false} />
+```
+
+**Known gaps:** no `Table` / `Markdown` / `Artifact` components are shipped from the library. Tool handlers can still emit those shapes via `createTable`/`createMarkdown`/`createArtifact`; rendering them is consumer's responsibility. (For markdown, the existing `Response` component from `/ui` covers most cases.)
 
 ### `tool_args` Python-repr workaround (agno#8007 / #11)
 

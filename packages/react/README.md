@@ -372,7 +372,7 @@ For custom message layouts (reordering slots, replacing sections), use the
 
 | Component | Description |
 |-----------|-------------|
-| `AgnoChat` | Root wrapper. Accepts `toolHandlers`, `autoExecuteTools`, `renderTool`, `debug`, `skipHydration`. |
+| `AgnoChat` | Root wrapper. Accepts `toolHandlers`, `autoExecuteTools`, `renderTool`, `debug`, `skipToolsOnSessionLoad`. |
 | `AgnoChat.Messages` | Message list with auto-scroll. Accepts `avatars`, `actions`, `showReasoning`, `showReferences`, `showTimestamp`, `renderMessage`, `renderTool`, and more. |
 | `AgnoChat.EmptyState` | Shown when there are no messages. Place inside `Messages`. |
 | `AgnoChat.SuggestedPrompts` | Clickable prompt suggestions. Place inside `EmptyState`. |

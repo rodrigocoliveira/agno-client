@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { cn } from '../../lib/cn';
 import { useAgnoChatContext } from '../agno-chat/context';
-import { ToolDebugCard, ToolGenerativeUI } from '../agno-chat/tool-building-blocks';
+import { ToolDebugCard } from '../agno-chat/tool-building-blocks';
 import type { RenderTool } from '../agno-chat/render-tool';
 import { useAgnoMessageContext } from './context';
 
@@ -20,12 +20,8 @@ export function AgnoMessageTools({ renderTool: renderToolProp }: AgnoMessageTool
   return (
     <div className={cn('space-y-2 pt-1', classNames?.assistant?.toolCalls)}>
       {message.tool_calls.map((tool, idx) => {
-        const defaultRender = (): ReactNode => (
-          <>
-            <ToolGenerativeUI tool={tool} />
-            {isDebug ? <ToolDebugCard tool={tool} defaultOpen={idx === 0} /> : null}
-          </>
-        );
+        const defaultRender = (): ReactNode =>
+          isDebug ? <ToolDebugCard tool={tool} defaultOpen={idx === 0} /> : null;
         const node = renderTool
           ? renderTool(tool, { index: idx, isDebug, defaultRender })
           : defaultRender();

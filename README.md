@@ -81,7 +81,7 @@ await client.sendMessage('Hello!');
 - **Session management** -- load, list, and delete conversation history ([guide](./docs/guides/05_session_management.md))
 - **Memory API** -- create, read, update, and delete user memories across sessions
 - **Frontend tool execution (HITL)** -- delegate tools to the browser with auto or manual approval ([docs](./docs/frontend-tools.md))
-- **Generative UI** -- render charts, cards, and tables driven by agent responses ([guide](./docs/guides/10_generative_ui_charts.md))
+- **Generative UI components** -- ship-with-the-library `BarChart` / `LineChart` / `AreaChart` / `PieChart` / `CardGrid` you wire up via `renderTool` ([guide](./docs/guides/10_generative_ui_charts.md))
 - **Request cancellation** -- abort client stream and notify backend in one call
 - **Auth token refresh** -- automatic retry on 401 with `onTokenExpired` callback ([guide](./docs/guides/17_secure_auth.md))
 - **Custom query parameters** -- append params globally or per-request ([guide](./docs/guides/13_custom_params_headers.md))

@@ -370,22 +370,44 @@ const toolHandlers: Record<string, ToolHandler> = {
 useAgnoToolExecution(toolHandlers);
 ```
 
-### 3. Register UI Components (One-time Setup)
+### 3. Wire the chart into `renderTool` (no global setup)
+
+> **2.0.1 update:** in 2.0.0 this step used a `registerGenerativeUIComponents()` registry; that subsystem was removed (see CHANGELOG). The pattern below replaces it. There is no longer any global "register on mount" step.
 
 ```tsx
-import { registerGenerativeUIComponents } from '@/components/generative-ui';
-import { useEffect } from 'react';
+import { AgnoChat, BarChart, LineChart, AreaChart, PieChart, CardGrid } from '@rodrigocoliveira/agno-react/ui';
+import { byToolName, type RenderTool } from '@rodrigocoliveira/agno-react';
+import type { ToolCall } from '@rodrigocoliveira/agno-types';
 
-function App() {
-  useEffect(() => {
-    registerGenerativeUIComponents();
-  }, []);
-
-  return <YourChatInterface />;
+function renderUI(tool: ToolCall) {
+  const ui = (tool as any).ui_component;
+  if (!ui) return null;
+  let body;
+  switch (ui.component ?? ui.type) {
+    case 'BarChart':  body = <BarChart {...ui.props} />; break;
+    case 'LineChart': body = <LineChart {...ui.props} />; break;
+    case 'AreaChart': body = <AreaChart {...ui.props} />; break;
+    case 'PieChart':  body = <PieChart {...ui.props} />; break;
+    case 'card-grid': body = <CardGrid {...ui.props} />; break;
+    default: return null;
+  }
+  return (
+    <div className="w-full">
+      {ui.title && <h3 className="font-semibold mb-2">{ui.title}</h3>}
+      {ui.description && <p className="text-sm text-muted-foreground mb-4">{ui.description}</p>}
+      {body}
+    </div>
+  );
 }
+
+const renderTool: RenderTool = byToolName({
+  render_revenue_chart: renderUI,
+});
+
+<AgnoChat toolHandlers={toolHandlers} renderTool={renderTool} />
 ```
 
-That's it! When the agent calls `render_revenue_chart`, the chart appears in the chat.
+That's it! When the agent calls `render_revenue_chart`, your handler returns `{ data, ui }`, `useAgnoToolExecution` puts the spec on `tool.ui_component`, and your `renderTool` dispatches it onto the matching component.
 
 ## Available UI Components
 
@@ -872,7 +894,6 @@ const toolHandlers = {
 - `createCard(id, title, description, options?)`
 - `createColumn(key, label, options?)`
 - `createToolResult(data, uiSpec)` - Wrap UI spec in result
-- `getCustomRender(key)` - Retrieve custom render function
 
 ### TypeScript Types
 
@@ -894,9 +915,10 @@ import type {
 
 ### Chart Not Appearing
 
-1. Check `registerGenerativeUIComponents()` is called on app mount
-2. Verify handler returns `ToolHandlerResult` with `ui` field
-3. Check browser console for errors
+1. Verify your handler returns a `ToolHandlerResult` (`{ data, ui }`) — `resultWithBarChart(...)` is the easiest helper.
+2. Verify your `<AgnoChat renderTool={...}>` includes the tool name and dispatches `tool.ui_component` onto the right chart component (`BarChart`, `LineChart`, etc.). The library no longer auto-renders the UI spec.
+3. Check that `recharts` is installed in your app (it's a peer dependency, `^2.0.0 || ^3.0.0`).
+4. Check the browser console for errors.
 
 ### Type Errors
 

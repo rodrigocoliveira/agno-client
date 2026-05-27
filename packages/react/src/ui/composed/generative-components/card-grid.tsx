@@ -1,17 +1,10 @@
-/**
- * Card Grid Renderer for Generative UI
- *
- * Renders a grid of cards based on specifications from the agent.
- */
+import type { CardGridComponentSpec } from '@rodrigocoliveira/agno-types';
+import { Button } from '../../primitives/button';
+import { cn } from '../../lib/cn';
 
-import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import type { CardGridComponentSpec } from '@rodrigocoliveira/agno-react';
+export type CardGridProps = CardGridComponentSpec['props'];
 
-/**
- * Card Grid Renderer
- */
-export function CardGridRenderer(props: CardGridComponentSpec['props']) {
+export function CardGrid(props: CardGridProps) {
   const { cards, columns = { default: 1, md: 2, lg: 3 }, variant = 'default' } = props;
 
   if (!cards || cards.length === 0) {
@@ -22,7 +15,6 @@ export function CardGridRenderer(props: CardGridComponentSpec['props']) {
     );
   }
 
-  // Build grid class based on columns
   const gridCols = {
     default: columns.default || 1,
     sm: columns.sm,
@@ -31,23 +23,25 @@ export function CardGridRenderer(props: CardGridComponentSpec['props']) {
     xl: columns.xl,
   };
 
-  const gridClass = `grid gap-4 ${gridCols.default === 1 ? 'grid-cols-1' : `grid-cols-${gridCols.default}`} ${
-    gridCols.sm ? `sm:grid-cols-${gridCols.sm}` : ''
-  } ${gridCols.md ? `md:grid-cols-${gridCols.md}` : ''} ${gridCols.lg ? `lg:grid-cols-${gridCols.lg}` : ''} ${
-    gridCols.xl ? `xl:grid-cols-${gridCols.xl}` : ''
-  }`.trim();
+  const gridClass = cn(
+    'grid gap-4',
+    gridCols.default === 1 ? 'grid-cols-1' : `grid-cols-${gridCols.default}`,
+    gridCols.sm && `sm:grid-cols-${gridCols.sm}`,
+    gridCols.md && `md:grid-cols-${gridCols.md}`,
+    gridCols.lg && `lg:grid-cols-${gridCols.lg}`,
+    gridCols.xl && `xl:grid-cols-${gridCols.xl}`,
+  );
 
-  const cardVariantClass =
-    variant === 'bordered'
-      ? 'border-2'
-      : variant === 'elevated'
-        ? 'shadow-lg'
-        : '';
+  const cardClass = cn(
+    'rounded-lg border bg-card text-card-foreground shadow-sm',
+    variant === 'bordered' && 'border-2',
+    variant === 'elevated' && 'shadow-lg',
+  );
 
   return (
     <div className={gridClass}>
       {cards.map((card) => (
-        <Card key={card.id} className={cardVariantClass}>
+        <div key={card.id} className={cardClass}>
           {card.image && (
             <div className="aspect-video w-full overflow-hidden rounded-t-lg">
               <img
@@ -57,12 +51,14 @@ export function CardGridRenderer(props: CardGridComponentSpec['props']) {
               />
             </div>
           )}
-          <CardHeader>
-            <CardTitle>{card.title}</CardTitle>
-            {card.description && <CardDescription>{card.description}</CardDescription>}
-          </CardHeader>
+          <div className="flex flex-col space-y-1.5 p-6">
+            <h3 className="text-lg font-semibold leading-none tracking-tight">{card.title}</h3>
+            {card.description && (
+              <p className="text-sm text-muted-foreground">{card.description}</p>
+            )}
+          </div>
           {card.metadata && Object.keys(card.metadata).length > 0 && (
-            <CardContent>
+            <div className="px-6 pb-4">
               <dl className="space-y-1 text-sm">
                 {Object.entries(card.metadata).map(([key, value]) => (
                   <div key={key} className="flex justify-between">
@@ -71,22 +67,21 @@ export function CardGridRenderer(props: CardGridComponentSpec['props']) {
                   </div>
                 ))}
               </dl>
-            </CardContent>
+            </div>
           )}
           {card.actions && card.actions.length > 0 && (
-            <CardFooter className="flex gap-2">
+            <div className="flex items-center gap-2 p-6 pt-0">
               {card.actions.map((action, index) => (
                 <Button
                   key={index}
                   variant={action.variant || 'default'}
                   size="sm"
                   onClick={() => {
-                    // Emit custom event for action handling
                     if (action.onClick) {
                       window.dispatchEvent(
                         new CustomEvent('generative-ui-action', {
                           detail: { action: action.onClick, cardId: card.id },
-                        })
+                        }),
                       );
                     }
                   }}
@@ -94,9 +89,9 @@ export function CardGridRenderer(props: CardGridComponentSpec['props']) {
                   {action.label}
                 </Button>
               ))}
-            </CardFooter>
+            </div>
           )}
-        </Card>
+        </div>
       ))}
     </div>
   );

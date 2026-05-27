@@ -1,7 +1,9 @@
 import { useState, useRef, useCallback } from 'react'
-import { AgnoChat } from '@rodrigocoliveira/agno-react/ui'
+import type { ReactNode } from 'react'
+import { AgnoChat, BarChart, LineChart, AreaChart, PieChart, CardGrid } from '@rodrigocoliveira/agno-react/ui'
 import { byToolName } from '@rodrigocoliveira/agno-react'
 import type { ToolHandler, RenderTool } from '@rodrigocoliveira/agno-react'
+import type { ToolCall } from '@rodrigocoliveira/agno-types'
 import { SessionSidebar } from '@/components/sessions/SessionSidebar'
 import { Button } from '@/components/ui/button'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@/components/ui/tooltip'
@@ -51,6 +53,30 @@ export function ChatComponentsPage() {
     ...EXAMPLE_GENERATIVE_TOOLS,
   }
 
+  // Generative UI dispatcher: maps a tool's persisted ui spec onto our local components.
+  // Lives in user code on purpose — the library no longer ships an auto-renderer.
+  const renderUI = useCallback((tool: ToolCall): ReactNode => {
+    const ui = (tool as any).ui_component
+    if (!ui) return null
+    const key = ui.component ?? ui.type
+    let body: ReactNode = null
+    switch (key) {
+      case 'BarChart':  body = <BarChart {...ui.props} />; break
+      case 'LineChart': body = <LineChart {...ui.props} />; break
+      case 'AreaChart': body = <AreaChart {...ui.props} />; break
+      case 'PieChart':  body = <PieChart {...ui.props} />; break
+      case 'card-grid': body = <CardGrid {...ui.props} />; break
+      default: return null
+    }
+    return (
+      <div className="w-full">
+        {ui.title && <h3 className="font-semibold mb-2">{ui.title}</h3>}
+        {ui.description && <p className="text-sm text-muted-foreground mb-4">{ui.description}</p>}
+        {body}
+      </div>
+    )
+  }, [])
+
   const renderTool: RenderTool = byToolName({
     // Pattern A — REPLACE the default render.
     // When ask_user_question completes, show only the AnswerBubble
@@ -68,15 +94,22 @@ export function ChatComponentsPage() {
 
     // Pattern B — PRETTY + DEFAULT side by side.
     // ShowAlertCard renders first; defaultRender() then emits whatever the lib
-    // would normally render (the ToolDebugCard when debug=true, generative UI
-    // when tool.ui_component is set, or nothing when both are absent). This is
-    // the "I want my own visual AND keep the debugger" combination.
+    // would normally render (only the ToolDebugCard when debug=true; nothing
+    // otherwise). This is the "I want my own visual AND keep the debugger"
+    // combination.
     show_alert: (tool, { defaultRender }) => (
       <div className="space-y-2">
         <ShowAlertCard tool={tool} />
         {defaultRender()}
       </div>
     ),
+
+    // Generative UI tools — dispatch the persisted ui spec to a local component.
+    render_revenue_chart:     renderUI,
+    render_rental_cars:       renderUI,
+    render_product_comparison: renderUI,
+    render_dashboard:         renderUI,
+    render_visualization:     renderUI,
   })
 
   return (
@@ -125,7 +158,7 @@ export function ChatComponentsPage() {
         {/* Chat Interface — compound component pattern */}
         <div className="flex-1 overflow-hidden">
           <AgnoChat
-            skipHydration={['ask_user_question']}
+            skipToolsOnSessionLoad={['ask_user_question']}
             debug={false}
             toolHandlers={toolHandlers}
             renderTool={renderTool}

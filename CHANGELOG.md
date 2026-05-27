@@ -5,6 +5,100 @@ All notable changes to the Agno Client libraries will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [2.1.0] - 2026-05-27
+
+### Breaking Changes
+
+#### @rodrigocoliveira/agno-react
+
+- **Renamed `skipHydration` → `skipToolsOnSessionLoad`** on `<AgnoChat>` and on the options object of `useAgnoToolExecution`. Behavior is unchanged — it still lists tool names whose handlers should not be re-invoked when a saved session is loaded (to avoid replaying side effects like modals, navigation, mutations). The new name makes the trigger (session load) and the value shape (a list of tool names) self-evident.
+
+  **Migration:**
+
+  | v2.0 | v2.1 |
+  | --- | --- |
+  | `<AgnoChat skipHydration={['name1']}>` | `<AgnoChat skipToolsOnSessionLoad={['name1']}>` |
+  | `useAgnoToolExecution(handlers, true, { skipHydration: [...] })` | `useAgnoToolExecution(handlers, true, { skipToolsOnSessionLoad: [...] })` |
+
+#### @rodrigocoliveira/agno-types and @rodrigocoliveira/agno-client
+
+No API changes. Versions aligned to 2.1.0 to keep the three packages in lockstep.
+
+## [2.0.1] - 2026-05-27
+
+### Fixed
+
+#### @rodrigocoliveira/agno-react
+
+Charts (and any other generative-UI tool result) were rendering as raw JSON in a code block instead of the actual component. Root cause was a packaging-level singleton-identity bug: the `ComponentRegistry` singleton was inlined into both ESM bundles (`dist/index.mjs` and `dist/ui.mjs`), so registrations made through the root entry were invisible to the renderer running inside `<AgnoChat>` from the `/ui` entry. The renderer's "registry miss" fallback then rendered title + description + `<pre>JSON.stringify(data)</pre>` — line-for-line what users were seeing.
+
+### Changed (technically breaking, but v2.0.0 was broken for charts)
+
+#### @rodrigocoliveira/agno-react
+
+The "generative UI auto-render" subsystem was removed in favor of the explicit `renderTool` API (which was already shipped in 2.0.0 as the official rendering pathway). Tool calls now render exactly what your `renderTool` callback returns — nothing more, nothing less. Chart components are shipped as plain React components you import and dispatch yourself.
+
+**Removed exports:**
+- `GenerativeUIRenderer`, `GenerativeUIRendererProps`
+- `ComponentRegistry`, `getComponentRegistry`, `registerChartComponent`, `getChartComponent`, `ComponentRenderer`
+- `ToolGenerativeUI`, `ToolGenerativeUIProps`
+- `getCustomRender` (and the internal `customRenderRegistry`)
+
+**Added exports (from `@rodrigocoliveira/agno-react/ui`):**
+- Plain chart components: `BarChart`, `LineChart`, `AreaChart`, `PieChart` (props match `ChartComponentSpec['props']`)
+- `CardGrid` (props match `CardGridComponentSpec['props']`)
+- shadcn-style chart primitives: `ChartContainer`, `ChartTooltip`, `ChartTooltipContent`, `ChartLegend`, `ChartLegendContent`, `ChartStyle`, `ChartConfig`
+
+**New optional peer dep:** `recharts ^2.0.0 || ^3.0.0` (only required if you import the chart components).
+
+**`defaultRender()` change:** in production it now returns `null` (no default UI for tool calls). With `debug={true}`, it renders the `<ToolDebugCard>` only. Generative UI is no longer auto-rendered there.
+
+**`tool.ui_component` is unchanged:** the field still exists on `ToolCall` (typed `any`), `useAgnoToolExecution` still populates it from `{ data, ui }` handler returns, and `client.hydrateToolCallUI` still re-hydrates it on session reload. Consumers read it inside their `renderTool` and dispatch onto the components they want.
+
+**`ui-helpers` are unchanged:** `createBarChart`, `createSmartChart`, `resultWithBarChart`, `createCardGrid`, `createTable`, `createMarkdown`, `createArtifact`, `createToolResult`, `resultWith*` — all stay exactly as in 2.0.0. They are passive shape helpers now (no rendering coupling).
+
+**Migration** (in your `renderTool`):
+
+```tsx
+import { AgnoChat, BarChart, LineChart, AreaChart, PieChart, CardGrid } from '@rodrigocoliveira/agno-react/ui';
+import { byToolName, type RenderTool } from '@rodrigocoliveira/agno-react';
+import type { ToolCall } from '@rodrigocoliveira/agno-types';
+
+function renderUI(tool: ToolCall) {
+  const ui = (tool as any).ui_component;
+  if (!ui) return null;
+  let body;
+  switch (ui.component ?? ui.type) {
+    case 'BarChart':  body = <BarChart {...ui.props} />; break;
+    case 'LineChart': body = <LineChart {...ui.props} />; break;
+    case 'AreaChart': body = <AreaChart {...ui.props} />; break;
+    case 'PieChart':  body = <PieChart {...ui.props} />; break;
+    case 'card-grid': body = <CardGrid {...ui.props} />; break;
+    default: return null;
+  }
+  return (
+    <div className="w-full">
+      {ui.title && <h3 className="font-semibold mb-2">{ui.title}</h3>}
+      {ui.description && <p className="text-sm text-muted-foreground mb-4">{ui.description}</p>}
+      {body}
+    </div>
+  );
+}
+
+const renderTool: RenderTool = byToolName({
+  render_revenue_chart: renderUI,
+  // …
+});
+
+<AgnoChat renderTool={renderTool} />
+```
+
+**Known gaps:** no `Table`, `Markdown`, or `Artifact` components ship from the library yet. Tool handlers can still emit those shapes via `createTable` / `createMarkdown` / `createArtifact`; rendering is consumer-side. (For markdown, the existing `Response` component from `/ui` covers most cases.)
+
+#### @rodrigocoliveira/agno-types and @rodrigocoliveira/agno-client
+
+No API changes. Versions aligned to 2.0.1 to keep the three packages in lockstep.
+
 ## [2.0.0] - 2026-05-26
 
 ### Breaking Changes

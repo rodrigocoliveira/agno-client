@@ -323,11 +323,24 @@ export type {
   ToolRenderArgs,
   ToolEntry,
 } from './composed/agno-chat/render-tool';
-export { ToolDebugCard, ToolGenerativeUI } from './composed/agno-chat/tool-building-blocks';
-export type {
-  ToolDebugCardProps,
-  ToolGenerativeUIProps,
-} from './composed/agno-chat/tool-building-blocks';
+export { ToolDebugCard } from './composed/agno-chat/tool-building-blocks';
+export type { ToolDebugCardProps } from './composed/agno-chat/tool-building-blocks';
+
+// ── Generative components (opt-in renderers consumers can dispatch via `renderTool`) ─
+
+export { BarChart, LineChart, AreaChart, PieChart } from './composed/generative-components/charts';
+export type { ChartProps } from './composed/generative-components/charts';
+export { CardGrid } from './composed/generative-components/card-grid';
+export type { CardGridProps } from './composed/generative-components/card-grid';
+export {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+  ChartStyle,
+} from './components/chart';
+export type { ChartConfig } from './components/chart';
 
 // ── AgnoChat (compound component) ───────────────────────────────────────────
 

@@ -5,7 +5,6 @@ import { AgnoClientConfig } from '@rodrigocoliveira/agno-types'
 import { Toaster } from '@/components/ui/sonner'
 import { ConfigPanel } from '@/components/config/ConfigPanel'
 import { StateInspector } from '@/components/debug/StateInspector'
-import { registerGenerativeUIComponents } from '@/components/generative-ui'
 import {
   Bot,
   MessageSquare,
@@ -218,11 +217,6 @@ function Sidebar() {
 function MainLayout() {
   const [showConfigPanel, setShowConfigPanel] = useState(false)
   const location = useLocation()
-
-  // Register generative UI components on mount
-  useEffect(() => {
-    registerGenerativeUIComponents()
-  }, [])
 
   // Get current page title
   const currentPage = navItems.find(item =>
