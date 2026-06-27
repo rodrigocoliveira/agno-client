@@ -265,7 +265,7 @@ export class ConfigManager {
    * @param runId - The run ID to cancel
    * @returns The cancel URL or null if entity ID is not configured
    */
-  getCancelUrl(runId: string): string | null {
+  getCancelUrl(runId: string | undefined): string | null {
     const mode = this.getMode();
     const endpoint = this.getEndpoint();
     const entityId = this.getCurrentEntityId();

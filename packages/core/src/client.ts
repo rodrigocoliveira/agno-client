@@ -1010,7 +1010,7 @@ export class AgnoClient extends EventEmitter {
     }
 
     if (!this.currentRunId) {
-      throw new Error('No run ID available for cancellation');
+      Logger.error('No run ID available for cancellation');
     }
 
     this.state.isCancelling = true;
