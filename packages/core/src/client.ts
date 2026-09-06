@@ -71,6 +71,9 @@ import type {
   ConfigUpdate,
   ComponentsListResponse,
   ListComponentsParams,
+  ComponentGuard,
+  SendMessageOptions,
+  ContinueRunOptions,
 } from '@rodrigocoliveira/agno-types';
 import { RunEvent } from '@rodrigocoliveira/agno-types';
 import { MessageStore } from './stores/message-store';
@@ -343,11 +346,7 @@ export class AgnoClient extends EventEmitter {
    */
   async sendMessage(
     message: string | FormData,
-    options?: {
-      headers?: Record<string, string>;
-      params?: Record<string, string>;
-      background?: boolean;
-    }
+    options?: SendMessageOptions
   ): Promise<void> {
     if (this.state.isStreaming) {
       throw new Error('Already streaming a message');
@@ -454,11 +453,29 @@ export class AgnoClient extends EventEmitter {
       formData.append('user_id', userId);
     }
 
+    if (options?.filesMetadata !== undefined) {
+      formData.append('files_metadata', JSON.stringify(options.filesMetadata));
+    }
+    if (options?.version !== undefined) {
+      formData.append('version', String(options.version));
+    }
+    if (options?.factoryInput !== undefined) {
+      formData.append('factory_input', JSON.stringify(options.factoryInput));
+    }
+
+    const perRequestHeaders = { ...options?.headers };
+    // Idempotency-Key only matters for background (job-queue) runs; the server
+    // rejects it as 422 if it's oversized, and 409 on conflicting reuse — see
+    // the onError handler below for how those surface.
+    if (background && options?.idempotencyKey) {
+      perRequestHeaders['Idempotency-Key'] = options.idempotencyKey;
+    }
+
     await this.executeStream({
       apiUrl: runUrl,
       requestBody: formData,
       signal: this.abortController.signal,
-      perRequestHeaders: options?.headers,
+      perRequestHeaders,
       perRequestParams: options?.params,
       // Agno v3's /runs endpoint always streams SSE (text/event-stream), for both
       // foreground and background(+job-queue) execution — verified against
@@ -481,6 +498,14 @@ export class AgnoClient extends EventEmitter {
         }
       },
       onError: (error) => {
+        // Job-queue errors (background runs only): 429 = queue full, 409 =
+        // Idempotency-Key conflict. Surface these as a distinct typed event
+        // (in addition to the generic message:error/state.errorMessage path)
+        // so consumers can special-case them without string-matching.
+        const status = (error as Error & { status?: number }).status;
+        if (background && (status === 429 || status === 409)) {
+          this.emit('run:background:error', { status, message: error.message });
+        }
         this.handleError(error, newSessionId);
       },
       onComplete: async () => {
@@ -1266,12 +1291,17 @@ export class AgnoClient extends EventEmitter {
       });
     }
 
-    // Auto-resume detection: any run with status "RUNNING" indicates a
-    // detached background run that the user reloaded into. Fire-and-forget
-    // resumeRun — errors surface via run:resume:error event.
-    // Both agents and teams support /resume.
+    // Auto-resume detection: a run with status "RUNNING" or "PENDING" (Agno v3 —
+    // accepted into the background job queue but not started yet yields
+    // PENDING before flipping to RUNNING) indicates a detached background run
+    // the user reloaded into. Fire-and-forget resumeRun — errors surface via
+    // run:resume:error event. Both agents and teams support /resume.
+    // ("REGENERATED" and "CANCELLED"/"ERROR"/"COMPLETED" are all terminal —
+    // nothing to resume.)
     const runningRun = response.find(
-      (run: any) => typeof run.status === 'string' && run.status.toLowerCase() === 'running'
+      (run: any) =>
+        typeof run.status === 'string' &&
+        ['running', 'pending'].includes(run.status.toLowerCase())
     );
     if (runningRun) {
       void this.resumeRun({
@@ -1731,12 +1761,15 @@ export class AgnoClient extends EventEmitter {
    * To cancel a running request, use the `cancelRun()` method.
    *
    * @param tools - Array of tool calls with execution results
-   * @param options - Optional request headers and query parameters
+   * @param options - Optional request headers/params, plus Agno v3's additional
+   *   `/continue` parameters (`input`, `continueFrom`, `fork`, `regenerate`,
+   *   `replaceOriginal`, `additionalInstructions`, `background`) — all unrelated
+   *   to submitting HITL tool results.
    * @throws Error if no paused run exists
    */
   async continueRun(
     tools: ToolCall[],
-    options?: { headers?: Record<string, string>; params?: Record<string, string> }
+    options?: ContinueRunOptions
   ): Promise<void> {
     if (!this.state.isPaused || !this.state.pausedRunId) {
       throw new Error('No paused run to continue');
@@ -1765,6 +1798,27 @@ export class AgnoClient extends EventEmitter {
       formData.append('tools', JSON.stringify(buildAgentContinueTools(tools)));
     }
     formData.append('stream', 'true');
+    if (options?.background) {
+      formData.append('background', 'true');
+    }
+    if (options?.input !== undefined) {
+      formData.append('input', options.input);
+    }
+    if (options?.continueFrom !== undefined) {
+      formData.append('continue_from', options.continueFrom);
+    }
+    if (options?.fork !== undefined) {
+      formData.append('fork', String(options.fork));
+    }
+    if (options?.regenerate !== undefined) {
+      formData.append('regenerate', String(options.regenerate));
+    }
+    if (options?.replaceOriginal !== undefined) {
+      formData.append('replace_original', String(options.replaceOriginal));
+    }
+    if (options?.additionalInstructions !== undefined) {
+      formData.append('additional_instructions', options.additionalInstructions);
+    }
 
     const currentSessionId = this.configManager.getSessionId();
     if (currentSessionId) {
@@ -3317,23 +3371,55 @@ export class AgnoClient extends EventEmitter {
   }
 
   /**
-   * Delete a component
+   * Delete a component.
+   *
+   * @param options.guard - Optional compare-and-set guard (Agno v3):
+   *   `{ current_version }` rejects the delete with a 409 if the component's
+   *   live current version doesn't match.
    */
   async deleteComponent(
     componentId: string,
-    options?: { params?: Record<string, string> }
+    options?: { params?: Record<string, string>; guard?: ComponentGuard }
   ): Promise<void> {
     const config = this.configManager.getConfig();
     const params = this.configManager.buildQueryString(options?.params);
 
     await this.withTokenRefresh(() => {
       const headers = this.configManager.buildRequestHeaders();
-      return this.componentManager.deleteComponent(config.endpoint, componentId, headers, params);
+      return this.componentManager.deleteComponent(
+        config.endpoint,
+        componentId,
+        headers,
+        params,
+        options?.guard
+      );
     });
 
     this.state.components = this.state.components.filter((c) => c.component_id !== componentId);
     this.emit('component:deleted', { componentId });
     this.emit('state:change', this.getState());
+  }
+
+  /**
+   * Restore a previously soft-deleted component (Agno v3).
+   */
+  async restoreComponent(
+    componentId: string,
+    options?: { params?: Record<string, string> }
+  ): Promise<ComponentResponse> {
+    const config = this.configManager.getConfig();
+    const params = this.configManager.buildQueryString(options?.params);
+
+    const component = await this.withTokenRefresh(() => {
+      const headers = this.configManager.buildRequestHeaders();
+      return this.componentManager.restoreComponent(config.endpoint, componentId, headers, params);
+    });
+
+    this.state.components = [component, ...this.state.components.filter((c) => c.component_id !== componentId)];
+    this.emit('component:restored', component);
+    this.emit('state:change', this.getState());
+
+    return component;
   }
 
   /**
@@ -3448,19 +3534,30 @@ export class AgnoClient extends EventEmitter {
   }
 
   /**
-   * Set a config version as the current active config for a component
+   * Set a config version as the current active config for a component.
+   *
+   * @param options.guard - Optional compare-and-set guard (Agno v3):
+   *   `{ current_version }` rejects the switch with a 409 if the component's
+   *   live current version doesn't match.
    */
   async setCurrentComponentConfig(
     componentId: string,
     version: number,
-    options?: { params?: Record<string, string> }
+    options?: { params?: Record<string, string>; guard?: ComponentGuard }
   ): Promise<ComponentConfigResponse> {
     const config = this.configManager.getConfig();
     const params = this.configManager.buildQueryString(options?.params);
 
     const configResponse = await this.withTokenRefresh(() => {
       const headers = this.configManager.buildRequestHeaders();
-      return this.componentManager.setCurrentConfig(config.endpoint, componentId, version, headers, params);
+      return this.componentManager.setCurrentConfig(
+        config.endpoint,
+        componentId,
+        version,
+        headers,
+        params,
+        options?.guard
+      );
     });
 
     this.emit('component:config:set-current', configResponse);

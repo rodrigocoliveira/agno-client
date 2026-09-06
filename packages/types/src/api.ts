@@ -1566,6 +1566,20 @@ export interface ComponentCreate {
 }
 
 /**
+ * Optional compare-and-set guard for component writes (Agno v3). When present,
+ * each non-null field is checked against the stored state and the write is
+ * rejected with 409 on mismatch. Omitting the guard keeps the write
+ * last-writer-wins. `latest_version` guards config writes (create/update
+ * config); `current_version` guards component writes (update/delete
+ * component, set-current) — each guarded route only checks the field
+ * relevant to it and 400s if you send the other one.
+ */
+export interface ComponentGuard {
+  latest_version?: number | null;
+  current_version?: number | null;
+}
+
+/**
  * Request body for updating a component
  */
 export interface ComponentUpdate {
@@ -1574,6 +1588,25 @@ export interface ComponentUpdate {
   component_type?: ComponentType;
   metadata?: Record<string, unknown> | null;
   current_version?: number;
+  /** Compare-and-set guard (checks `current_version` only). */
+  guard?: ComponentGuard | null;
+}
+
+/**
+ * Request body for `DELETE /components/{id}` (optional — a bodyless DELETE
+ * still works). Provides the same `guard` shape as every other guarded
+ * component route instead of only the `expected_current_version` query param.
+ */
+export interface ComponentDeleteRequest {
+  guard?: ComponentGuard | null;
+}
+
+/**
+ * Request body for `POST /components/{id}/configs/{version}/set-current`
+ * (optional — an empty POST still works).
+ */
+export interface SetCurrentRequest {
+  guard?: ComponentGuard | null;
 }
 
 /**
@@ -1603,6 +1636,8 @@ export interface ConfigCreate {
   notes?: string | null;
   links?: Record<string, unknown>[] | null;
   set_current?: boolean;
+  /** Compare-and-set guard (checks `latest_version` only). */
+  guard?: ComponentGuard | null;
 }
 
 /**
@@ -1614,6 +1649,8 @@ export interface ConfigUpdate {
   stage?: string | null;
   notes?: string | null;
   links?: Record<string, unknown>[] | null;
+  /** Compare-and-set guard (checks `latest_version` only). */
+  guard?: ComponentGuard | null;
 }
 
 /**

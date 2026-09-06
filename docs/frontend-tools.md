@@ -43,6 +43,22 @@ Frontend tool execution allows your Agno agents (or teams) to delegate specific 
 
 This is handled by `buildAgentContinueTools`/`buildTeamContinueRequirements` in `packages/core/src/utils/build-continue-payload.ts`. You only ever need to pass the updated `ToolCall[]` to `continueRun()` — the library takes care of the rest.
 
+### Other `/continue` options (Agno v3)
+
+`continueRun(tools, options)` and `continueWithResults(tools, options)` also accept the rest of Agno v3's `/continue` parameters, unrelated to submitting HITL results:
+
+```typescript
+await client.continueRun(updatedTools, {
+  input: 'Actually, use metric units',      // append a follow-up user message before resuming
+  continueFrom: 'last_user',                // 'end' (default), 'last_user', or a message index
+  fork: true,                               // clone into a new run_id instead of mutating in place
+  regenerate: true,                         // regenerate the response from continueFrom
+  replaceOriginal: false,                   // whether the fork/regenerate result replaces history
+  additionalInstructions: 'Be concise.',    // one-off instructions for this continuation
+  background: true,                         // run the continuation in background (job-queue) mode
+});
+```
+
 ## Basic Setup
 
 ### 1. Define Backend Tools (Python)

@@ -5,6 +5,57 @@ All notable changes to the Agno Client libraries will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.1.0] - 2026-09-06
+
+### Added — Agno v3 additive surface (Wave 2)
+
+Non-breaking follow-up to `3.0.0`. Verified byte-for-byte against `agno==3.0.6`
+source (and, where a real backend was reachable, a live local capture).
+
+#### @rodrigocoliveira/agno-client
+
+- `sendMessage()` / `SendMessageOptions`: `filesMetadata`, `version`,
+  `factoryInput`, and `idempotencyKey` (sent as the `Idempotency-Key` header on
+  background runs only).
+- New `'run:background:error'` client event: a background `sendMessage()` that
+  gets `429` (job queue full) or `409` (Idempotency-Key conflict) now emits
+  `{ status, message }` on this event, in addition to the existing generic
+  `message:error` path.
+- `continueRun()` / `ContinueRunOptions` gained the rest of Agno v3's
+  `/continue` parameters: `input`, `continueFrom`, `fork`, `regenerate`,
+  `replaceOriginal`, `additionalInstructions`, `background`.
+- `loadSession()` now also auto-resumes a `"PENDING"` run (job-queued but not
+  started yet), not just `"RUNNING"`.
+- `restoreComponent(componentId)` — undoes a component soft-delete
+  (`POST /components/{id}/restore`).
+- Compare-and-set guards on Components writes: `ComponentGuard { latest_version?,
+  current_version? }`, settable via `guard` on `ComponentUpdate`/`ConfigCreate`/
+  `ConfigUpdate` request bodies, or via `options.guard` on `deleteComponent()`
+  and `setCurrentComponentConfig()`. A mismatch now throws with the backend's
+  409 detail message instead of a generic `"Failed to ..."` string — this
+  applies to every component/config write method, not just the guarded ones.
+- **Fixed**: `sse-parser.ts` was re-wrapping every thrown error via
+  `new Error(String(error))`, discarding the `.status` property needed for 401
+  token-refresh and (new in this release) 429/409 job-queue detection, and
+  mangling the message with an `"Error: "` prefix. Real `Error` instances now
+  pass through unchanged.
+
+#### @rodrigocoliveira/agno-types
+
+- New `SendMessageOptions`, `ContinueRunOptions`, `ComponentGuard`,
+  `ComponentDeleteRequest`, `SetCurrentRequest` types.
+- `StreamOptions` gained `idempotencyKey`.
+- `ComponentUpdate`, `ConfigCreate`, `ConfigUpdate` gained an optional `guard`
+  field.
+- `ApprovalPauseType` gained the previously-missing `'user_feedback'` variant.
+
+#### @rodrigocoliveira/agno-react
+
+- `useAgnoComponents` gained `restoreComponent` and forwards `guard` on
+  `deleteComponent`/`setCurrentComponentConfig`.
+
+**Migration:** none required — everything in this release is additive.
+
 ## [3.0.0] - 2026-09-06
 
 ### Breaking Changes — Agno v3 (AgentOS v3.0.x) support
@@ -71,14 +122,12 @@ live local capture, not inferred from docs.
 or `ToolCall.external_execution` directly, no code changes are needed beyond
 upgrading the package versions and your Agno backend to v3.
 
-### Follow-up (planned, non-breaking)
+### Follow-up
 
-A `3.1.0` is planned to add the remaining additive Agno v3 surface: new
-`/continue` parameters (`fork`, `regenerate`, `continueFrom`,
-`additionalInstructions`), `Idempotency-Key`/429/409 handling for background
-runs, `files_metadata`/`version`/`factory_input` on `sendMessage`, and
-`POST /components/{id}/restore` + optimistic-concurrency guards on Components
-write endpoints.
+The remaining additive Agno v3 surface (new `/continue` parameters, job-queue
+`Idempotency-Key`/429/409 handling, `files_metadata`/`version`/`factory_input`
+on `sendMessage`, and `POST /components/{id}/restore` + compare-and-set
+guards) shipped non-breaking in `3.1.0` below.
 
 ## [2.1.1] - 2026-05-27
 

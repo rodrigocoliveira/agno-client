@@ -38,7 +38,8 @@ Per-call options always override the config default.
 
 1. The user reloads (or navigates away and back).
 2. The consumer calls `loadSession(sessionId)`.
-3. The lib fetches `/sessions/{id}/runs`. If any run has `status === "RUNNING"`,
+3. The lib fetches `/sessions/{id}/runs`. If any run has `status === "RUNNING"`
+   or `"PENDING"` (Agno v3 — accepted into the job queue but not started yet),
    the lib fires `resumeRun({ runId, sessionId })` fire-and-forget.
 4. `resumeRun` opens `POST /agents/{id}/runs/{runId}/resume` (SSE).
 5. The server replays buffered events (`catch_up` / `replay` meta first, then real run events).
@@ -55,6 +56,20 @@ If you want to surface a "reconnecting…" indicator or handle failures, listen 
 | `run:resume:meta` | `{ type: 'catch_up' \| 'replay' \| 'subscribed', runId }` | Server meta event before / between replay batches |
 | `run:resume:end` | `{ runId }` | Resume stream completed normally |
 | `run:resume:error` | `{ runId, message }` | `/resume` returned an error (run not found, buffer expired, network) |
+| `run:background:error` | `{ status, message }` | A background `sendMessage()` got a `429` (job queue full) or `409` (Idempotency-Key conflict) — see "Idempotency" below |
+
+## Idempotency (Agno v3)
+
+Background runs go through a durable job queue. Pass `idempotencyKey` to make a retry safe — resubmitting with the same key and the same request retries the original submission instead of starting a duplicate run:
+
+```ts
+await client.sendMessage('Generate a report', {
+  background: true,
+  idempotencyKey: crypto.randomUUID(), // generate once per logical submission, reuse only on retry
+});
+```
+
+The server rejects (`409`) a key reused for a *different* request, and a key used by a non-streaming submission when you retry with streaming. It also rejects (`429`) when the job queue is full. Both surface as `run:background:error` — see the table above — in addition to the generic `message:error`/`state.errorMessage` path. Keys are capped at 512 characters (422 if longer). This only matters when `background: true`; the header is not sent otherwise.
 
 ## Manual resume
 

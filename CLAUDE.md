@@ -18,7 +18,9 @@ Dependency flow: `types` ← `core` ← `react`
 
 ## Agno v3 Compatibility
 
-As of `3.0.0`, this library targets **Agno v3** (AgentOS v3.0.x) exclusively — there is no v2 compatibility shim; consumers still on an Agno v2 backend should stay on the `2.x` line. All findings below were verified byte-for-byte against `agno==3.0.6` source and a live local capture (not guessed from docs/changelogs). Breaking changes from v2 that this library had to adapt to:
+As of `3.0.0`, this library targets **Agno v3** (AgentOS v3.0.x) exclusively — there is no v2 compatibility shim; consumers still on an Agno v2 backend should stay on the `2.x` line. All findings below were verified byte-for-byte against `agno==3.0.6` source and a live local capture (not guessed from docs/changelogs).
+
+### Wave 1 (`3.0.0`) — essential, breaking
 
 - **Streaming is SSE-only** for `/runs`, `/continue`, and `/resume`, for both agents and teams, in foreground and background execution alike. The v2-era NDJSON parser (`stream-parser.ts`) is gone; `sse-parser.ts` is the only transport now. See "Streaming Implementation" below.
 - **Teams support `/continue` now** (they didn't in v2) — HITL works for both agents and teams. The wire payload differs by mode though: agents send `tools: ToolExecution[]`, teams send `requirements: RunRequirement[]` (each wrapping a tool). See "Frontend Tool Execution (HITL)" below.
@@ -27,6 +29,16 @@ As of `3.0.0`, this library targets **Agno v3** (AgentOS v3.0.x) exclusively —
 - **`stream_member_events`** is no longer a per-request field for team runs — it's a Team-construction-time-only setting on the backend now, so the client stopped sending it.
 - The `agno#8007` `tool_args` Python-repr serialization bug is fixed upstream in v3; the client's coercion workaround is now purely defensive.
 - `RunEvent` gained ~20 new values (hook, compression, followups, model-request lifecycle events, etc.) plus team-only "task mode" events — all added to the enum with explicit no-op handling in `EventProcessor` pending richer UI treatment.
+- Fixed along the way: `sse-parser.ts`'s error handling used to re-wrap every thrown `Error` via `new Error(String(error))`, silently discarding the `.status` property (needed for 401 token-refresh and, since Wave 2, 429/409 job-queue detection) and mangling the message with an `"Error: "` prefix. Real `Error` instances now pass through unchanged.
+
+### Wave 2 (`3.1.0`) — additive, non-breaking
+
+- **`sendMessage()` / `SendMessageOptions`**: `filesMetadata` (per-file metadata, matched to `files[]` by position), `version` (pin to a specific published component version), `factoryInput` (dynamic agent/team construction params), and `idempotencyKey` (sent as the `Idempotency-Key` header, background runs only).
+- **Background job-queue errors are now typed**: a background `sendMessage()` that gets `429` (queue full) or `409` (Idempotency-Key conflict) emits `'run:background:error'` with `{ status, message }`, in addition to the existing generic `message:error`/`state.errorMessage` path.
+- **`continueRun()` / `ContinueRunOptions`** gained the rest of Agno v3's `/continue` parameters, unrelated to submitting HITL tool results: `input`, `continueFrom`, `fork`, `regenerate`, `replaceOriginal`, `additionalInstructions`, `background`.
+- **`loadSession()`** now also auto-resumes a `"PENDING"` run (accepted into the job queue but not started yet), not just `"RUNNING"`.
+- **Components API compare-and-set guards**: `ComponentGuard { latest_version?, current_version? }` — pass `guard` on `updateComponent`/`createComponentConfig`/`updateComponentConfig` requests, or via `options.guard` on `deleteComponent()`/`setCurrentComponentConfig()`. A mismatch throws with the backend's own 409 detail message. `create_config`/`update_config` check `latest_version`; component-level writes check `current_version`.
+- **`restoreComponent(componentId)`** — new `POST /components/{id}/restore` to undo a soft-delete.
 
 See `docs/frontend-tools.md` for the consumer-facing HITL guide (agents + teams) and `docs/background-execution.md` for the background/resume guide.
 
@@ -482,6 +494,8 @@ A component is the long-lived entity (`component_id`, `name`, `component_type`, 
 - Each config has a `version` (auto-incremented) and a `stage`: `draft` or `published`.
 - Drafts can be edited via `PATCH`; published configs are immutable (create a new version instead).
 - Exactly one config can be `current` — that's the version served by the runtime. `POST /components/{id}/configs/{version}/set-current` switches it (rollback or fast-forward).
+- A deleted component can be undone via `POST /components/{id}/restore` (Agno v3).
+- Component and config writes support an optional compare-and-set `guard` (Agno v3) — see "Compare-and-set guards" below.
 
 ### Filtering by user (no native support)
 
@@ -499,13 +513,37 @@ A component is the long-lived entity (`component_id`, `name`, `component_type`, 
 | `GET /components/{id}` | GET | Get a component by ID |
 | `PATCH /components/{id}` | PATCH | Partially update a component (name, description, metadata, current_version) |
 | `DELETE /components/{id}` | DELETE | Delete a component |
+| `POST /components/{id}/restore` | POST | Restore a soft-deleted component (Agno v3) |
 | `GET /components/{id}/configs` | GET | List all config versions for a component |
 | `POST /components/{id}/configs` | POST | Create a new config version (always new — never overwrites) |
 | `GET /components/{id}/configs/current` | GET | Get the currently active config |
 | `GET /components/{id}/configs/{version}` | GET | Get a specific config version |
 | `PATCH /components/{id}/configs/{version}` | PATCH | Update a draft config (cannot update published) |
-| `DELETE /components/{id}/configs/{version}` | DELETE | Delete a draft config (cannot delete published or current) |
+| `DELETE /components/{id}/configs/{version}` | DELETE | Delete a draft config (cannot delete published or current) — no guard support |
 | `POST /components/{id}/configs/{version}/set-current` | POST | Set a published version as current |
+
+### Compare-and-set guards (Agno v3)
+
+Component and config write endpoints accept an optional `guard: ComponentGuard` to prevent lost updates — a mismatch throws with the backend's 409 detail message instead of silently overwriting:
+
+```typescript
+import type { ComponentGuard } from '@rodrigocoliveira/agno-types';
+
+// Config writes (createComponentConfig, updateComponentConfig) check `latest_version`
+await client.createComponentConfig(componentId, {
+  config: { ... },
+  guard: { latest_version: 3 }, // fails with 409 if the latest config version isn't 3
+});
+
+// Component-level writes (deleteComponent, setCurrentComponentConfig) check `current_version`
+await client.deleteComponent(componentId, { guard: { current_version: 2 } });
+await client.setCurrentComponentConfig(componentId, 4, { guard: { current_version: 2 } });
+
+// updateComponent takes the guard directly on the request body, like config writes:
+await client.updateComponent(componentId, { name: 'New name', guard: { current_version: 2 } });
+```
+
+`deleteComponentConfig` (`DELETE /components/{id}/configs/{version}`) does **not** support a guard — confirmed absent from that route in `agno==3.0.6` source, unlike every other write endpoint.
 
 ### Core Client Usage
 
@@ -545,6 +583,10 @@ const published = await client.createComponentConfig(created.component_id, {
 // Roll back to a previous version
 await client.setCurrentComponentConfig(created.component_id, 1);
 
+// Undo a delete (Agno v3)
+await client.deleteComponent(created.component_id);
+await client.restoreComponent(created.component_id);
+
 // Use the component as a runnable agent
 client.updateConfig({ mode: 'agent', agentId: created.component_id });
 await client.sendMessage('Hello');
@@ -564,6 +606,7 @@ function ComponentManager() {
     createComponent,
     updateComponent,
     deleteComponent,
+    restoreComponent,
     fetchComponentConfigs,
     createComponentConfig,
     getCurrentComponentConfig,
@@ -600,7 +643,7 @@ function ComponentManager() {
 
 - `state.components` is the cached list (populated by `fetchComponents` and CRUD ops).
 - Configs are **not** cached (returned directly from each call), since they're versioned and per-component.
-- Events: `component:created`, `component:updated`, `component:deleted`, `component:config:created`, `component:config:updated`, `component:config:deleted`, `component:config:set-current`, plus `state:change`.
+- Events: `component:created`, `component:updated`, `component:deleted`, `component:restored`, `component:config:created`, `component:config:updated`, `component:config:deleted`, `component:config:set-current`, plus `state:change`.
 - `initialize()` does **not** auto-fetch components — call `fetchComponents()` explicitly when you need them.
 
 ### Key Files
@@ -694,6 +737,7 @@ The client expects these Agno API endpoints:
 - `GET /components/{id}` - Get component by ID
 - `PATCH /components/{id}` - Update component
 - `DELETE /components/{id}` - Delete component
+- `POST /components/{id}/restore` - Restore a soft-deleted component (Agno v3)
 - `GET /components/{id}/configs` - List config versions
 - `POST /components/{id}/configs` - Create new config version
 - `GET /components/{id}/configs/current` - Get current config

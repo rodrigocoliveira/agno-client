@@ -148,6 +148,87 @@ export interface StreamOptions {
    * Request timeout in milliseconds
    */
   timeout?: number;
+
+  /**
+   * Idempotency key for background (job-queue) runs (Agno v3). Sent as the
+   * `Idempotency-Key` request header. Reusing a key retries the identical
+   * submission; the server rejects (409) a key reused for a different
+   * component, or one used by a non-streaming submission, and rejects (429)
+   * a submission when the job queue is full. Max 512 characters (422 if
+   * longer). Has no effect when `background` is false.
+   */
+  idempotencyKey?: string;
+}
+
+/**
+ * Options for `AgnoClient.sendMessage()`.
+ */
+export interface SendMessageOptions extends StreamOptions {
+  /**
+   * Run in background (server-side detached job, survives client disconnect).
+   * Overrides `AgnoClientConfig.background` for this call. Default: false.
+   */
+  background?: boolean;
+
+  /**
+   * Per-file metadata objects, matched to the `files` FormData entries by
+   * position (Agno v3).
+   */
+  filesMetadata?: unknown[];
+
+  /**
+   * Pin this run to a specific published component version (Agno v3 Studio
+   * components) instead of whatever is currently `current`.
+   */
+  version?: number;
+
+  /**
+   * Factory-specific parameters for dynamic agent/team construction (Agno v3).
+   */
+  factoryInput?: Record<string, unknown>;
+}
+
+/**
+ * Options for `AgnoClient.continueRun()`.
+ *
+ * All fields below `params`/`headers` are Agno v3-only additions to the
+ * `/continue` endpoint, unrelated to submitting HITL tool results (which is
+ * always the `tools` argument to `continueRun()`, not an option here).
+ */
+export interface ContinueRunOptions {
+  headers?: Record<string, string>;
+  params?: Record<string, string>;
+
+  /** Run the continuation in background (job-queue) mode. Default: false. */
+  background?: boolean;
+
+  /**
+   * Append this as a new user message before resuming. Use to continue a
+   * COMPLETED run with a follow-up, or to add context to a RUNNING/ERROR resume.
+   */
+  input?: string;
+
+  /**
+   * Continuation boundary: `'end'` (default), `'last_user'`, or a numeric
+   * message index (as a string).
+   */
+  continueFrom?: string;
+
+  /**
+   * When true, clone the run with a new `run_id` before resuming instead of
+   * mutating the original in place. The clone becomes a sibling within the
+   * same session.
+   */
+  fork?: boolean;
+
+  /** Regenerate the response from `continueFrom` instead of resuming as-is. */
+  regenerate?: boolean;
+
+  /** Whether a `fork`/`regenerate` result replaces the original in history. */
+  replaceOriginal?: boolean;
+
+  /** Extra instructions appended for this continuation only. */
+  additionalInstructions?: string;
 }
 
 /**

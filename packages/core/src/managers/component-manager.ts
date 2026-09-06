@@ -7,7 +7,30 @@ import type {
   ConfigUpdate,
   ComponentsListResponse,
   ListComponentsParams,
+  ComponentGuard,
+  ComponentDeleteRequest,
+  SetCurrentRequest,
 } from '@rodrigocoliveira/agno-types';
+
+/**
+ * Extract a backend-provided error detail (e.g. a compare-and-set guard
+ * mismatch on 409) when the response body is JSON, falling back to the
+ * generic message otherwise. Errors are read defensively — a failure to
+ * parse the body must never mask the original HTTP error.
+ */
+async function extractErrorMessage(response: Response, fallback: string): Promise<string> {
+  const contentType = response.headers.get('content-type');
+  if (contentType?.includes('application/json')) {
+    try {
+      const data = await response.json();
+      if (typeof data?.detail === 'string') return data.detail;
+      if (typeof data?.message === 'string') return data.message;
+    } catch {
+      // fall through to the generic message below
+    }
+  }
+  return fallback;
+}
 
 /**
  * Manages component and config operations
@@ -135,20 +158,25 @@ export class ComponentManager {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to update component: ${response.statusText}`);
+      throw new Error(await extractErrorMessage(response, `Failed to update component: ${response.statusText}`));
     }
 
     return await response.json();
   }
 
   /**
-   * Delete a component
+   * Delete a component.
+   *
+   * @param guard - Optional compare-and-set guard (Agno v3): rejects the
+   *   delete with 409 if the component's live `current_version` doesn't
+   *   match `guard.current_version`.
    */
   async deleteComponent(
     endpoint: string,
     componentId: string,
     headers: Record<string, string>,
-    params?: URLSearchParams
+    params?: URLSearchParams,
+    guard?: ComponentGuard
   ): Promise<void> {
     const url = new URL(`${endpoint}/components/${encodeURIComponent(componentId)}`);
 
@@ -158,14 +186,45 @@ export class ComponentManager {
       });
     }
 
+    const body: ComponentDeleteRequest | undefined = guard ? { guard } : undefined;
     const response = await fetch(url.toString(), {
       method: 'DELETE',
+      headers: body ? { ...headers, 'Content-Type': 'application/json' } : headers,
+      ...(body ? { body: JSON.stringify(body) } : {}),
+    });
+
+    if (!response.ok) {
+      throw new Error(await extractErrorMessage(response, `Failed to delete component: ${response.statusText}`));
+    }
+  }
+
+  /**
+   * Restore a previously soft-deleted component (Agno v3).
+   */
+  async restoreComponent(
+    endpoint: string,
+    componentId: string,
+    headers: Record<string, string>,
+    params?: URLSearchParams
+  ): Promise<ComponentResponse> {
+    const url = new URL(`${endpoint}/components/${encodeURIComponent(componentId)}/restore`);
+
+    if (params) {
+      params.forEach((value, key) => {
+        url.searchParams.set(key, value);
+      });
+    }
+
+    const response = await fetch(url.toString(), {
+      method: 'POST',
       headers,
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to delete component: ${response.statusText}`);
+      throw new Error(await extractErrorMessage(response, `Failed to restore component: ${response.statusText}`));
     }
+
+    return await response.json();
   }
 
   /**
@@ -225,7 +284,9 @@ export class ComponentManager {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to create component config: ${response.statusText}`);
+      throw new Error(
+        await extractErrorMessage(response, `Failed to create component config: ${response.statusText}`)
+      );
     }
 
     return await response.json();
@@ -313,7 +374,7 @@ export class ComponentManager {
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to update config: ${response.statusText}`);
+      throw new Error(await extractErrorMessage(response, `Failed to update config: ${response.statusText}`));
     }
 
     return await response.json();
@@ -348,14 +409,19 @@ export class ComponentManager {
   }
 
   /**
-   * Set a config version as the current active config
+   * Set a config version as the current active config.
+   *
+   * @param guard - Optional compare-and-set guard (Agno v3): rejects the
+   *   switch with 409 if the component's live `current_version` doesn't
+   *   match `guard.current_version`.
    */
   async setCurrentConfig(
     endpoint: string,
     componentId: string,
     version: number,
     headers: Record<string, string>,
-    params?: URLSearchParams
+    params?: URLSearchParams,
+    guard?: ComponentGuard
   ): Promise<ComponentConfigResponse> {
     const url = new URL(`${endpoint}/components/${encodeURIComponent(componentId)}/configs/${version}/set-current`);
 
@@ -365,13 +431,15 @@ export class ComponentManager {
       });
     }
 
+    const body: SetCurrentRequest | undefined = guard ? { guard } : undefined;
     const response = await fetch(url.toString(), {
       method: 'POST',
-      headers,
+      headers: body ? { ...headers, 'Content-Type': 'application/json' } : headers,
+      ...(body ? { body: JSON.stringify(body) } : {}),
     });
 
     if (!response.ok) {
-      throw new Error(`Failed to set current config: ${response.statusText}`);
+      throw new Error(await extractErrorMessage(response, `Failed to set current config: ${response.statusText}`));
     }
 
     return await response.json();

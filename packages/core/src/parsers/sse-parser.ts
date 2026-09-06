@@ -160,8 +160,17 @@ export async function streamResponseSSE(options: {
       return;
     }
 
+    // Pass real Error instances through unchanged — re-wrapping via
+    // `new Error(String(error))` was discarding the `.status` property
+    // attached above (needed for 401 token-refresh and 429/409 job-queue
+    // detection) and mangling the message with an "Error: " prefix.
+    if (error instanceof Error) {
+      onError(error);
+      return;
+    }
+
     if (typeof error === 'object' && error !== null && 'detail' in error) {
-      onError(new Error(String(error.detail)));
+      onError(new Error(String((error as { detail: unknown }).detail)));
     } else {
       onError(new Error(String(error)));
     }

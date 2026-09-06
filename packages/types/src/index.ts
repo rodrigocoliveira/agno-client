@@ -133,6 +133,9 @@ export type {
   ComponentCreate,
   ComponentUpdate,
   ComponentResponse,
+  ComponentGuard,
+  ComponentDeleteRequest,
+  SetCurrentRequest,
   ConfigCreate,
   ConfigUpdate,
   ComponentConfigResponse,
@@ -143,6 +146,8 @@ export type {
 export type {
   AgnoClientConfig,
   StreamOptions,
+  SendMessageOptions,
+  ContinueRunOptions,
   ClientState,
 } from './config';
 

@@ -156,4 +156,5 @@ export type ClientEvent =
   | 'run:resume:start'   // resumeRun call started
   | 'run:resume:meta'    // catch_up / replay / subscribed meta event from /resume
   | 'run:resume:end'     // resume stream completed normally
-  | 'run:resume:error';  // /resume failed (run not found, buffer expired, network)
+  | 'run:resume:error'   // /resume failed (run not found, buffer expired, network)
+  | 'run:background:error'; // background sendMessage got a 429 (queue full) or 409 (Idempotency-Key conflict)

@@ -8,6 +8,7 @@ import type {
   ConfigUpdate,
   ComponentsListResponse,
   ListComponentsParams,
+  ComponentGuard,
 } from '@rodrigocoliveira/agno-types';
 import { useAgnoClient } from '../context/AgnoContext';
 
@@ -43,6 +44,9 @@ export function useAgnoComponents() {
       setComponents((prev) => prev.filter((c) => c.component_id !== componentId));
     };
 
+    // Restored component reappears at the front, same as a freshly created one.
+    const handleComponentRestored = handleComponentCreated;
+
     const handleStateChange = () => {
       setComponents(client.getState().components);
     };
@@ -50,6 +54,7 @@ export function useAgnoComponents() {
     client.on('component:created', handleComponentCreated);
     client.on('component:updated', handleComponentUpdated);
     client.on('component:deleted', handleComponentDeleted);
+    client.on('component:restored', handleComponentRestored);
     client.on('state:change', handleStateChange);
 
     setComponents(client.getState().components);
@@ -58,6 +63,7 @@ export function useAgnoComponents() {
       client.off('component:created', handleComponentCreated);
       client.off('component:updated', handleComponentUpdated);
       client.off('component:deleted', handleComponentDeleted);
+      client.off('component:restored', handleComponentRestored);
       client.off('state:change', handleStateChange);
     };
   }, [client]);
@@ -148,12 +154,33 @@ export function useAgnoComponents() {
   const deleteComponent = useCallback(
     async (
       componentId: string,
-      options?: { params?: Record<string, string> }
+      options?: { params?: Record<string, string>; guard?: ComponentGuard }
     ): Promise<void> => {
       setIsLoading(true);
       setError(undefined);
       try {
         await client.deleteComponent(componentId, options);
+      } catch (err) {
+        const errorMessage = err instanceof Error ? err.message : String(err);
+        setError(errorMessage);
+        throw err;
+      } finally {
+        setIsLoading(false);
+      }
+    },
+    [client]
+  );
+
+  /** Restore a previously soft-deleted component (Agno v3). */
+  const restoreComponent = useCallback(
+    async (
+      componentId: string,
+      options?: { params?: Record<string, string> }
+    ): Promise<ComponentResponse> => {
+      setIsLoading(true);
+      setError(undefined);
+      try {
+        return await client.restoreComponent(componentId, options);
       } catch (err) {
         const errorMessage = err instanceof Error ? err.message : String(err);
         setError(errorMessage);
@@ -294,7 +321,7 @@ export function useAgnoComponents() {
     async (
       componentId: string,
       version: number,
-      options?: { params?: Record<string, string> }
+      options?: { params?: Record<string, string>; guard?: ComponentGuard }
     ): Promise<ComponentConfigResponse> => {
       setIsLoading(true);
       setError(undefined);
@@ -320,6 +347,7 @@ export function useAgnoComponents() {
     createComponent,
     updateComponent,
     deleteComponent,
+    restoreComponent,
     fetchComponentConfigs,
     createComponentConfig,
     getCurrentComponentConfig,
