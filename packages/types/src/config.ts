@@ -195,10 +195,7 @@ export interface SendMessageOptions extends StreamOptions {
  * `/continue` endpoint, unrelated to submitting HITL tool results (which is
  * always the `tools` argument to `continueRun()`, not an option here).
  */
-export interface ContinueRunOptions {
-  headers?: Record<string, string>;
-  params?: Record<string, string>;
-
+export interface ContinueRunOptions extends StreamOptions {
   /** Run the continuation in background (job-queue) mode. Default: false. */
   background?: boolean;
 

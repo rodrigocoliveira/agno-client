@@ -29,7 +29,7 @@ As of `3.0.0`, this library targets **Agno v3** (AgentOS v3.0.x) exclusively —
 - **`stream_member_events`** is no longer a per-request field for team runs — it's a Team-construction-time-only setting on the backend now, so the client stopped sending it.
 - The `agno#8007` `tool_args` Python-repr serialization bug is fixed upstream in v3; the client's coercion workaround is now purely defensive.
 - `RunEvent` gained ~20 new values (hook, compression, followups, model-request lifecycle events, etc.) plus team-only "task mode" events — all added to the enum with explicit no-op handling in `EventProcessor` pending richer UI treatment.
-- Fixed along the way: `sse-parser.ts`'s error handling used to re-wrap every thrown `Error` via `new Error(String(error))`, silently discarding the `.status` property (needed for 401 token-refresh and, since Wave 2, 429/409 job-queue detection) and mangling the message with an `"Error: "` prefix. Real `Error` instances now pass through unchanged.
+- `sse-parser.ts` error contract: failures **before the first byte** (network, non-2xx) are *thrown* with `.status` attached, so `executeStream` can refresh an expired token (401) and retry the whole request; failures **mid-stream** go to `onError`, since content was already delivered. Backend `detail`/`message` extraction lives in `utils/http-error.ts` (shared with the Components manager, matches any `*json` content type).
 
 ### Wave 2 (`3.1.0`) — additive, non-breaking
 
@@ -174,7 +174,7 @@ The library supports **Human-in-the-Loop (HITL)** frontend tool execution throug
 
 1. Agent (or team) calls a tool marked with `external_execution=True` on the backend (wire field: `external_execution_required`)
 2. Backend emits `RunPaused`/`TeamRunPaused` event with tools awaiting execution
-3. Core client updates state (`isPaused: true`, stores `toolsAwaitingExecution`) by filtering the run's `tools` array for tools where `requires_confirmation`/`requires_user_input`/`external_execution_required` is still unresolved (see `packages/core/src/utils/pending-tools.ts`) — the `tools_awaiting_external_execution`/`tools_requiring_confirmation`/`tools_requiring_user_input` shortcut fields exist in the type for defensive typing only; Agno v3 never actually serializes them (they're Python `@property`s, confirmed against `agno==3.0.6` source and a live capture)
+3. Core client updates state (`isPaused: true`, stores `toolsAwaitingExecution`) via `utils/pending-tools.ts`: it unwraps `requirements[]` first — the only field that carries a pause originating from a delegated **team member** (tagged `member_*`, never mirrored into the team's flat `tools`) — merges in `tools[]`, and keeps what is still unresolved (`requires_confirmation`/`requires_user_input`/`external_execution_required`). The requirement `id`/`member_*` are kept on the `ToolCall` (client-only fields) so team `/continue` can round-trip them. The `tools_awaiting_external_execution`/`tools_requiring_*` shortcut fields exist in the type for defensive typing only; Agno v3 never serializes them (Python `@property`s, confirmed against `agno==3.0.6` source and a live capture)
 4. Client emits `run:paused` event with tool details
 5. React hook (`useAgnoToolExecution`) listens to `run:paused` event
 6. Hook executes tools using user-defined handlers

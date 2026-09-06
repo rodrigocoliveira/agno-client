@@ -34,11 +34,23 @@ source (and, where a real backend was reachable, a live local capture).
   and `setCurrentComponentConfig()`. A mismatch now throws with the backend's
   409 detail message instead of a generic `"Failed to ..."` string — this
   applies to every component/config write method, not just the guarded ones.
-- **Fixed**: `sse-parser.ts` was re-wrapping every thrown error via
-  `new Error(String(error))`, discarding the `.status` property needed for 401
-  token-refresh and (new in this release) 429/409 job-queue detection, and
-  mangling the message with an `"Error: "` prefix. Real `Error` instances now
-  pass through unchanged.
+- **Fixed**: a team pause caused by a delegated *member's* tool was invisible —
+  it arrives only in the event's `requirements` (tagged `member_*`), never in the
+  flat `tools`, and the client only read `tools`. `state.toolsAwaitingExecution`
+  came back empty with `isPaused: true`, so team HITL hung. Pending tools are now
+  derived from `requirements` first (merged with `tools`), and the requirement
+  `id`/`member_*` are round-tripped on team `/continue` so the backend can bind
+  and route them (new client-only `ToolCall.requirement_id`/`member_*` fields).
+- **Fixed**: 401 token refresh never fired for streaming calls — the SSE parser
+  swallowed pre-stream HTTP failures into `onError`, so `executeStream`'s retry
+  branch was unreachable. Pre-stream failures (network, non-2xx) are now thrown
+  and retried after `onTokenExpired`; mid-stream failures still go to `onError`.
+  The same parser was also re-wrapping errors via `new Error(String(error))`,
+  discarding `.status` and prefixing messages with `"Error: "`.
+- **Fixed**: backend error details were only extracted for a
+  `Content-Type` of exactly `application/json`; `application/problem+json` now
+  works too. Extraction is shared (`utils/http-error.ts`) between the SSE parser
+  and the Components manager instead of duplicated.
 
 #### @rodrigocoliveira/agno-types
 

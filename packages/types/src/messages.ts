@@ -70,6 +70,16 @@ export interface ToolCall {
   content?: string | null;
   // Generative UI field (serializable component spec only)
   ui_component?: any; // UIComponentSpec - imported dynamically to avoid circular deps
+  /**
+   * Client-only: identity of the `RunRequirement` this pending tool was unwrapped
+   * from on a paused run. Round-tripped back to the backend on team `/continue`
+   * (it binds incoming requirements by `id`, then by `tool_call_id`, and routes
+   * member-originated ones via `member_*`). Stripped before any agent `/continue`.
+   */
+  requirement_id?: string;
+  member_agent_id?: string | null;
+  member_agent_name?: string | null;
+  member_run_id?: string | null;
 }
 
 /**

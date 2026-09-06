@@ -1,4 +1,5 @@
 import type { RunResponseContent } from '@rodrigocoliveira/agno-types';
+import { httpError } from '../utils/http-error';
 
 /**
  * Parses SSE frames from a buffered string. Returns the remainder (any partial
@@ -99,8 +100,14 @@ export async function streamResponseSSE(options: {
     ? `${apiUrl}?${params.toString()}`
     : apiUrl;
 
+  const isAbort = (error: unknown) => error instanceof Error && error.name === 'AbortError';
+
+  // Failures before the first byte of the stream (network, non-2xx) are THROWN rather
+  // than routed through onError: nothing has been delivered yet, so the caller can act
+  // on `.status` and safely retry the whole request (e.g. refresh an expired token).
+  let response: Response;
   try {
-    const response = await fetch(finalUrl, {
+    response = await fetch(finalUrl, {
       method: 'POST',
       headers: {
         ...(!(requestBody instanceof FormData) && {
@@ -115,33 +122,23 @@ export async function streamResponseSSE(options: {
           : JSON.stringify(requestBody),
       signal,
     });
+  } catch (error) {
+    if (isAbort(error)) return;
+    throw error instanceof Error ? error : new Error(String(error));
+  }
 
-    if (!response.ok) {
-      let errorMessage = `HTTP ${response.status}: ${response.statusText}`;
+  if (!response.ok) {
+    throw await httpError(response, `HTTP ${response.status}: ${response.statusText}`);
+  }
+  if (!response.body) {
+    throw new Error('No response body');
+  }
 
-      const contentType = response.headers.get('content-type');
-      if (contentType?.includes('application/json')) {
-        try {
-          const errorData = await response.json();
-          errorMessage = errorData.detail || errorData.message || errorMessage;
-        } catch {
-          // Fallback to status text if JSON parsing fails.
-        }
-      }
-
-      const error = new Error(errorMessage);
-      // Attach status code for 401 / token-refresh detection (same as NDJSON parser).
-      (error as Error & { status?: number }).status = response.status;
-      throw error;
-    }
-
-    if (!response.body) {
-      throw new Error('No response body');
-    }
-
-    const reader = response.body.getReader();
-    const decoder = new TextDecoder();
-
+  // Mid-stream failures go to onError: content has already been delivered, so a
+  // blind retry would replay it.
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) {
@@ -155,24 +152,7 @@ export async function streamResponseSSE(options: {
       buffer = parseSSEBuffer(buffer, onChunk);
     }
   } catch (error) {
-    // Honor AbortSignal without surfacing as an error (matches NDJSON parser).
-    if (error instanceof Error && error.name === 'AbortError') {
-      return;
-    }
-
-    // Pass real Error instances through unchanged — re-wrapping via
-    // `new Error(String(error))` was discarding the `.status` property
-    // attached above (needed for 401 token-refresh and 429/409 job-queue
-    // detection) and mangling the message with an "Error: " prefix.
-    if (error instanceof Error) {
-      onError(error);
-      return;
-    }
-
-    if (typeof error === 'object' && error !== null && 'detail' in error) {
-      onError(new Error(String((error as { detail: unknown }).detail)));
-    } else {
-      onError(new Error(String(error)));
-    }
+    if (isAbort(error)) return;
+    onError(error instanceof Error ? error : new Error(String(error)));
   }
 }

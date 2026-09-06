@@ -1,15 +1,18 @@
 import { createContext, useContext } from 'react';
 import type { RefObject } from 'react';
-import type { ChatMessage, ClientState, ToolCall } from '@rodrigocoliveira/agno-types';
+import type {
+  ChatMessage,
+  ClientState,
+  ToolCall,
+  SendMessageOptions,
+  ContinueRunOptions,
+} from '@rodrigocoliveira/agno-types';
 import type { RenderTool } from './render-tool';
 
 export interface AgnoChatContextValue {
   // From useAgnoChat()
   messages: ChatMessage[];
-  sendMessage: (
-    message: string | FormData,
-    options?: { headers?: Record<string, string>; params?: Record<string, string> },
-  ) => Promise<void>;
+  sendMessage: (message: string | FormData, options?: SendMessageOptions) => Promise<void>;
   clearMessages: () => void;
   cancelRun: () => Promise<void>;
   isStreaming: boolean;
@@ -25,10 +28,7 @@ export interface AgnoChatContextValue {
   pendingTools: ToolCall[];
   executeAndContinue: () => Promise<void>;
   executeTools: (tools: ToolCall[]) => Promise<ToolCall[]>;
-  continueWithResults: (
-    tools: ToolCall[],
-    options?: { headers?: Record<string, string>; params?: Record<string, string> },
-  ) => Promise<void>;
+  continueWithResults: (tools: ToolCall[], options?: ContinueRunOptions) => Promise<void>;
   executionError?: string;
 
   // Derived convenience

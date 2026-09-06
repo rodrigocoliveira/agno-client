@@ -3,6 +3,7 @@ import type {
   ToolCall,
   UIComponentSpec,
   ToolHandlerResult,
+  ContinueRunOptions,
 } from '@rodrigocoliveira/agno-types';
 import { useAgnoClient } from '../context/AgnoContext';
 import { useToolHandlers } from '../context/ToolHandlerContext';
@@ -281,7 +282,7 @@ export function useAgnoToolExecution(
    * Manually continue the run with custom tool results
    */
   const continueWithResults = useCallback(
-    async (tools: ToolCall[], options?: { headers?: Record<string, string>; params?: Record<string, string> }) => {
+    async (tools: ToolCall[], options?: ContinueRunOptions) => {
       if (!isPaused) {
         throw new Error('No paused run to continue');
       }

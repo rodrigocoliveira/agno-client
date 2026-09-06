@@ -12,25 +12,7 @@ import type {
   SetCurrentRequest,
 } from '@rodrigocoliveira/agno-types';
 
-/**
- * Extract a backend-provided error detail (e.g. a compare-and-set guard
- * mismatch on 409) when the response body is JSON, falling back to the
- * generic message otherwise. Errors are read defensively — a failure to
- * parse the body must never mask the original HTTP error.
- */
-async function extractErrorMessage(response: Response, fallback: string): Promise<string> {
-  const contentType = response.headers.get('content-type');
-  if (contentType?.includes('application/json')) {
-    try {
-      const data = await response.json();
-      if (typeof data?.detail === 'string') return data.detail;
-      if (typeof data?.message === 'string') return data.message;
-    } catch {
-      // fall through to the generic message below
-    }
-  }
-  return fallback;
-}
+import { httpError } from '../utils/http-error';
 
 /**
  * Manages component and config operations
@@ -158,7 +140,7 @@ export class ComponentManager {
     });
 
     if (!response.ok) {
-      throw new Error(await extractErrorMessage(response, `Failed to update component: ${response.statusText}`));
+      throw await httpError(response,`Failed to update component: ${response.statusText}`);
     }
 
     return await response.json();
@@ -194,7 +176,7 @@ export class ComponentManager {
     });
 
     if (!response.ok) {
-      throw new Error(await extractErrorMessage(response, `Failed to delete component: ${response.statusText}`));
+      throw await httpError(response,`Failed to delete component: ${response.statusText}`);
     }
   }
 
@@ -221,7 +203,7 @@ export class ComponentManager {
     });
 
     if (!response.ok) {
-      throw new Error(await extractErrorMessage(response, `Failed to restore component: ${response.statusText}`));
+      throw await httpError(response,`Failed to restore component: ${response.statusText}`);
     }
 
     return await response.json();
@@ -284,9 +266,7 @@ export class ComponentManager {
     });
 
     if (!response.ok) {
-      throw new Error(
-        await extractErrorMessage(response, `Failed to create component config: ${response.statusText}`)
-      );
+      throw await httpError(response, `Failed to create component config: ${response.statusText}`);
     }
 
     return await response.json();
@@ -374,7 +354,7 @@ export class ComponentManager {
     });
 
     if (!response.ok) {
-      throw new Error(await extractErrorMessage(response, `Failed to update config: ${response.statusText}`));
+      throw await httpError(response,`Failed to update config: ${response.statusText}`);
     }
 
     return await response.json();
@@ -439,7 +419,7 @@ export class ComponentManager {
     });
 
     if (!response.ok) {
-      throw new Error(await extractErrorMessage(response, `Failed to set current config: ${response.statusText}`));
+      throw await httpError(response,`Failed to set current config: ${response.statusText}`);
     }
 
     return await response.json();

@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import type { ChatMessage, ClientState } from '@rodrigocoliveira/agno-types';
+import type { ChatMessage, ClientState, SendMessageOptions } from '@rodrigocoliveira/agno-types';
 import { useAgnoClient } from '../context/AgnoContext';
 
 /**
@@ -72,7 +72,7 @@ export function useAgnoChat() {
    * Send a message to the agent/team
    */
   const sendMessage = useCallback(
-    async (message: string | FormData, options?: { headers?: Record<string, string>; params?: Record<string, string>; background?: boolean }) => {
+    async (message: string | FormData, options?: SendMessageOptions) => {
       try {
         await client.sendMessage(message, options);
       } catch (err) {

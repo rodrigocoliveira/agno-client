@@ -677,7 +677,7 @@ export class AgnoClient extends EventEmitter {
       this.state.isStreaming = false;
       this.state.isPaused = true;
       this.state.pausedRunId = chunk.run_id;
-      this.state.toolsAwaitingExecution = getPendingTools(chunk.tools);
+      this.state.toolsAwaitingExecution = getPendingTools(chunk);
 
       this.emit('run:paused', {
         runId: chunk.run_id,
@@ -1267,7 +1267,7 @@ export class AgnoClient extends EventEmitter {
         (run: any) => typeof run.status === 'string' && run.status.toLowerCase() === 'paused'
       );
       if (pausedRun) {
-        const pendingTools = getPendingTools((pausedRun as any).tools);
+        const pendingTools = getPendingTools(pausedRun as any);
         if (pendingTools.length > 0) {
           this.state.isPaused = true;
           this.state.pausedRunId = (pausedRun as any).run_id;

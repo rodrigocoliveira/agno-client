@@ -105,8 +105,41 @@ describe('continueRun payload by mode', () => {
 
     const requirements = JSON.parse(capturedBody!.get('requirements') as string);
     expect(requirements).toHaveLength(1);
+    // The decision lives on tool_execution — that's what the backend's dispatch reads.
     expect(requirements[0].tool_execution.tool_call_id).toBe('t1');
-    expect(requirements[0].confirmation).toBe(true);
-    expect(requirements[0].external_execution_result).toBe('action executed');
+    expect(requirements[0].tool_execution.confirmed).toBe(true);
+    expect(requirements[0].tool_execution.result).toBe('action executed');
+  });
+
+  test('team mode round-trips requirement id and member_* from a member-originated pause', async () => {
+    let capturedBody: FormData | undefined;
+    global.fetch = (async (_url: string, init?: RequestInit) => {
+      if (init?.body instanceof FormData) {
+        capturedBody = init.body;
+        return sseResponse('event: TeamRunCompleted\ndata: {"event":"TeamRunCompleted","content":"ok"}\n\n');
+      }
+      return new Response(JSON.stringify([]), { status: 200 });
+    }) as typeof fetch;
+
+    const client = makeTeamClient();
+    setPaused(client, 'run-3');
+
+    await client.continueRun([
+      {
+        ...pausedTool(),
+        requirement_id: 'req-1',
+        member_agent_id: 'member-a',
+        member_agent_name: 'Member A',
+        member_run_id: 'member-run-1',
+      },
+    ]);
+
+    const [req] = JSON.parse(capturedBody!.get('requirements') as string);
+    expect(req.id).toBe('req-1');
+    expect(req.member_agent_id).toBe('member-a');
+    expect(req.member_run_id).toBe('member-run-1');
+    // Client-only round-trip fields must not leak into the ToolExecution itself.
+    expect(req.tool_execution.requirement_id).toBeUndefined();
+    expect(req.tool_execution.member_agent_id).toBeUndefined();
   });
 });
