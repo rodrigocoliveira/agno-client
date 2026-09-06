@@ -1,4 +1,4 @@
-import { RunEvent } from './events';
+import { RunEvent, RunStatus } from './events';
 import {
   ToolCall,
   MessageExtraData,
@@ -6,6 +6,7 @@ import {
   VideoData,
   AudioData,
   ResponseAudioData,
+  RunRequirement,
 } from './messages';
 
 /**
@@ -122,8 +123,8 @@ export interface RunSchema {
   messages?: Array<Record<string, unknown>> | null;
   tools?: Array<Record<string, unknown>> | null;
   events?: Array<Record<string, unknown>> | null;
-  /** Run status set by backend (e.g. "completed", "error", "paused", "cancelled") */
-  status?: string | null;
+  /** Run status set by backend. Wire value is uppercase (`RunStatus`), e.g. "PAUSED". */
+  status?: RunStatus | string | null;
   created_at?: string | null;
   references?: Array<Record<string, unknown>> | null;
   reasoning_messages?: Array<Record<string, unknown>> | null;
@@ -151,8 +152,8 @@ export interface TeamRunSchema {
   tools?: Array<Record<string, unknown>> | null;
   messages?: Array<Record<string, unknown>> | null;
   events?: Array<Record<string, unknown>> | null;
-  /** Run status set by backend (e.g. "completed", "error", "paused", "cancelled") */
-  status?: string | null;
+  /** Run status set by backend. Wire value is uppercase (`RunStatus`), e.g. "PAUSED". */
+  status?: RunStatus | string | null;
   created_at?: string | null;
   references?: Array<Record<string, unknown>> | null;
   reasoning_messages?: Array<Record<string, unknown>> | null;
@@ -239,9 +240,20 @@ export interface RunResponse {
   response_audio?: ResponseAudioData;
   // HITL fields
   is_paused?: boolean;
+  /**
+   * Requirements blocking a paused run. This is the canonical, guaranteed-serialized
+   * field for pending HITL tools in Agno v3 (verified live) — prefer filtering this
+   * (or `tools`) over the shortcut fields below, which are Python `@property`s that
+   * are NEVER included in the wire JSON (confirmed against `agno==3.0.6` source and
+   * a live capture) and are kept here only as an optional, unused-in-practice escape
+   * hatch in case a future backend does start sending them.
+   */
+  requirements?: RunRequirement[];
   tools_awaiting_external_execution?: ToolCall[];
   tools_requiring_confirmation?: ToolCall[];
   tools_requiring_user_input?: ToolCall[];
+  /** Sequential index of this event within a run's event log (seen on continue/resume streams). */
+  event_index?: number;
   // Session state — present on agent `RunCompleted` chunks. Teams emit `TeamRunCompleted`
   // WITHOUT this field through Agno 2.6.0, so team sync uses a post-stream REST refresh.
   session_state?: Record<string, unknown> | null;
@@ -1432,8 +1444,8 @@ export interface ScheduleRunsListResponse {
 
 export type ApprovalStatus = 'pending' | 'approved' | 'rejected' | 'expired' | 'cancelled';
 export type ApprovalSourceType = 'agent' | 'team' | 'workflow';
-export type ApprovalPauseType = 'confirmation' | 'user_input' | 'external_execution';
-export type ApprovalRunStatus = 'PENDING' | 'RUNNING' | 'COMPLETED' | 'PAUSED' | 'CANCELLED' | 'ERROR';
+export type ApprovalPauseType = 'confirmation' | 'user_input' | 'user_feedback' | 'external_execution';
+export type ApprovalRunStatus = RunStatus;
 
 /**
  * Parameters for listing approvals

@@ -4,12 +4,16 @@
  */
 
 // Events
-export { RunEvent, type ClientEvent } from './events';
+export { RunEvent, RunStatus, type ClientEvent } from './events';
 
 // Messages
 export type {
   ToolMetrics,
+  UserInputField,
+  UserFeedbackOption,
+  UserFeedbackQuestion,
   ToolCall,
+  RunRequirement,
   ReasoningMessage,
   ReasoningSteps,
   ImageData,

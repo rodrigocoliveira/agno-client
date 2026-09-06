@@ -40,7 +40,7 @@ describe('AgnoClient RunPaused — Python-repr tool_args coercion', () => {
         session_id: 's1',
         created_at: 1,
         content_type: 'str',
-        tools_awaiting_external_execution: [
+        tools: [
           {
             role: 'tool',
             content: null,
@@ -128,7 +128,7 @@ describe('AgnoClient RunPaused — Python-repr tool_args coercion', () => {
         session_id: 's3',
         created_at: 1,
         content_type: 'str',
-        tools_awaiting_external_execution: [
+        tools: [
           {
             role: 'tool',
             content: null,

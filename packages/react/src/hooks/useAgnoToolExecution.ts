@@ -59,8 +59,8 @@ export interface ToolExecutionEvent {
 /**
  * Hook for handling frontend tool execution (HITL)
  *
- * **Note:** HITL (Human-in-the-Loop) frontend tool execution is only supported for agents.
- * Teams do not support the continue endpoint. This hook will log a warning and no-op if used with team mode.
+ * Supported for both agents and teams (Agno v3) — `client.continueRun()` builds
+ * the right wire payload for whichever mode the client is configured with.
  *
  * @param handlers - Map of tool names to handler functions (local handlers)
  * @param autoExecute - Whether to automatically execute tools when paused (default: true)
@@ -91,19 +91,6 @@ export function useAgnoToolExecution(
   const client = useAgnoClient();
   const toolHandlerContext = useToolHandlers();
 
-  // Check if in team mode - teams don't support HITL
-  const isTeamMode = client.getConfig().mode === 'team';
-
-  // Log warning once if in team mode
-  useEffect(() => {
-    if (isTeamMode) {
-      console.warn(
-        '[useAgnoToolExecution] HITL (Human-in-the-Loop) frontend tool execution is not supported for teams. ' +
-        'Only agents support the continue endpoint. This hook will not function in team mode.'
-      );
-    }
-  }, [isTeamMode]);
-
   // Merge global handlers with local handlers (local takes precedence)
   const mergedHandlers = useMemo(() => {
     const globalHandlers = toolHandlerContext?.handlers || {};
@@ -115,13 +102,8 @@ export function useAgnoToolExecution(
   const [isExecuting, setIsExecuting] = useState(false);
   const [executionError, setExecutionError] = useState<string | undefined>();
 
-  // Listen for run:paused events (only for agents, not teams)
+  // Listen for run:paused events (agents and teams both support HITL in Agno v3)
   useEffect(() => {
-    // Don't register listeners if in team mode
-    if (isTeamMode) {
-      return;
-    }
-
     const handleRunPaused = (event: ToolExecutionEvent) => {
       setIsPaused(true);
       setPendingTools(event.tools);
@@ -142,7 +124,7 @@ export function useAgnoToolExecution(
       client.off('run:paused', handleRunPaused);
       client.off('run:continued', handleRunContinued);
     };
-  }, [client, isTeamMode]);
+  }, [client]);
 
   /**
    * Execute all pending tools and continue the run

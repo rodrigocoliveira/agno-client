@@ -12,7 +12,7 @@ Turn it on per-call (or globally via config) when:
 - The route is embedded somewhere mid-flight navigation is expected.
 - The run produces durable side effects you don't want to lose if the browser disconnects.
 
-For short, fast responses, the foreground (NDJSON streaming) default is fine.
+For short, fast responses, the foreground streaming default is fine.
 
 ## How to enable it
 
@@ -75,7 +75,7 @@ currently streaming:
 ## Teams
 
 Teams support `/resume` too. Auto-resume works in both `mode: 'agent'` and `mode: 'team'`.
-(HITL `/continue` remains agent-only — unchanged.)
+(HITL `/continue` now works for teams as well, as of Agno v3 — see `docs/frontend-tools.md`.)
 
 ## What this does NOT do
 

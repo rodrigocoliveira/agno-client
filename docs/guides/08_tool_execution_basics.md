@@ -7,7 +7,7 @@
 
 This cookbook introduces Human-in-the-Loop (HITL) frontend tool execution. HITL allows agents to delegate specific tools to the frontend for execution, enabling browser-based operations, user interactions, and client-side logic.
 
-**Important:** HITL is only supported for **agents**, not teams. Teams do not have a `/continue` endpoint.
+**Agno v3:** HITL is supported for both **agents and teams** — `POST /teams/{id}/runs/{run_id}/continue` exists in v3. The library builds the right payload for each mode transparently; your `useAgnoToolExecution`/`continueRun()` code doesn't need to change based on mode.
 
 ## How HITL Works
 
@@ -369,7 +369,7 @@ agent = Agent(
 
 ## Key Points
 
-- **HITL is agent-only** - Teams do not support the continue endpoint
+- **HITL works for both agents and teams** (Agno v3) - `continueRun()` sends the right payload shape for each mode
 - Use `useAgnoToolExecution(handlers, autoExecute)` to register tool handlers
 - `autoExecute=true` (default) executes tools immediately when run pauses
 - `autoExecute=false` requires manual approval via `executeAndContinue()`

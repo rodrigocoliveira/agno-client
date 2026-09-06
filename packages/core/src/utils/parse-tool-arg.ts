@@ -1,16 +1,16 @@
 /**
- * Workaround for upstream agno bug — see:
- *   - https://github.com/agno-agi/agno/issues/8007 (upstream)
+ * Defensive fallback for an upstream agno v2 bug — see:
+ *   - https://github.com/agno-agi/agno/issues/8007 (upstream, closed)
  *   - https://github.com/rodrigocoliveira/agno-client/issues/11 (downstream)
  *
- * The agno backend (Python) serializes list/dict values inside `tool_args` via
- * `str()` / `repr()`, producing single-quoted Python literals that are NOT
- * valid JSON. We coerce them at the parser boundary so consumers always see
- * structured JS values.
- *
- * This module is forward-compatible: when agno emits structured JSON (or
- * json.dumps strings), the coercion becomes a no-op transparently and can be
- * removed by deleting this file and reverting the call sites.
+ * The agno v2 backend (Python) used to serialize list/dict values inside
+ * `tool_args` via `str()` / `repr()`, producing single-quoted Python literals
+ * that are NOT valid JSON. **Confirmed fixed in Agno v3** (`ToolExecution.tool_args`
+ * is now `Dict[str, Any]`, serialized normally — verified against `agno==3.0.6`
+ * source), so this coercion is no longer expected to ever trigger against a v3
+ * backend. It's kept as a harmless, no-cost safety net (JSON.parse is tried
+ * first) rather than removed outright, in case older Python-repr-style data is
+ * still present in historical session records read from the database.
  */
 
 /**

@@ -5,6 +5,81 @@ All notable changes to the Agno Client libraries will be documented in this file
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [3.0.0] - 2026-09-06
+
+### Breaking Changes — Agno v3 (AgentOS v3.0.x) support
+
+This release targets **Agno v3** exclusively. There is no v2 compatibility shim — if
+your AgentOS backend is still on v2, stay on the `2.x` line of these packages.
+All changes below were verified byte-for-byte against `agno==3.0.6` source and a
+live local capture, not inferred from docs.
+
+#### @rodrigocoliveira/agno-client
+
+- **Streaming is now SSE-only.** `POST /agents|teams/{id}/runs`, `/continue`, and
+  `/resume` all respond `text/event-stream` in Agno v3, for foreground and
+  background (job-queue) execution alike. The old NDJSON parser
+  (`parsers/stream-parser.ts`) has been **removed**; `sendMessage()` always uses
+  the SSE parser regardless of the `background` option. If you were depending on
+  the NDJSON wire format directly (not through this library's public API), that
+  format no longer exists on an Agno v3 backend.
+- **Teams now support `/continue` (HITL).** `continueRun()` no longer throws in
+  team mode. Internally it sends a different payload shape per mode (agent:
+  `tools`, team: `requirements`) — see `docs/frontend-tools.md`.
+- **`ToolCall.external_execution` renamed to `external_execution_required`**,
+  matching the real Agno v3 field name. If you read this field directly (outside
+  of `useAgnoToolExecution`), update the property name.
+- **`AgnoClientConfig.streamMemberEvents` / `StreamOptions` `stream_member_events`
+  removed.** Agno v3 no longer accepts this as a per-request field for team runs
+  (it's a Team-construction-time-only setting on the backend now); it was a no-op
+  form field being silently ignored by the server if you set it.
+- `RunEvent` gained ~20 new values (`RunContentCompleted`, `ToolCallError`,
+  `PreHookStarted`/`PostHookStarted`, model-request/compression/followups
+  lifecycle events, plus team-only "task mode" events). Additive — existing code
+  switching on `RunEvent` is unaffected, but the enum's TypeScript type now
+  includes these members.
+- Fixed: the `/resume` endpoint's `error` meta event's message is under the
+  `error` key, not `message`/`detail` — `resumeRun()` was reading the wrong key
+  and always falling back to the generic `"Resume failed"` message.
+- The `agno#8007` `tool_args` Python-repr serialization workaround
+  (`utils/parse-tool-arg.ts`) is now purely defensive — confirmed fixed upstream
+  in Agno v3. No action needed; kept for historical session data.
+
+#### @rodrigocoliveira/agno-types
+
+- `ToolCall` reshaped to match Agno v3's `ToolExecution` field-for-field
+  (`external_execution_required` rename, added `confirmation_note`,
+  `user_input_schema`, `user_feedback_schema`, `answered`, `approval_type`,
+  `approval_id`, `child_run_id`, `stop_after_tool_call`). `role`/`content` are now
+  optional (only populated when a tool call is synthesized from
+  `reasoning_messages` history — never part of the real backend shape).
+- New `RunRequirement`, `UserInputField`, `UserFeedbackQuestion`,
+  `UserFeedbackOption` types (HITL payload shapes).
+- New `RunStatus` enum (`PENDING`/`RUNNING`/`COMPLETED`/`PAUSED`/`CANCELLED`/`ERROR`/`REGENERATED`)
+  — the wire value is uppercase; `RunSchema`/`TeamRunSchema.status` is now typed
+  `RunStatus | string | null`.
+- `ApprovalPauseType` gained the previously-missing `'user_feedback'` variant;
+  `ApprovalRunStatus` is now an alias of `RunStatus`.
+
+#### @rodrigocoliveira/agno-react
+
+- `useAgnoToolExecution` now registers its `run:paused`/`run:continued` listeners
+  in team mode too (previously a no-op with a console warning in team mode).
+
+**Migration:** if you only use the public hooks/components (`useAgnoChat`,
+`useAgnoToolExecution`, `<AgnoChat>`, etc.) and don't read `stream_member_events`
+or `ToolCall.external_execution` directly, no code changes are needed beyond
+upgrading the package versions and your Agno backend to v3.
+
+### Follow-up (planned, non-breaking)
+
+A `3.1.0` is planned to add the remaining additive Agno v3 surface: new
+`/continue` parameters (`fork`, `regenerate`, `continueFrom`,
+`additionalInstructions`), `Idempotency-Key`/429/409 handling for background
+runs, `files_metadata`/`version`/`factory_input` on `sendMessage`, and
+`POST /components/{id}/restore` + optimistic-concurrency guards on Components
+write endpoints.
+
 ## [2.1.1] - 2026-05-27
 
 ### Fixed

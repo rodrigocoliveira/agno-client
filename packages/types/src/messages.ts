@@ -6,25 +6,93 @@ export interface ToolMetrics {
 }
 
 /**
- * Tool call information
+ * A single field of a `requires_user_input` tool's input form.
+ */
+export interface UserInputField {
+  name: string;
+  field_type: string;
+  description?: string | null;
+  value?: unknown;
+}
+
+/**
+ * One selectable option of a `UserFeedbackQuestion`.
+ */
+export interface UserFeedbackOption {
+  label: string;
+  description?: string | null;
+  selected?: boolean;
+}
+
+/**
+ * A structured question (with predefined options) used for user-feedback HITL.
+ */
+export interface UserFeedbackQuestion {
+  question: string;
+  header?: string | null;
+  options?: UserFeedbackOption[];
+  multi_select?: boolean;
+  selected_options?: string[] | null;
+}
+
+/**
+ * Tool call information.
+ *
+ * Mirrors Agno v3's `ToolExecution` dataclass field-for-field (verified against
+ * `agno==3.0.6` source and a live SSE capture) — `role`/`content` are NOT part of
+ * the backend shape; they only ever get populated by the client itself when a tool
+ * call is synthesized from a run's `reasoning_messages` history.
  */
 export interface ToolCall {
-  role: 'user' | 'tool' | 'system' | 'assistant';
-  content: string | null;
   tool_call_id: string;
   tool_name: string;
   tool_args: Record<string, unknown>;
-  tool_call_error: boolean;
-  metrics: ToolMetrics;
+  tool_call_error: boolean | null;
+  result?: unknown;
+  metrics?: ToolMetrics | null;
+  child_run_id?: string | null;
+  stop_after_tool_call?: boolean;
   created_at: number;
   // HITL fields
-  external_execution?: boolean;
-  requires_confirmation?: boolean;
-  requires_user_input?: boolean;
-  confirmed?: boolean;
-  result?: any;
+  requires_confirmation?: boolean | null;
+  confirmed?: boolean | null;
+  confirmation_note?: string | null;
+  requires_user_input?: boolean | null;
+  user_input_schema?: UserInputField[] | null;
+  user_feedback_schema?: UserFeedbackQuestion[] | null;
+  answered?: boolean | null;
+  external_execution_required?: boolean | null;
+  external_execution_silent?: boolean | null;
+  approval_type?: string | null;
+  approval_id?: string | null;
+  // Only present when synthesized from `reasoning_messages` history (see session-manager)
+  role?: 'user' | 'tool' | 'system' | 'assistant';
+  content?: string | null;
   // Generative UI field (serializable component spec only)
   ui_component?: any; // UIComponentSpec - imported dynamically to avoid circular deps
+}
+
+/**
+ * A requirement blocking a paused run (HITL), wrapping a `ToolCall`/`ToolExecution`
+ * plus the resolution fields the AgentOS API expects back.
+ *
+ * Matches Agno v3's `RunRequirement` dataclass. Used as the wire shape for
+ * `POST /teams/{id}/runs/{run_id}/continue`'s `requirements` field — the agent
+ * equivalent endpoint instead takes a flat `ToolCall[]` under `tools` (see
+ * `docs/frontend-tools.md`).
+ */
+export interface RunRequirement {
+  id?: string;
+  created_at?: string;
+  tool_execution: ToolCall;
+  confirmation?: boolean | null;
+  confirmation_note?: string | null;
+  user_input_schema?: UserInputField[] | null;
+  user_feedback_schema?: UserFeedbackQuestion[] | null;
+  external_execution_result?: string | null;
+  member_agent_id?: string | null;
+  member_agent_name?: string | null;
+  member_run_id?: string | null;
 }
 
 /**

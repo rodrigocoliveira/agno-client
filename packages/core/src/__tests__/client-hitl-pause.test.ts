@@ -80,7 +80,7 @@ describe('AgnoClient RunPaused handler', () => {
     expect(emitted[0].tools[0].tool_call_id).toBe('t2');
   });
 
-  test('passes through tools_awaiting_external_execution untouched', () => {
+  test('ignores tools_awaiting_external_execution shortcut key (never sent by Agno v3) and filters chunk.tools itself', () => {
     const client = makeClient();
     const handle = getHandleChunk(client);
 
@@ -91,7 +91,10 @@ describe('AgnoClient RunPaused handler', () => {
         session_id: 's2',
         created_at: 1,
         content_type: 'str',
-        tools_awaiting_external_execution: [pendingExternalTool],
+        // Verified against agno==3.0.6 source + a live capture: this shortcut key is a
+        // Python @property, never serialized on the wire. It's set here to prove the
+        // client doesn't rely on it, and would give the wrong (empty) answer if read.
+        tools_awaiting_external_execution: [],
         tools: [completedSyncTool, pendingExternalTool],
       } as any,
       's2',
@@ -125,12 +128,16 @@ describe('AgnoClient RunPaused handler', () => {
     expect(state.toolsAwaitingExecution).toEqual([]);
   });
 
-  test('accepts external_execution as an alternate field name', () => {
+  test('does not treat a bare `external_execution` field as pending (v3 field is `external_execution_required`)', () => {
     const client = makeClient();
     const handle = getHandleChunk(client);
 
-    const altShape = {
+    // `external_execution` (without `_required`) is not a real Agno v3 field —
+    // confirmed against `agno==3.0.6` source (`ToolExecution.external_execution_required`)
+    // and a live capture. A tool shaped like this must NOT be treated as pending.
+    const notARealField = {
       ...pendingExternalTool,
+      tool_call_id: 't4',
       external_execution_required: undefined,
       external_execution: true,
     };
@@ -142,14 +149,13 @@ describe('AgnoClient RunPaused handler', () => {
         session_id: 's4',
         created_at: 1,
         content_type: 'str',
-        tools: [completedSyncTool, altShape],
+        tools: [completedSyncTool, notARealField],
       } as any,
       's4',
       'hi'
     );
 
     const state = client.getState();
-    expect(state.toolsAwaitingExecution).toHaveLength(1);
-    expect(state.toolsAwaitingExecution![0].tool_call_id).toBe('t2');
+    expect(state.toolsAwaitingExecution).toHaveLength(0);
   });
 });

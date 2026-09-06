@@ -203,20 +203,6 @@ export class ConfigManager {
   }
 
   /**
-   * Get whether to request member events from backend
-   */
-  getStreamMemberEvents(): boolean {
-    return this.config.streamMemberEvents ?? false;
-  }
-
-  /**
-   * Set whether to request member events from backend
-   */
-  setStreamMemberEvents(stream: boolean): void {
-    this.updateField('streamMemberEvents', stream);
-  }
-
-  /**
    * Get whether sendMessage defaults to background mode.
    */
   getBackground(): boolean {

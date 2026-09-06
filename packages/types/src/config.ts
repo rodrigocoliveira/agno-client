@@ -89,13 +89,6 @@ export interface AgnoClientConfig {
   emitMemberEvents?: boolean;
 
   /**
-   * Whether to request member events from the backend during team runs.
-   * When false, the backend may skip sending internal agent events (saves bandwidth).
-   * Default: false
-   */
-  streamMemberEvents?: boolean;
-
-  /**
    * How to react to custom events that may carry session_state updates from the backend.
    *
    * Yield a `CustomEvent` dataclass with a `session_state` field from a tool and the client

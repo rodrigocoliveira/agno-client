@@ -85,10 +85,10 @@ import { ApprovalManager } from './managers/approval-manager';
 import { ComponentManager } from './managers/component-manager';
 import { SessionStateManager } from './managers/session-state-manager';
 import { EventProcessor } from './processors/event-processor';
-import { streamResponse } from './parsers/stream-parser';
 import { streamResponseSSE } from './parsers/sse-parser';
 import { Logger } from './utils/logger';
-import { parseToolArgs } from './utils/parse-tool-arg';
+import { getPendingTools } from './utils/pending-tools';
+import { buildAgentContinueTools, buildTeamContinueRequirements } from './utils/build-continue-payload';
 import { deepMerge } from './utils/deep-merge';
 
 /**
@@ -454,19 +454,17 @@ export class AgnoClient extends EventEmitter {
       formData.append('user_id', userId);
     }
 
-    // For team mode, control whether backend sends member events
-    if (this.configManager.getMode() === 'team') {
-      const streamMembers = this.configManager.getStreamMemberEvents();
-      formData.append('stream_member_events', String(streamMembers));
-    }
-
     await this.executeStream({
       apiUrl: runUrl,
       requestBody: formData,
       signal: this.abortController.signal,
       perRequestHeaders: options?.headers,
       perRequestParams: options?.params,
-      streamingFn: background ? streamResponseSSE : streamResponse,
+      // Agno v3's /runs endpoint always streams SSE (text/event-stream), for both
+      // foreground and background(+job-queue) execution — verified against
+      // agno==3.0.6 source and a live capture. `background` only changes execution
+      // semantics server-side, not the wire transport.
+      streamingFn: streamResponseSSE,
       onChunk: (chunk: RunResponse) => {
         this.handleChunk(chunk, newSessionId, formData.get('message') as string);
 
@@ -533,14 +531,16 @@ export class AgnoClient extends EventEmitter {
    * In agent mode: only Run* (non-Team) events should update the user-facing message.
    *
    * Certain events are always processed regardless of mode:
-   * - CustomEvent, RunPaused, RunContinued (control flow events)
+   * - CustomEvent, RunPaused/TeamRunPaused, RunContinued/TeamRunContinued (control flow events)
    */
   private shouldProcessForUserMessage(event: RunEvent): boolean {
     // Control flow events are always processed
     if (
       event === RunEvent.CustomEvent ||
       event === RunEvent.RunPaused ||
-      event === RunEvent.RunContinued
+      event === RunEvent.TeamRunPaused ||
+      event === RunEvent.RunContinued ||
+      event === RunEvent.TeamRunContinued
     ) {
       return true;
     }
@@ -647,25 +647,12 @@ export class AgnoClient extends EventEmitter {
       return;
     }
 
-    // Handle pause for HITL
-    if (event === RunEvent.RunPaused) {
+    // Handle pause for HITL (agents and teams both pause the same way in v3)
+    if (event === RunEvent.RunPaused || event === RunEvent.TeamRunPaused) {
       this.state.isStreaming = false;
       this.state.isPaused = true;
       this.state.pausedRunId = chunk.run_id;
-      const pendingTools =
-        chunk.tools_awaiting_external_execution ||
-        chunk.tools_requiring_confirmation ||
-        chunk.tools_requiring_user_input ||
-        (chunk.tools || []).filter(
-          (t: any) =>
-            (t.external_execution_required === true || t.external_execution === true) &&
-            (t.result === null || t.result === undefined)
-        );
-      // Coerce Python-repr tool_args (workaround for agno#8007 / agno-client#11).
-      this.state.toolsAwaitingExecution = pendingTools.map((t: any) => ({
-        ...t,
-        tool_args: parseToolArgs(t.tool_args as Record<string, unknown>),
-      }));
+      this.state.toolsAwaitingExecution = getPendingTools(chunk.tools);
 
       this.emit('run:paused', {
         runId: chunk.run_id,
@@ -896,9 +883,9 @@ export class AgnoClient extends EventEmitter {
     onChunk: (chunk: RunResponse) => void;
     onError: (error: Error) => void;
     onComplete: () => Promise<void>;
-    streamingFn?: typeof streamResponse;
+    streamingFn?: typeof streamResponseSSE;
   }): Promise<void> {
-    const streamingFn = config.streamingFn ?? streamResponse;
+    const streamingFn = config.streamingFn ?? streamResponseSSE;
 
     const executeStream = async () => {
       const headers = this.configManager.buildRequestHeaders(config.perRequestHeaders);
@@ -1249,19 +1236,13 @@ export class AgnoClient extends EventEmitter {
     this.state.errorMessage = undefined;
 
     // Detect runs that are still paused (user reloaded before answering a HITL tool).
-    // Only agents support HITL — teams have no /continue endpoint.
-    if (this.configManager.getMode() === 'agent') {
+    // Agno v3 supports /continue for both agents and teams.
+    {
       const pausedRun = response.find(
         (run: any) => typeof run.status === 'string' && run.status.toLowerCase() === 'paused'
       );
       if (pausedRun) {
-        const pendingTools = ((pausedRun as any).tools ?? [])
-          .filter((t: any) => t.external_execution_required === true && t.result === null)
-          // Coerce Python-repr tool_args (workaround for agno#8007 / agno-client#11).
-          .map((t: any) => ({
-            ...t,
-            tool_args: parseToolArgs(t.tool_args as Record<string, unknown>),
-          }));
+        const pendingTools = getPendingTools((pausedRun as any).tools);
         if (pendingTools.length > 0) {
           this.state.isPaused = true;
           this.state.pausedRunId = (pausedRun as any).run_id;
@@ -1742,28 +1723,21 @@ export class AgnoClient extends EventEmitter {
   /**
    * Continue a paused run with tool execution results.
    *
-   * **Note:** HITL (Human-in-the-Loop) frontend tool execution is only supported for agents.
-   * Teams do not support the continue endpoint.
+   * Agno v3 supports the `/continue` endpoint for both agents and teams, but the two
+   * expect different wire shapes: agents take a flat `tools` array, teams take a
+   * `requirements` array wrapping each tool (see `buildTeamContinueRequirements`).
+   * This method builds the right payload for the client's current mode.
    *
    * To cancel a running request, use the `cancelRun()` method.
    *
    * @param tools - Array of tool calls with execution results
    * @param options - Optional request headers and query parameters
    * @throws Error if no paused run exists
-   * @throws Error if called with team mode (teams don't support HITL)
    */
   async continueRun(
     tools: ToolCall[],
     options?: { headers?: Record<string, string>; params?: Record<string, string> }
   ): Promise<void> {
-    // Validate that we're not in team mode (teams don't support continue endpoint)
-    if (this.configManager.getMode() === 'team') {
-      throw new Error(
-        'HITL (Human-in-the-Loop) frontend tool execution is not supported for teams. ' +
-        'Only agents support the continue endpoint.'
-      );
-    }
-
     if (!this.state.isPaused || !this.state.pausedRunId) {
       throw new Error('No paused run to continue');
     }
@@ -1773,7 +1747,7 @@ export class AgnoClient extends EventEmitter {
       throw new Error('No agent or team selected');
     }
 
-    // Build continue URL: POST /agents/{id}/runs/{run_id}/continue
+    // Build continue URL: POST /agents|teams/{id}/runs/{run_id}/continue
     const continueUrl = `${runUrl}/${this.state.pausedRunId}/continue`;
 
     // Create new AbortController for this request
@@ -1784,14 +1758,12 @@ export class AgnoClient extends EventEmitter {
     this.emit('run:continued', { runId: this.state.pausedRunId });
     this.emit('state:change', this.getState());
 
-    // Clean tools before sending to backend (remove UI-specific fields)
-    const cleanedTools = tools.map(tool => {
-      const { ui_component, ...backendTool } = tool as any;
-      return backendTool;
-    });
-
     const formData = new FormData();
-    formData.append('tools', JSON.stringify(cleanedTools));
+    if (this.configManager.getMode() === 'team') {
+      formData.append('requirements', JSON.stringify(buildTeamContinueRequirements(tools)));
+    } else {
+      formData.append('tools', JSON.stringify(buildAgentContinueTools(tools)));
+    }
     formData.append('stream', 'true');
 
     const currentSessionId = this.configManager.getSessionId();
@@ -1946,7 +1918,10 @@ export class AgnoClient extends EventEmitter {
         }
 
         if (ev === 'error') {
+          // Confirmed against agno==3.0.6 source and a live capture: the resume
+          // meta error event's message lives under `error`, not `message`/`detail`.
           const message =
+            (chunk as any).error ||
             (chunk as any).message ||
             (chunk as any).detail ||
             (chunk.content as string) ||

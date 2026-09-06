@@ -101,6 +101,11 @@ export class EventProcessor {
       case RunEventEnum.TeamToolCallStarted:
       case RunEventEnum.ToolCallCompleted:
       case RunEventEnum.TeamToolCallCompleted:
+      case RunEventEnum.ToolCallError:
+      case RunEventEnum.TeamToolCallError:
+        // ToolCallError carries the failed tool on the same `tool`/`tools` fields as
+        // Started/Completed, with `tool_call_error: true` set on it — merging it in here
+        // is what makes the error state visible on the rendered tool call card.
         updatedMessage.tool_calls = processChunkToolCalls(
           chunk,
           lastMessage.tool_calls
@@ -234,15 +239,20 @@ export class EventProcessor {
         };
         break;
 
-      case RunEventEnum.UpdatingMemory:
+      case RunEventEnum.MemoryUpdateStarted:
+      case RunEventEnum.MemoryUpdateCompleted:
       case RunEventEnum.TeamMemoryUpdateStarted:
       case RunEventEnum.TeamMemoryUpdateCompleted:
         // No-op for now
         break;
 
       case RunEventEnum.RunPaused:
+      case RunEventEnum.TeamRunPaused:
         // Run paused for HITL - handled at client level
         // Don't update the message, just let the client emit run:paused event
+      case RunEventEnum.RunContinued:
+      case RunEventEnum.TeamRunContinued:
+        // Control-flow marker only - client emits run:continued when it calls continueRun()
       case RunEventEnum.CustomEvent:
         // Custom events are passed through without modifying message state.
         // They are handled at the client level via the 'custom:event' emission.
@@ -258,6 +268,54 @@ export class EventProcessor {
       case RunEventEnum.TeamRunError:
       case RunEventEnum.TeamRunCancelled:
         updatedMessage.streamingError = true;
+        break;
+
+      // --- Agno v3: newer lifecycle events with no message-mutation semantics
+      // defined yet. Listed explicitly (instead of falling through to a default)
+      // so each one is a deliberate no-op, not a silently-ignored unknown event. ---
+      case RunEventEnum.RunContentCompleted:
+      case RunEventEnum.TeamRunContentCompleted:
+      case RunEventEnum.RunIntermediateContent:
+      case RunEventEnum.TeamRunIntermediateContent:
+      case RunEventEnum.PreHookStarted:
+      case RunEventEnum.PreHookCompleted:
+      case RunEventEnum.TeamPreHookStarted:
+      case RunEventEnum.TeamPreHookCompleted:
+      case RunEventEnum.PostHookStarted:
+      case RunEventEnum.PostHookCompleted:
+      case RunEventEnum.TeamPostHookStarted:
+      case RunEventEnum.TeamPostHookCompleted:
+      case RunEventEnum.ReasoningContentDelta:
+      case RunEventEnum.TeamReasoningContentDelta:
+      case RunEventEnum.SessionSummaryStarted:
+      case RunEventEnum.SessionSummaryCompleted:
+      case RunEventEnum.TeamSessionSummaryStarted:
+      case RunEventEnum.TeamSessionSummaryCompleted:
+      case RunEventEnum.ParserModelResponseStarted:
+      case RunEventEnum.ParserModelResponseCompleted:
+      case RunEventEnum.TeamParserModelResponseStarted:
+      case RunEventEnum.TeamParserModelResponseCompleted:
+      case RunEventEnum.OutputModelResponseStarted:
+      case RunEventEnum.OutputModelResponseCompleted:
+      case RunEventEnum.TeamOutputModelResponseStarted:
+      case RunEventEnum.TeamOutputModelResponseCompleted:
+      case RunEventEnum.ModelRequestStarted:
+      case RunEventEnum.ModelRequestCompleted:
+      case RunEventEnum.TeamModelRequestStarted:
+      case RunEventEnum.TeamModelRequestCompleted:
+      case RunEventEnum.CompressionStarted:
+      case RunEventEnum.CompressionCompleted:
+      case RunEventEnum.TeamCompressionStarted:
+      case RunEventEnum.TeamCompressionCompleted:
+      case RunEventEnum.FollowupsStarted:
+      case RunEventEnum.FollowupsCompleted:
+      case RunEventEnum.TeamFollowupsStarted:
+      case RunEventEnum.TeamFollowupsCompleted:
+      case RunEventEnum.TeamTaskIterationStarted:
+      case RunEventEnum.TeamTaskIterationCompleted:
+      case RunEventEnum.TeamTaskStateUpdated:
+      case RunEventEnum.TeamTaskCreated:
+      case RunEventEnum.TeamTaskUpdated:
         break;
     }
 

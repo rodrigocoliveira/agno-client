@@ -16,6 +16,20 @@ Three packages with clear dependency hierarchy:
 
 Dependency flow: `types` ← `core` ← `react`
 
+## Agno v3 Compatibility
+
+As of `3.0.0`, this library targets **Agno v3** (AgentOS v3.0.x) exclusively — there is no v2 compatibility shim; consumers still on an Agno v2 backend should stay on the `2.x` line. All findings below were verified byte-for-byte against `agno==3.0.6` source and a live local capture (not guessed from docs/changelogs). Breaking changes from v2 that this library had to adapt to:
+
+- **Streaming is SSE-only** for `/runs`, `/continue`, and `/resume`, for both agents and teams, in foreground and background execution alike. The v2-era NDJSON parser (`stream-parser.ts`) is gone; `sse-parser.ts` is the only transport now. See "Streaming Implementation" below.
+- **Teams support `/continue` now** (they didn't in v2) — HITL works for both agents and teams. The wire payload differs by mode though: agents send `tools: ToolExecution[]`, teams send `requirements: RunRequirement[]` (each wrapping a tool). See "Frontend Tool Execution (HITL)" below.
+- **`ToolCall.external_execution_required`** is the real field name (renamed from the `external_execution` guess used in v2-era code).
+- **`tools_awaiting_external_execution` / `tools_requiring_confirmation` / `tools_requiring_user_input`** are never actually present on the wire (Python `@property`s, not serialized) — the client always filters the raw `tools` array itself (`utils/pending-tools.ts`).
+- **`stream_member_events`** is no longer a per-request field for team runs — it's a Team-construction-time-only setting on the backend now, so the client stopped sending it.
+- The `agno#8007` `tool_args` Python-repr serialization bug is fixed upstream in v3; the client's coercion workaround is now purely defensive.
+- `RunEvent` gained ~20 new values (hook, compression, followups, model-request lifecycle events, etc.) plus team-only "task mode" events — all added to the enum with explicit no-op handling in `EventProcessor` pending richer UI treatment.
+
+See `docs/frontend-tools.md` for the consumer-facing HITL guide (agents + teams) and `docs/background-execution.md` for the background/resume guide.
+
 ## Development Commands
 
 ### Essential Commands
@@ -121,14 +135,10 @@ Types are organized by domain:
 
 ### Streaming Implementation
 
-The streaming parser (`parsers/stream-parser.ts`) handles **incremental JSON parsing** from fetch streams:
+**Agno v3: all run streaming is SSE.** `POST /agents|teams/{id}/runs`, `/continue`, and `/resume` all respond with `text/event-stream` — for foreground, background(+job-queue), and resumed runs alike (verified against `agno==3.0.6` source: every `StreamingResponse(...)` in the agents/teams routers sets `media_type="text/event-stream"`, confirmed with a live capture). `parsers/sse-parser.ts` (`streamResponseSSE`) is the single parser used everywhere; the legacy NDJSON parser (`stream-parser.ts`, brace-counting incremental JSON with a "legacy vs `{event,data}`" auto-detect) was Agno v2-only and has been removed.
 
-- Accumulates partial JSON in a buffer
-- Uses brace-counting to detect complete JSON objects
-- Supports both legacy format (direct RunResponseContent) and new format (event/data structure)
-- Automatically converts new format to legacy for compatibility
-
-**Why this matters**: Standard `JSON.parse()` on a stream would fail with incomplete JSON. This parser is essential for real-time streaming.
+- SSE frame format: `event: <Type>\ndata: <json>\n\n`. `parseSSEBuffer` reads the `data:` line(s) as the canonical JSON payload; the SSE-level `event:` line is ignored (the payload's own `event` field disambiguates).
+- `background: true` no longer selects a different transport — it only changes execution semantics server-side (detached job-queue execution vs. an open connection). The client always uses `streamResponseSSE` in `sendMessage()`/`continueRun()`/`resumeRun()`.
 
 ### Tool Call Processing
 
@@ -146,25 +156,25 @@ The `SessionManager` converts the API's session format (with nested `message`/`r
 
 The library supports **Human-in-the-Loop (HITL)** frontend tool execution through the `useAgnoToolExecution` hook in the React package. This allows agents to delegate specific tools to the frontend for execution.
 
-**⚠️ Important:** HITL is only supported for agents, not teams. Teams do not have a `/continue` endpoint in the AgentOS API.
+**Agno v3: HITL is supported for both agents and teams.** `POST /teams/{id}/runs/{run_id}/continue` exists in v3 (it didn't in v2) — `client.continueRun()` no longer throws in team mode. The two modes use different wire payloads, handled transparently by the client: agents send a flat `tools: ToolExecution[]` FormData field; teams send a `requirements: RunRequirement[]` field, each entry wrapping a tool (`{ tool_execution, confirmation, confirmation_note, external_execution_result, ... }`). See `packages/core/src/utils/build-continue-payload.ts`.
 
 **How it works:**
 
-1. Agent calls a tool marked with `external_execution=True` on the backend
-2. Backend emits `RunPaused` event with tools awaiting execution
-3. Core client updates state (`isPaused: true`, stores `toolsAwaitingExecution`)
+1. Agent (or team) calls a tool marked with `external_execution=True` on the backend (wire field: `external_execution_required`)
+2. Backend emits `RunPaused`/`TeamRunPaused` event with tools awaiting execution
+3. Core client updates state (`isPaused: true`, stores `toolsAwaitingExecution`) by filtering the run's `tools` array for tools where `requires_confirmation`/`requires_user_input`/`external_execution_required` is still unresolved (see `packages/core/src/utils/pending-tools.ts`) — the `tools_awaiting_external_execution`/`tools_requiring_confirmation`/`tools_requiring_user_input` shortcut fields exist in the type for defensive typing only; Agno v3 never actually serializes them (they're Python `@property`s, confirmed against `agno==3.0.6` source and a live capture)
 4. Client emits `run:paused` event with tool details
 5. React hook (`useAgnoToolExecution`) listens to `run:paused` event
 6. Hook executes tools using user-defined handlers
-7. Hook calls `client.continueRun(toolResults)` to resume the agent (will throw error if mode is 'team')
+7. Hook calls `client.continueRun(toolResults)` to resume the agent/team — the client builds the right payload shape for the current mode
 8. Backend continues processing with the results
 
 **Event flow for paused runs:**
 ```
-Backend tool call → RunPaused event → AgnoClient state update
+Backend tool call → RunPaused/TeamRunPaused event → AgnoClient state update
 → emit('run:paused', { tools }) → useAgnoToolExecution listens
 → execute handlers → client.continueRun() → POST /continue endpoint
-→ RunContinued event → emit('run:continued') → state reset
+→ RunContinued/TeamRunContinued event → emit('run:continued') → state reset
 ```
 
 **Key files:**
@@ -317,7 +327,7 @@ All client methods that make API calls support the `params` option:
 **Key files:**
 - `packages/types/src/config.ts` - `AgnoClientConfig.params` and `StreamOptions.params` fields
 - `packages/core/src/managers/config-manager.ts` - `getParams()`, `setParams()`, and `buildQueryString()` methods
-- `packages/core/src/parsers/stream-parser.ts` - `streamResponse()` accepts and applies params
+- `packages/core/src/parsers/sse-parser.ts` - `streamResponseSSE()` accepts and applies params
 - `packages/core/src/managers/session-manager.ts` - All methods accept params and merge them into URLs
 - `packages/core/src/client.ts` - All API methods accept and use params
 - `packages/react/src/hooks/` - All hooks forward params to core client methods
@@ -604,25 +614,26 @@ function ComponentManager() {
 
 The client supports backgrounded runs that survive client disconnects. When
 `sendMessage(msg, { background: true })` (or `config.background = true`) is used,
-the lib appends `background=true` to the run FormData and routes the stream
-through a new SSE parser (`packages/core/src/parsers/sse-parser.ts`).
+the lib appends `background=true` to the run FormData. Agno v3 always streams SSE
+regardless of `background` (see "Streaming Implementation" above), so
+`background` only changes execution semantics server-side — detached job-queue
+execution vs. an open connection — not the transport.
 
 On the next `loadSession(sessionId)`, the lib scans the runs response for any
 run with `status === "RUNNING"` and fires `client.resumeRun({ runId, sessionId })`
 fire-and-forget. The `/resume` endpoint replays buffered events as SSE
-(`catch_up` / `replay` / `subscribed` meta events first, then real run events).
+(`catch_up` / `replay` / `subscribed` / `error` meta events first, then real run
+events — the `error` meta event's message is under the `error` key, not
+`message`/`detail`, confirmed against `agno==3.0.6` source and a live capture).
 The standard `handleChunk` pipeline absorbs them into the existing agent message.
 
 **Key files:**
-- `packages/core/src/parsers/sse-parser.ts` — `streamResponseSSE`, `parseSSEBuffer`
-- `packages/core/src/client.ts` — `sendMessage` opt-in branch; `resumeRun`;
+- `packages/core/src/parsers/sse-parser.ts` — `streamResponseSSE`, `parseSSEBuffer` (the only parser; the v2-era NDJSON `stream-parser.ts` was removed)
+- `packages/core/src/client.ts` — `sendMessage`; `resumeRun`;
   abort-on-switch in `loadSession`; defensive `session_id` filter in `handleChunk`
 - `packages/core/src/managers/config-manager.ts` — `getBackground`, `setBackground`, `getResumeUrl`
 
 **Consumer guide:** [docs/background-execution.md](docs/background-execution.md).
-
-The foreground NDJSON parser (`stream-parser.ts`) is unchanged — both parsers
-are wired through `executeStream`, which now takes an optional `streamingFn`.
 
 ## Type Safety and Official Types
 
@@ -665,7 +676,8 @@ The client expects these Agno API endpoints:
 - `GET /teams` - List teams
 - `POST /agents/{id}/runs` - Run agent (streaming)
 - `POST /teams/{id}/runs` - Run team (streaming)
-- `POST /agents/{id}/runs/{runId}/continue` - Continue paused agent run (HITL) - **Agent only**
+- `POST /agents/{id}/runs/{runId}/continue` - Continue paused agent run (HITL)
+- `POST /teams/{id}/runs/{runId}/continue` - Continue paused team run (HITL, Agno v3+)
 - `GET /sessions?type={type}&component_id={id}&db_id={dbId}` - List sessions
 - `GET /sessions/{id}/runs?type={type}&db_id={dbId}` - Get session
 - `DELETE /sessions/{id}?db_id={dbId}` - Delete session (unified for both agents and teams)
@@ -690,7 +702,7 @@ The client expects these Agno API endpoints:
 - `DELETE /components/{id}/configs/{version}` - Delete draft config version
 - `POST /components/{id}/configs/{version}/set-current` - Set published version as current
 
-**Important:** Teams do not support the `/continue` endpoint. HITL (Human-in-the-Loop) frontend tool execution is only available for agents.
+**Important:** As of Agno v3, both agents and teams support the `/continue` endpoint — HITL frontend tool execution works for both modes. The wire payload differs by mode (see "Frontend Tool Execution (HITL)" above); `continueRun()` handles that transparently.
 
 ## Working with Frontend Tool Execution
 
@@ -774,15 +786,14 @@ const renderTool: RenderTool = byToolName({
 
 **Known gaps:** no `Table` / `Markdown` / `Artifact` components are shipped from the library. Tool handlers can still emit those shapes via `createTable`/`createMarkdown`/`createArtifact`; rendering them is consumer's responsibility. (For markdown, the existing `Response` component from `/ui` covers most cases.)
 
-### `tool_args` Python-repr workaround (agno#8007 / #11)
+### `tool_args` Python-repr workaround (agno#8007 / #11) — fixed upstream in Agno v3
 
-The agno backend serializes list/dict values inside `tool_args` via Python `str()` / `repr()`, producing single-quoted literals that are NOT valid JSON. The core client coerces these at the parser boundary so handlers receive structured JS values.
+The Agno v2 backend used to serialize list/dict values inside `tool_args` via Python `str()` / `repr()`, producing single-quoted literals that are NOT valid JSON. **Confirmed fixed in Agno v3**: `ToolExecution.tool_args` is `Dict[str, Any]`, serialized normally (verified against `agno==3.0.6` source). The core client still coerces defensively at the parser boundary — harmless (tries `JSON.parse` first) and not expected to ever trigger against a v3 backend, but kept in case older Python-repr-style data exists in historical session records.
 
 - **Type**: `ToolCall.tool_args` is `Record<string, unknown>` (was `Record<string, string>`).
 - **Coercion order**: structured values pass through → `JSON.parse` → internal Python-literal parser → fallback to original string.
 - **Helper**: `packages/core/src/utils/parse-tool-arg.ts` (`parseToolArg`, `parseToolArgs`).
-- **Applied at**: `event-processor.ts:processToolCall`, two RunPaused paths in `client.ts`, and two spots in `session-manager.ts` (history load).
-- **Reversal**: when [agno#8007](https://github.com/agno-agi/agno/issues/8007) ships, delete `parse-tool-arg.ts` and revert the call sites. Keep the `Record<string, unknown>` type — it's the long-term-correct shape.
+- **Applied at**: `event-processor.ts:processToolCall`, `utils/pending-tools.ts:getPendingTools` (used by both the streaming `RunPaused`/`TeamRunPaused` path in `client.ts` and the paused-run-on-reload path in `loadSession`), and two spots in `session-manager.ts` (history load).
 
 For complete implementation examples, see `docs/frontend-tools.md`.
 

@@ -14,9 +14,9 @@ This guide shows how to use frontend tool execution (HITL - Human-in-the-Loop) a
 
 # Frontend Tool Execution (HITL)
 
-> **⚠️ Important:** Frontend tool execution (HITL) is **only supported for agents**, not teams. Teams do not have a `/continue` endpoint in the AgentOS API. If you attempt to use `continueRun()` or `useAgnoToolExecution` with team mode, you will receive an error.
+> **Agno v3:** Frontend tool execution (HITL) is supported for **both agents and teams** — `POST /teams/{id}/runs/{run_id}/continue` exists in Agno v3 (it didn't in v2). `useAgnoToolExecution` and `continueRun()` work the same way regardless of mode; the library builds the right wire payload for you (see [Agent vs. Team payloads](#agent-vs-team-continue-payloads) below). If you're still on an Agno v2 backend, stay on this library's `2.x` line, where team mode continues to throw.
 
-Frontend tool execution allows your Agno agents to delegate specific tools to the frontend application for execution.
+Frontend tool execution allows your Agno agents (or teams) to delegate specific tools to the frontend application for execution.
 
 ## Use Cases
 
@@ -27,12 +27,21 @@ Frontend tool execution allows your Agno agents to delegate specific tools to th
 
 ## How It Works
 
-1. Backend agent calls a tool marked with `external_execution=True`
-2. Agent run **pauses** and emits a `RunPaused` event
+1. Backend agent (or team) calls a tool marked with `external_execution=True`
+2. The run **pauses** and emits a `RunPaused` (agent) or `TeamRunPaused` (team) event
 3. Frontend receives the event with tools awaiting execution
 4. Frontend executes tools using your custom handlers
 5. Frontend calls `continueRun()` with results
-6. Agent run continues with the results
+6. The run continues with the results
+
+### Agent vs. team continue payloads
+
+`useAgnoToolExecution` and `continueRun()` present the exact same API for agents and teams — you don't need to branch on mode in your own code. Under the hood, `client.continueRun(tools)` builds a different `POST /.../runs/{run_id}/continue` FormData payload depending on `config.mode`, because the two AgentOS v3 endpoints expect different shapes:
+
+- **Agent**: a flat `tools` field — `JSON.stringify(tools)`, one entry per resolved `ToolCall`.
+- **Team**: a `requirements` field — each tool wrapped in a `RunRequirement`: `{ tool_execution: <the tool>, confirmation, confirmation_note, external_execution_result, user_input_schema, user_feedback_schema }`.
+
+This is handled by `buildAgentContinueTools`/`buildTeamContinueRequirements` in `packages/core/src/utils/build-continue-payload.ts`. You only ever need to pass the updated `ToolCall[]` to `continueRun()` — the library takes care of the rest.
 
 ## Basic Setup
 

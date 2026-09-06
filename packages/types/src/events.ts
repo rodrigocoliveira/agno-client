@@ -1,38 +1,127 @@
 /**
- * Events emitted during an Agno agent run
+ * Events emitted during an Agno agent run.
+ *
+ * Matches the Agno v3 (AgentOS v3.0.x) `RunEvent`/`TeamRunEvent` wire enums exactly
+ * (verified byte-for-byte against `agno==3.0.6` source, and against a live SSE capture).
  */
 export enum RunEvent {
   RunStarted = 'RunStarted',
   RunContent = 'RunContent',
+  RunContentCompleted = 'RunContentCompleted',
+  RunIntermediateContent = 'RunIntermediateContent',
   RunCompleted = 'RunCompleted',
   RunError = 'RunError',
-  RunOutput = 'RunOutput',
-  UpdatingMemory = 'UpdatingMemory',
-  ToolCallStarted = 'ToolCallStarted',
-  ToolCallCompleted = 'ToolCallCompleted',
-  MemoryUpdateStarted = 'MemoryUpdateStarted',
-  MemoryUpdateCompleted = 'MemoryUpdateCompleted',
-  ReasoningStarted = 'ReasoningStarted',
-  ReasoningStep = 'ReasoningStep',
-  ReasoningCompleted = 'ReasoningCompleted',
   RunCancelled = 'RunCancelled',
+
   RunPaused = 'RunPaused',
   RunContinued = 'RunContinued',
-  // Team Events
+
+  PreHookStarted = 'PreHookStarted',
+  PreHookCompleted = 'PreHookCompleted',
+  PostHookStarted = 'PostHookStarted',
+  PostHookCompleted = 'PostHookCompleted',
+
+  ToolCallStarted = 'ToolCallStarted',
+  ToolCallCompleted = 'ToolCallCompleted',
+  ToolCallError = 'ToolCallError',
+
+  ReasoningStarted = 'ReasoningStarted',
+  ReasoningStep = 'ReasoningStep',
+  ReasoningContentDelta = 'ReasoningContentDelta',
+  ReasoningCompleted = 'ReasoningCompleted',
+
+  MemoryUpdateStarted = 'MemoryUpdateStarted',
+  MemoryUpdateCompleted = 'MemoryUpdateCompleted',
+
+  SessionSummaryStarted = 'SessionSummaryStarted',
+  SessionSummaryCompleted = 'SessionSummaryCompleted',
+
+  ParserModelResponseStarted = 'ParserModelResponseStarted',
+  ParserModelResponseCompleted = 'ParserModelResponseCompleted',
+
+  OutputModelResponseStarted = 'OutputModelResponseStarted',
+  OutputModelResponseCompleted = 'OutputModelResponseCompleted',
+
+  ModelRequestStarted = 'ModelRequestStarted',
+  ModelRequestCompleted = 'ModelRequestCompleted',
+
+  CompressionStarted = 'CompressionStarted',
+  CompressionCompleted = 'CompressionCompleted',
+
+  FollowupsStarted = 'FollowupsStarted',
+  FollowupsCompleted = 'FollowupsCompleted',
+
+  // Team Events (mirror the agent events above 1:1, prefixed `Team`)
   TeamRunStarted = 'TeamRunStarted',
   TeamRunContent = 'TeamRunContent',
+  TeamRunContentCompleted = 'TeamRunContentCompleted',
+  TeamRunIntermediateContent = 'TeamRunIntermediateContent',
   TeamRunCompleted = 'TeamRunCompleted',
   TeamRunError = 'TeamRunError',
   TeamRunCancelled = 'TeamRunCancelled',
+
+  TeamRunPaused = 'TeamRunPaused',
+  TeamRunContinued = 'TeamRunContinued',
+
+  TeamPreHookStarted = 'TeamPreHookStarted',
+  TeamPreHookCompleted = 'TeamPreHookCompleted',
+  TeamPostHookStarted = 'TeamPostHookStarted',
+  TeamPostHookCompleted = 'TeamPostHookCompleted',
+
   TeamToolCallStarted = 'TeamToolCallStarted',
   TeamToolCallCompleted = 'TeamToolCallCompleted',
+  TeamToolCallError = 'TeamToolCallError',
+
   TeamReasoningStarted = 'TeamReasoningStarted',
   TeamReasoningStep = 'TeamReasoningStep',
+  TeamReasoningContentDelta = 'TeamReasoningContentDelta',
   TeamReasoningCompleted = 'TeamReasoningCompleted',
+
   TeamMemoryUpdateStarted = 'TeamMemoryUpdateStarted',
   TeamMemoryUpdateCompleted = 'TeamMemoryUpdateCompleted',
+
+  TeamSessionSummaryStarted = 'TeamSessionSummaryStarted',
+  TeamSessionSummaryCompleted = 'TeamSessionSummaryCompleted',
+
+  TeamParserModelResponseStarted = 'TeamParserModelResponseStarted',
+  TeamParserModelResponseCompleted = 'TeamParserModelResponseCompleted',
+
+  TeamOutputModelResponseStarted = 'TeamOutputModelResponseStarted',
+  TeamOutputModelResponseCompleted = 'TeamOutputModelResponseCompleted',
+
+  TeamModelRequestStarted = 'TeamModelRequestStarted',
+  TeamModelRequestCompleted = 'TeamModelRequestCompleted',
+
+  TeamCompressionStarted = 'TeamCompressionStarted',
+  TeamCompressionCompleted = 'TeamCompressionCompleted',
+
+  TeamFollowupsStarted = 'TeamFollowupsStarted',
+  TeamFollowupsCompleted = 'TeamFollowupsCompleted',
+
+  // Team-only "task mode" events (no agent equivalent)
+  TeamTaskIterationStarted = 'TeamTaskIterationStarted',
+  TeamTaskIterationCompleted = 'TeamTaskIterationCompleted',
+  TeamTaskStateUpdated = 'TeamTaskStateUpdated',
+  TeamTaskCreated = 'TeamTaskCreated',
+  TeamTaskUpdated = 'TeamTaskUpdated',
+
   // Custom Events (user-defined events from tools)
   CustomEvent = 'CustomEvent',
+}
+
+/**
+ * Status of a run, as reported by the AgentOS API (`RunStatus` enum).
+ * Wire values are UPPERCASE strings.
+ */
+export enum RunStatus {
+  Pending = 'PENDING',
+  Running = 'RUNNING',
+  Completed = 'COMPLETED',
+  Paused = 'PAUSED',
+  Cancelled = 'CANCELLED',
+  Error = 'ERROR',
+  /** Marker for a run whose response was regenerated via `/continue?regenerate=true` */
+  Regenerated = 'REGENERATED',
 }
 
 /**
